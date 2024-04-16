@@ -4,6 +4,8 @@ const std = @import("std");
 // Board is a 64, bit integer. Each bit represents a square on the board.
 // The least significant bit represents a1, the most significant bit represents h8.
 
+const BoardSize: u8 = 64;
+
 const Piece = struct {
     color: u8,
     value: u8,
@@ -13,8 +15,8 @@ const Piece = struct {
     pub fn reverse(self: Piece) Piece {
         var result: u64 = 0;
         var i: u8 = 0;
-        while (i < 64) : (i += 1) {
-            result |= ((self >> i) & 1) << (63 - i);
+        while (i < BoardSize) : (i += 1) {
+            result |= ((self >> i) & 1) << (BoardSize - 1 - i);
         }
         return result;
     }
@@ -124,34 +126,37 @@ const Position = struct {
 
     pub fn print(position: Position) [64]u8 {
         var printBuffer: [64]u8 = undefined;
-        var i: u7 = 0;
-        while (i < 64) : (i += 1) {
-            if ((position.WhiteKing >> @as(u6, @truncate(i))) & 1 == 1) {
+        var i: u6 = 0;
+        while (i < printBuffer.len) : (i += 1) {
+            if (position.WhiteKing >> i & 1 == 1) {
                 printBuffer[i] = WhiteKing.representation;
-            } else if ((position.WhiteQueen >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.WhiteQueen >> i & 1 == 1) {
                 printBuffer[i] = WhiteQueen.representation;
-            } else if ((position.WhiteRook >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.WhiteRook >> i & 1 == 1) {
                 printBuffer[i] = WhiteRook.representation;
-            } else if ((position.WhiteBishop >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.WhiteBishop >> i & 1 == 1) {
                 printBuffer[i] = WhiteBishop.representation;
-            } else if ((position.WhiteKnight >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.WhiteKnight >> i & 1 == 1) {
                 printBuffer[i] = WhiteKnight.representation;
-            } else if ((position.WhitePawn >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.WhitePawn >> i & 1 == 1) {
                 printBuffer[i] = WhitePawn.representation;
-            } else if ((position.BlackKing >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.BlackKing >> i & 1 == 1) {
                 printBuffer[i] = BlackKing.representation;
-            } else if ((position.BlackQueen >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.BlackQueen >> i & 1 == 1) {
                 printBuffer[i] = BlackQueen.representation;
-            } else if ((position.BlackRook >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.BlackRook >> i & 1 == 1) {
                 printBuffer[i] = BlackRook.representation;
-            } else if ((position.BlackBishop >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.BlackBishop >> i & 1 == 1) {
                 printBuffer[i] = BlackBishop.representation;
-            } else if ((position.BlackKnight >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.BlackKnight >> i & 1 == 1) {
                 printBuffer[i] = BlackKnight.representation;
-            } else if ((position.BlackPawn >> @as(u6, @truncate(i))) & 1 == 1) {
+            } else if (position.BlackPawn >> i & 1 == 1) {
                 printBuffer[i] = BlackPawn.representation;
             } else {
                 printBuffer[i] = Empty.representation;
+            }
+            if (i == BoardSize - 1) {
+                break;
             }
         }
         // print the buffer in reverse order
@@ -169,7 +174,7 @@ const Position = struct {
 const Board = struct {
     position: Position,
 
-    pub fn print(self: Board) [64]u8 {
+    pub fn print(self: Board) [BoardSize]u8 {
         return self.position.print();
     }
 };
@@ -177,9 +182,9 @@ const Board = struct {
 pub fn reverse(self: u64) u64 { // inverts from the center
     var result: u64 = 0;
     var i: u6 = 0;
-    while (i < 64) : (i += 1) {
-        result |= ((self >> i) & 1) << (63 - i);
-        if (i == 63) {
+    while (i < BoardSize) : (i += 1) {
+        result |= ((self >> i) & 1) << (0x3f - i);
+        if (i == BoardSize - 1) {
             break;
         }
     }
@@ -189,16 +194,16 @@ pub fn reverse(self: u64) u64 { // inverts from the center
 // function to parse fen string
 // example FEN : rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
 pub fn parseFen(fen: []const u8) Position {
-    std.debug.assert(fen.len < 64);
+    std.debug.assert(fen.len < BoardSize);
     var board: Board = Board{ .position = Position.emptyboard() }; // Assume emptyBoard initializes all bitboards to 0
-    var index: u7 = 0; // Index on the bitboard, valid values are 0 to 63
+    var index: u6 = 0; // Index on the bitboard, valid values are 0 to 63
 
     var i: usize = 0; // Index to iterate through FEN string characters
     while (i < fen.len) {
         switch (fen[i]) {
             // Major and minor pieces
             'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
-                var bit: u64 = @as(u64, 1) << @as(u6, @truncate(index));
+                var bit: u64 = @as(u64, 1) << index;
                 switch (fen[i]) {
                     'K' => board.position.WhiteKing |= bit,
                     'Q' => board.position.WhiteQueen |= bit,
@@ -213,6 +218,9 @@ pub fn parseFen(fen: []const u8) Position {
                     'n' => board.position.BlackKnight |= bit,
                     'p' => board.position.BlackPawn |= bit,
                     else => {}, // Should never happen, all cases are covered
+                }
+                if (index == BoardSize - 1) {
+                    break;
                 }
                 index += 1;
             },
@@ -243,10 +251,10 @@ pub fn parseFen(fen: []const u8) Position {
 
 test "print board" {
     var board: Board = Board{ .position = Position.init() };
-    try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..64]);
+    try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..BoardSize]);
 }
 
 test "fen" {
     var board: Board = Board{ .position = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR") };
-    try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..64]);
+    try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..BoardSize]);
 }
