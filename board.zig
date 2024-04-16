@@ -9,6 +9,15 @@ const Piece = struct {
     value: u8,
     representation: u8,
     current: u64 = 0,
+
+    pub fn reverse(self: Piece) Piece {
+        var result: u64 = 0;
+        var i: u8 = 0;
+        while (i < 64) : (i += 1) {
+            result |= ((self >> i) & 1) << (63 - i);
+        }
+        return result;
+    }
 };
 
 const WhiteKing: Piece = Piece{
@@ -58,6 +67,58 @@ const Position = struct {
             .BlackBishop = 0x2400000000000000,
             .BlackKnight = 0x4200000000000000,
             .BlackPawn = 0xFF000000000000,
+        };
+    }
+
+    pub fn emptyboard() Position {
+        return Position{
+            .WhiteKing = 0,
+            .WhiteQueen = 0,
+            .WhiteRook = 0,
+            .WhiteBishop = 0,
+            .WhiteKnight = 0,
+            .WhitePawn = 0,
+            .BlackKing = 0,
+            .BlackQueen = 0,
+            .BlackRook = 0,
+            .BlackBishop = 0,
+            .BlackKnight = 0,
+            .BlackPawn = 0,
+        };
+    }
+
+    pub fn flip(self: Position) Position {
+        return Position{
+            .WhiteKing = self.BlackKing,
+            .WhiteQueen = self.BlackQueen,
+            .WhiteRook = self.BlackRook,
+            .WhiteBishop = self.BlackBishop,
+            .WhiteKnight = self.BlackKnight,
+            .WhitePawn = self.BlackPawn,
+            .BlackKing = self.WhiteKing,
+            .BlackQueen = self.WhiteQueen,
+            .BlackRook = self.WhiteRook,
+            .BlackBishop = self.WhiteBishop,
+            .BlackKnight = self.WhiteKnight,
+            .BlackPawn = self.WhitePawn,
+        };
+    }
+
+    // inverts board from middle
+    pub fn invert(self: Position) Position {
+        return Position{
+            .WhiteKing = reverse(self.WhiteKing),
+            .WhiteQueen = reverse(self.WhiteQueen),
+            .WhiteRook = reverse(self.WhiteRook),
+            .WhiteBishop = reverse(self.WhiteBishop),
+            .WhiteKnight = reverse(self.WhiteKnight),
+            .WhitePawn = reverse(self.WhitePawn),
+            .BlackKing = reverse(self.BlackKing),
+            .BlackQueen = reverse(self.BlackQueen),
+            .BlackRook = reverse(self.BlackRook),
+            .BlackBishop = reverse(self.BlackBishop),
+            .BlackKnight = reverse(self.BlackKnight),
+            .BlackPawn = reverse(self.BlackPawn),
         };
     }
 
@@ -113,7 +174,79 @@ const Board = struct {
     }
 };
 
+pub fn reverse(self: u64) u64 { // inverts from the center
+    var result: u64 = 0;
+    var i: u6 = 0;
+    while (i < 64) : (i += 1) {
+        result |= ((self >> i) & 1) << (63 - i);
+        if (i == 63) {
+            break;
+        }
+    }
+    return result;
+}
+
+// function to parse fen string
+// example FEN : rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
+pub fn parseFen(fen: []const u8) Position {
+    std.debug.assert(fen.len < 64);
+    var board: Board = Board{ .position = Position.emptyboard() }; // Assume emptyBoard initializes all bitboards to 0
+    var index: u7 = 0; // Index on the bitboard, valid values are 0 to 63
+
+    var i: usize = 0; // Index to iterate through FEN string characters
+    while (i < fen.len) {
+        switch (fen[i]) {
+            // Major and minor pieces
+            'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
+                var bit: u64 = @as(u64, 1) << @as(u6, @truncate(index));
+                switch (fen[i]) {
+                    'K' => board.position.WhiteKing |= bit,
+                    'Q' => board.position.WhiteQueen |= bit,
+                    'R' => board.position.WhiteRook |= bit,
+                    'B' => board.position.WhiteBishop |= bit,
+                    'N' => board.position.WhiteKnight |= bit,
+                    'P' => board.position.WhitePawn |= bit,
+                    'k' => board.position.BlackKing |= bit,
+                    'q' => board.position.BlackQueen |= bit,
+                    'r' => board.position.BlackRook |= bit,
+                    'b' => board.position.BlackBishop |= bit,
+                    'n' => board.position.BlackKnight |= bit,
+                    'p' => board.position.BlackPawn |= bit,
+                    else => {}, // Should never happen, all cases are covered
+                }
+                index += 1;
+            },
+            '/' => {
+                // Advance to the next row, ensuring it does not wrap around to a new index out of bounds
+                // redo logic so that everything fits with u6
+                //std.debug.print("Index: {d}\n", .{index});
+                //std.debug.print("Modified Index: {d}\n", .{index});
+            },
+            '1' => index += 1,
+            '2' => index += 2,
+            '3' => index += 3,
+            '4' => index += 4,
+            '5' => index += 5,
+            '6' => index += 6,
+            '7' => index += 7,
+            '8' => index += 8,
+            else => {
+                // Handle unexpected characters or spaces gracefully
+            },
+        }
+        i += 1; // Move to the next character
+    }
+    // ensure rows are inverted
+
+    return board.position.invert();
+}
+
 test "print board" {
     var board: Board = Board{ .position = Position.init() };
+    try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..64]);
+}
+
+test "fen" {
+    var board: Board = Board{ .position = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR") };
     try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..64]);
 }
