@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: goto-bus-stop/setup-zig@v2
-      - run: zig test board.zig
+      - run: zig test lib.zig
   lint:
     runs-on: ubuntu-latest
     steps:
