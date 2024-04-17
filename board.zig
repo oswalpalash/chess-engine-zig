@@ -4,9 +4,9 @@ const std = @import("std");
 // Board is a 64, bit integer. Each bit represents a square on the board.
 // The least significant bit represents a1, the most significant bit represents h8.
 
-const BoardSize: u8 = 64;
+pub const BoardSize: u8 = 64;
 
-const Piece = struct {
+pub const Piece = struct {
     color: u8,
     value: u8,
     representation: u8,
@@ -14,33 +14,33 @@ const Piece = struct {
     stdval: u8 = 0,
 };
 
-const WhiteKing: Piece = Piece{ .color = 0, .value = 255, .representation = 'K', .stdval = 255 };
-const WhiteQueen: Piece = Piece{ .color = 0, .value = 9, .representation = 'Q', .stdval = 9 };
-const WhiteRook: Piece = Piece{ .color = 0, .value = 5, .representation = 'R', .stdval = 5 };
-const WhiteBishop: Piece = Piece{ .color = 0, .value = 3, .representation = 'B', .stdval = 3 };
-const WhiteKnight: Piece = Piece{ .color = 0, .value = 3, .representation = 'N', .stdval = 3 };
-const WhitePawn: Piece = Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1 };
-const BlackKing: Piece = Piece{ .color = 1, .value = 255, .representation = 'k', .stdval = 255 };
-const BlackQueen: Piece = Piece{ .color = 1, .value = 9, .representation = 'q', .stdval = 9 };
-const BlackRook: Piece = Piece{ .color = 1, .value = 5, .representation = 'r', .stdval = 5 };
-const BlackBishop: Piece = Piece{ .color = 1, .value = 3, .representation = 'b', .stdval = 3 };
-const BlackKnight: Piece = Piece{ .color = 1, .value = 3, .representation = 'n', .stdval = 3 };
-const BlackPawn: Piece = Piece{ .color = 1, .value = 1, .representation = 'p', .stdval = 1 };
+pub const WhiteKing: Piece = Piece{ .color = 0, .value = 255, .representation = 'K', .stdval = 255 };
+pub const WhiteQueen: Piece = Piece{ .color = 0, .value = 9, .representation = 'Q', .stdval = 9 };
+pub const WhiteRook: Piece = Piece{ .color = 0, .value = 5, .representation = 'R', .stdval = 5 };
+pub const WhiteBishop: Piece = Piece{ .color = 0, .value = 3, .representation = 'B', .stdval = 3 };
+pub const WhiteKnight: Piece = Piece{ .color = 0, .value = 3, .representation = 'N', .stdval = 3 };
+pub const WhitePawn: Piece = Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1 };
+pub const BlackKing: Piece = Piece{ .color = 1, .value = 255, .representation = 'k', .stdval = 255 };
+pub const BlackQueen: Piece = Piece{ .color = 1, .value = 9, .representation = 'q', .stdval = 9 };
+pub const BlackRook: Piece = Piece{ .color = 1, .value = 5, .representation = 'r', .stdval = 5 };
+pub const BlackBishop: Piece = Piece{ .color = 1, .value = 3, .representation = 'b', .stdval = 3 };
+pub const BlackKnight: Piece = Piece{ .color = 1, .value = 3, .representation = 'n', .stdval = 3 };
+pub const BlackPawn: Piece = Piece{ .color = 1, .value = 1, .representation = 'p', .stdval = 1 };
 const Empty: Piece = Piece{ .color = 2, .value = 0, .representation = '.', .stdval = 0 };
 
-const Position = struct {
-    WhiteKing: u64,
-    WhiteQueen: u64,
-    WhiteRook: u64,
-    WhiteBishop: u64,
-    WhiteKnight: u64,
-    WhitePawn: u64,
-    BlackKing: u64,
-    BlackQueen: u64,
-    BlackRook: u64,
-    BlackBishop: u64,
-    BlackKnight: u64,
-    BlackPawn: u64,
+pub const Position = struct {
+    WhiteKing: u64 = 0,
+    WhiteQueen: u64 = 0,
+    WhiteRook: u64 = 0,
+    WhiteBishop: u64 = 0,
+    WhiteKnight: u64 = 0,
+    WhitePawn: u64 = 0,
+    BlackKing: u64 = 0,
+    BlackQueen: u64 = 0,
+    BlackRook: u64 = 0,
+    BlackBishop: u64 = 0,
+    BlackKnight: u64 = 0,
+    BlackPawn: u64 = 0,
 
     pub fn init() Position {
         return Position{
@@ -159,7 +159,7 @@ const Position = struct {
 };
 
 // board is a structure of Position
-const Board = struct {
+pub const Board = struct {
     position: Position,
     move_count: u32 = 0,
     whitepieces: WhitePieces = WhitePieces{ .King = WhiteKing, .Queen = WhiteQueen, .Rook = WhiteRook, .Bishop = WhiteBishop, .Knight = WhiteKnight, .Pawn = WhitePawn },
