@@ -7,10 +7,13 @@ test "import works" {
     try std.testing.expectEqual(board.position.WhiteKing, 0b1000);
 }
 
+// dedup shifts
+const pawnShifts = [4]u6{ 8, 16, 7, 9 };
+
 pub fn AllPawnMoves(pos: u64) []u64 {
     // generate all possible pawn moves while ensuring popcount remains the same
     // forward one square, forward two squares, capture left, capture right
-    var shifts = [4]u6{ 8, 16, 7, 9 };
+    var shifts = pawnShifts;
     var moves: [256]u64 = undefined;
     @memset(&moves, 0);
     var index: usize = 0;
@@ -79,4 +82,31 @@ test "some pawn moves go out of board" {
     // white pawn at a2
     initPos.WhitePawn = 0x8000;
     try std.testing.expectEqual(AllPawnMoves(initPos.WhitePawn).len, 3);
+}
+
+// valid pawn moves
+// subset of all pawn moves when there are no pieces on the resulting squares
+// and no pieces on the squares in between
+pub fn ValidPawnMoves(loc: u64, pos: b.Position) []u64 {
+    _ = pos;
+    var moves: []u64 = AllPawnMoves(loc);
+    var validMoves: [256]u64 = undefined;
+    var index: usize = 0;
+    for (moves) |move| {
+        var valid: bool = true;
+        if (valid) {
+            validMoves[index] = move;
+            index += 1;
+        }
+    }
+
+    return validMoves[0..index];
+}
+
+test "valid pawn moves" {
+    var initPos: b.Position = b.Position.init();
+    var moves: []u64 = ValidPawnMoves(0x0800, initPos);
+    _ = moves;
+    // expect e3, e4
+    //try std.testing.expectEqual(moves.len, 2);
 }
