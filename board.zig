@@ -261,7 +261,7 @@ pub fn parseFen(fen: []const u8) Position {
         switch (fen[i]) {
             // Major and minor pieces
             'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
-                var bit: u64 = @as(u64, 1) << index;
+                const bit: u64 = @as(u64, 1) << index;
                 switch (fen[i]) {
                     'K' => board.position.whitepieces.King.position |= bit,
                     'Q' => board.position.whitepieces.Queen.position |= bit,
