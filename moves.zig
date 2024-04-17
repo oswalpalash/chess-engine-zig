@@ -2,7 +2,7 @@ const b = @import("board.zig");
 const std = @import("std");
 
 test "import works" {
-    var board = b.Board{ .position = b.Position.init() };
+    const board = b.Board{ .position = b.Position.init() };
     try std.testing.expectEqual(board.move_count, 0);
     try std.testing.expectEqual(board.position.whitepieces.King.position, 0b1000);
 }
@@ -13,7 +13,7 @@ const pawnShifts = [4]u6{ 8, 16, 7, 9 };
 pub fn AllPawnMoves(pos: u64) []u64 {
     // generate all possible pawn moves while ensuring popcount remains the same
     // forward one square, forward two squares, capture left, capture right
-    var shifts = pawnShifts;
+    const shifts = pawnShifts;
     var moves: [256]u64 = undefined;
     @memset(&moves, 0);
     var index: usize = 0;
@@ -89,11 +89,11 @@ pub fn AllPawnMoves(pos: u64) []u64 {
 // and no pieces on the squares in between
 pub fn ValidPawnMoves(loc: u64, pos: b.Position) []u64 {
     _ = pos;
-    var moves: []u64 = AllPawnMoves(loc);
+    const moves: []u64 = AllPawnMoves(loc);
     var validMoves: [256]u64 = undefined;
     var index: usize = 0;
     for (moves) |move| {
-        var valid: bool = true;
+        const valid: bool = true;
         if (valid) {
             validMoves[index] = move;
             index += 1;
