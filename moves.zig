@@ -95,32 +95,119 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
 
 test "piece from location" {
     const board = b.Board{ .position = b.Position.init() };
-    const piece = piecefromlocation(0x1, board);
+    const piece = piecefromlocation(
+        0x1,
+        board,
+    );
     try std.testing.expectEqual(piece.representation, 'R');
 }
 
 test "white pawn from location" {
     const board = b.Board{ .position = b.Position.init() };
-    const piece = piecefromlocation(0x100, board);
+    const piece = piecefromlocation(
+        0x100,
+        board,
+    );
     try std.testing.expectEqual(piece.representation, 'P');
 }
 
 test "empty location" {
     const board = b.Board{ .position = b.Position.init() };
-    const piece = piecefromlocation(0x10000, board);
+    const piece = piecefromlocation(
+        0x10000,
+        board,
+    );
     try std.testing.expectEqual(piece.representation, '.');
 }
 
 test "black pawn from location" {
     const board = b.Board{ .position = b.Position.init() };
-    const piece = piecefromlocation(0x10000000000000, board);
+    const piece = piecefromlocation(
+        0x10000000000000,
+        board,
+    );
     try std.testing.expectEqual(piece.representation, 'p');
 }
 
 test "black piece from location" {
     const board = b.Board{ .position = b.Position.init() };
-    const piece = piecefromlocation(0x8000000000000000, board);
+    const piece = piecefromlocation(
+        0x8000000000000000,
+        board,
+    );
     try std.testing.expectEqual(piece.representation, 'r');
+}
+
+pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
+    var piece: b.Piece = piecefromlocation(loc, board);
+    var boardCopy: b.Board = board;
+    // determine type of piece
+    _ = switch (piece.representation) {
+        'k' => {
+            boardCopy.position.blackpieces.King.position = 0;
+            piece.position = 0;
+        },
+        'q' => {
+            boardCopy.position.blackpieces.Queen.position = 0;
+            piece.position = 0;
+        },
+        'r' => {
+            if (boardCopy.position.blackpieces.Rook[0].position == loc) {
+                boardCopy.position.blackpieces.Rook[0].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Rook[1].position == loc) {
+                boardCopy.position.blackpieces.Rook[1].position = 0;
+                piece.position = 0;
+            }
+        },
+        'b' => {
+            if (boardCopy.position.blackpieces.Bishop[0].position == loc) {
+                boardCopy.position.blackpieces.Bishop[0].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Bishop[1].position == loc) {
+                boardCopy.position.blackpieces.Bishop[1].position = 0;
+                piece.position = 0;
+            }
+        },
+        'n' => {
+            if (boardCopy.position.blackpieces.Knight[0].position == loc) {
+                boardCopy.position.blackpieces.Knight[0].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Knight[1].position == loc) {
+                boardCopy.position.blackpieces.Knight[1].position = 0;
+                piece.position = 0;
+            }
+        },
+        'p' => {
+            if (boardCopy.position.blackpieces.Pawn[0].position == loc) {
+                boardCopy.position.blackpieces.Pawn[0].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[1].position == loc) {
+                boardCopy.position.blackpieces.Pawn[1].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[2].position == loc) {
+                boardCopy.position.blackpieces.Pawn[2].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[3].position == loc) {
+                boardCopy.position.blackpieces.Pawn[3].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[4].position == loc) {
+                boardCopy.position.blackpieces.Pawn[4].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[5].position == loc) {
+                boardCopy.position.blackpieces.Pawn[5].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[6].position == loc) {
+                boardCopy.position.blackpieces.Pawn[6].position = 0;
+                piece.position = 0;
+            } else if (boardCopy.position.blackpieces.Pawn[7].position == loc) {
+                boardCopy.position.blackpieces.Pawn[7].position = 0;
+                piece.position = 0;
+            }
+        },
+        else => {},
+    };
+    return boardCopy;
 }
 
 // valid pawn moves. only moves for white
@@ -169,7 +256,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             if (bitmap & (piece.position << 7) != 0) {
                 pawn.position = piece.position << 7;
                 // update board
-                moves[possiblemoves] = b.Board{ .position = board.position };
+                moves[possiblemoves] = captureblackpiece(pawn.position, b.Board{ .position = board.position });
                 moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
                 _ = moves[possiblemoves].print();
                 possiblemoves += 1;
@@ -179,7 +266,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             if (bitmap & (piece.position << 9) != 0) {
                 pawn.position = piece.position << 9;
                 // update board
-                moves[possiblemoves] = b.Board{ .position = board.position };
+                moves[possiblemoves] = captureblackpiece(pawn.position, b.Board{ .position = board.position });
                 moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
                 _ = moves[possiblemoves].print();
                 possiblemoves += 1;
@@ -209,4 +296,6 @@ test "pawn capture e3 f4 or go to e4" {
     board.position.blackpieces.Pawn[2].position = 0x4000000;
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 2);
+    try std.testing.expectEqual(moves[1].position.blackpieces.Pawn[2].position, 0);
+    try std.testing.expectEqual(moves[0].position.blackpieces.Pawn[2].position, 0x4000000);
 }
