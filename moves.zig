@@ -10,7 +10,7 @@ test "import works" {
 const pawnShifts = [4]u6{ 8, 16, 7, 9 };
 
 // takes in a board and iterates through all pieces and returns a 64 bit representation of the board
-pub fn piecebitmap(board: b.Board) u64 {
+pub fn bitmapfromboard(board: b.Board) u64 {
     var bitmap: u64 = 0;
     const cpiece = b.Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0 };
     _ = cpiece;
@@ -46,14 +46,87 @@ pub fn piecebitmap(board: b.Board) u64 {
 
 test "bitmap of initial board" {
     const board = b.Board{ .position = b.Position.init() };
-    const bitmap = piecebitmap(board);
+    const bitmap = bitmapfromboard(board);
     try std.testing.expectEqual(bitmap, 0xFFFF00000000FFFF);
+}
+
+pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
+    // iterate through all pieces of each colour to find which piece position matches the location
+    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
+        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
+            if ((@as(piece.type, @field(board.position.whitepieces, piece.name))).position == location) {
+                return (@as(piece.type, @field(board.position.whitepieces, piece.name)));
+            }
+        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece)) {
+            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
+                if (item.position == location) {
+                    return item;
+                }
+            }
+        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
+            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
+                if (item.position == location) {
+                    return item;
+                }
+            }
+        }
+    }
+    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
+        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
+            if ((@as(piece.type, @field(board.position.blackpieces, piece.name))).position == location) {
+                return (@as(piece.type, @field(board.position.blackpieces, piece.name)));
+            }
+        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece)) {
+            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
+                if (item.position == location) {
+                    return item;
+                }
+            }
+        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
+            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
+                if (item.position == location) {
+                    return item;
+                }
+            }
+        }
+    }
+    return b.Piece{ .color = 0, .value = 0, .representation = '.', .stdval = 0, .position = 0 };
+}
+
+test "piece from location" {
+    const board = b.Board{ .position = b.Position.init() };
+    const piece = piecefromlocation(0x1, board);
+    try std.testing.expectEqual(piece.representation, 'R');
+}
+
+test "white pawn from location" {
+    const board = b.Board{ .position = b.Position.init() };
+    const piece = piecefromlocation(0x100, board);
+    try std.testing.expectEqual(piece.representation, 'P');
+}
+
+test "empty location" {
+    const board = b.Board{ .position = b.Position.init() };
+    const piece = piecefromlocation(0x10000, board);
+    try std.testing.expectEqual(piece.representation, '.');
+}
+
+test "black pawn from location" {
+    const board = b.Board{ .position = b.Position.init() };
+    const piece = piecefromlocation(0x10000000000000, board);
+    try std.testing.expectEqual(piece.representation, 'p');
+}
+
+test "black piece from location" {
+    const board = b.Board{ .position = b.Position.init() };
+    const piece = piecefromlocation(0x8000000000000000, board);
+    try std.testing.expectEqual(piece.representation, 'r');
 }
 
 // valid pawn moves. only moves for white
 // return board array with all possible moves
 pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
-    var bitmap: u64 = piecebitmap(board);
+    const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
     var pawn: b.Piece = undefined;
@@ -126,8 +199,6 @@ test "ValidPawnMoves from e2 in start position" {
 test "ValidPawnMoves from e7 in empty board" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Pawn[3].position = 0x8000000000000;
-    std.debug.print("before\n", .{});
-    _ = board.print();
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 1);
 }
@@ -136,8 +207,6 @@ test "pawn capture e3 f4 or go to e4" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Pawn[3].position = 0x80000;
     board.position.blackpieces.Pawn[2].position = 0x4000000;
-    std.debug.print("before\n", .{});
-    _ = board.print();
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 2);
 }
