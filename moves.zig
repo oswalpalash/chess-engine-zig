@@ -210,6 +210,16 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
     return boardCopy;
 }
 
+test "capture black pawn at e7 in initial board" {
+    const newboard = captureblackpiece(0x8000000000000, b.Board{ .position = b.Position.init() });
+    try std.testing.expectEqual(newboard.position.blackpieces.Pawn[4].position, 0);
+}
+
+test "capture black rook at a8 in initial board" {
+    const newboard = captureblackpiece(0x8000000000000000, b.Board{ .position = b.Position.init() });
+    try std.testing.expectEqual(newboard.position.blackpieces.Rook[0].position, 0);
+}
+
 // valid pawn moves. only moves for white
 // return board array with all possible moves
 pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
