@@ -7,98 +7,137 @@ test "import works" {
     try std.testing.expectEqual(board.position.whitepieces.King.position, 0b1000);
 }
 
-// dedup shifts
 const pawnShifts = [4]u6{ 8, 16, 7, 9 };
 
-pub fn AllPawnMoves(pos: u64) []u64 {
-    // generate all possible pawn moves while ensuring popcount remains the same
-    // forward one square, forward two squares, capture left, capture right
-    const shifts = pawnShifts;
-    var moves: [256]u64 = undefined;
-    @memset(&moves, 0);
-    var index: usize = 0;
-    for (shifts) |shift| {
-        _ = switch (shift) {
-            8 => {
-                // forward one square, only disallowed on the last rank
-                if ((pos & 0xFF << 56) == 0) {
-                    moves[index] = pos << 8;
-                    if (pos << 8 != 0) {
-                        index += 1;
-                    }
-                }
-            },
-            16 => {
-                // forward two squares, only allowed on second rank
-                if ((pos & 0xFF00) != 0) {
-                    moves[index] = pos << 16;
-                    if (pos << 16 != 0) {
-                        index += 1;
-                    }
-                }
-            },
-            7 => {
-                // capture left, disallowed on the a file
-                if ((pos & 0x8080808080808080) == 0) {
-                    moves[index] = pos << 7;
-                    if (pos << 7 != 0) {
-                        index += 1;
-                    }
-                }
-            },
-            9 => {
-                // capture right, disallowed on the h file
-                if ((pos & 0x0101010101010101) == 0) {
-                    moves[index] = pos << 9;
-                    if (pos << 9 != 0) {
-                        index += 1;
-                    }
-                }
-            },
-            else => {},
-        };
+// takes in a board and iterates through all pieces and returns a 64 bit representation of the board
+pub fn piecebitmap(board: b.Board) u64 {
+    var bitmap: u64 = 0;
+    const cpiece = b.Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0 };
+    _ = cpiece;
+    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
+        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
+            bitmap |= (@as(piece.type, @field(board.position.whitepieces, piece.name))).position;
+        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece)) {
+            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
+                bitmap |= item.position;
+            }
+        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
+            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
+                bitmap |= item.position;
+            }
+        }
     }
-    return moves[0..index];
-}
-
-//test "all pawn moves" {
-//    var initPos: b.Position = b.Position.emptyboard();
-//    initPos.WhitePawn = 0x8 << 8;
-//    var moves: []u64 = AllPawnMoves(initPos.WhitePawn);
-//    // expect e3, e4, d3 and f3
-//    try std.testing.expectEqual(moves.len, 4);
-//}
-
-//test "pawn moves out of board" {
-//    var initPos: b.Position = b.Position.emptyboard();
-//    initPos.WhitePawn = 0x0800000000000000;
-//    var moves: []u64 = AllPawnMoves(initPos.WhitePawn);
-//    _ = moves;
-//    try std.testing.expectEqual(AllPawnMoves(initPos.WhitePawn).len, 0);
-//}
-
-//test "some pawn moves go out of board" {
-//    var initPos: b.Position = b.Position.emptyboard();
-//    // white pawn at a2
-//    initPos.WhitePawn = 0x8000;
-//    try std.testing.expectEqual(AllPawnMoves(initPos.WhitePawn).len, 3);
-//}
-
-// valid pawn moves
-// subset of all pawn moves when there are no pieces on the resulting squares
-// and no pieces on the squares in between
-pub fn ValidPawnMoves(loc: u64, pos: b.Position) []u64 {
-    _ = pos;
-    const moves: []u64 = AllPawnMoves(loc);
-    var validMoves: [256]u64 = undefined;
-    var index: usize = 0;
-    for (moves) |move| {
-        const valid: bool = true;
-        if (valid) {
-            validMoves[index] = move;
-            index += 1;
+    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
+        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
+            bitmap |= (@as(piece.type, @field(board.position.blackpieces, piece.name))).position;
+        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece)) {
+            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
+                bitmap |= item.position;
+            }
+        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
+            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
+                bitmap |= item.position;
+            }
         }
     }
 
-    return validMoves[0..index];
+    return bitmap;
+}
+
+test "bitmap of initial board" {
+    const board = b.Board{ .position = b.Position.init() };
+    const bitmap = piecebitmap(board);
+    try std.testing.expectEqual(bitmap, 0xFFFF00000000FFFF);
+}
+
+// valid pawn moves. only moves for white
+// return board array with all possible moves
+pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
+    var bitmap: u64 = piecebitmap(board);
+    var moves: [256]b.Board = undefined;
+    var possiblemoves: u64 = 0;
+    var pawn: b.Piece = undefined;
+    var index: u64 = 0;
+    //@memset(&moves, 0);
+    // determine which piece is being moved
+    for (board.position.whitepieces.Pawn, 0..) |item, loopidx| {
+        if (item.position == piece.position) {
+            pawn = item;
+            index = loopidx;
+        }
+    }
+    // iterate through all possible moves
+    // single move forward only if no piece is in front
+    for (pawnShifts) |shift| switch (shift) {
+        8 => {
+            if (bitmap & (piece.position << 8) == 0) {
+                pawn.position = piece.position << 8;
+                // update board
+                moves[possiblemoves] = b.Board{ .position = board.position };
+                moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+            }
+        },
+        16 => {
+            // only allowed on second row
+            // not allowed if there is a piece in front
+            if (bitmap & (piece.position << 16) == 0 and (piece.position & 0xFF00) != 0 and (bitmap & piece.position << 8) == 0) {
+                pawn.position = piece.position << 16;
+                // update board
+                moves[possiblemoves] = b.Board{ .position = board.position };
+                moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+            }
+        },
+        7 => {
+            // remove captured piece from board
+            if (bitmap & (piece.position << 7) != 0) {
+                pawn.position = piece.position << 7;
+                // update board
+                moves[possiblemoves] = b.Board{ .position = board.position };
+                moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+            }
+        },
+        9 => {
+            if (bitmap & (piece.position << 9) != 0) {
+                pawn.position = piece.position << 9;
+                // update board
+                moves[possiblemoves] = b.Board{ .position = board.position };
+                moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+            }
+        },
+        else => {},
+    };
+    return moves[0..possiblemoves];
+}
+
+test "ValidPawnMoves from e2 in start position" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[4], board);
+    try std.testing.expectEqual(moves.len, 2);
+}
+
+test "ValidPawnMoves from e7 in empty board" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[3].position = 0x8000000000000;
+    std.debug.print("before\n", .{});
+    _ = board.print();
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
+    try std.testing.expectEqual(moves.len, 1);
+}
+
+test "pawn capture e3 f4 or go to e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[3].position = 0x80000;
+    board.position.blackpieces.Pawn[2].position = 0x4000000;
+    std.debug.print("before\n", .{});
+    _ = board.print();
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
+    try std.testing.expectEqual(moves.len, 2);
 }
