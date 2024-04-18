@@ -1,5 +1,18 @@
 ### Zig based Chess Engine
 
-Mostly for me to learn zig.
-Code may be broken.
+### Project Summary
+
+A chess engine written in zig. Mostly written as a means to learn and improve at zig.
+
+#### What works?
+
+- [ ] UCI Compliant
+- [ ] Basic Evaluation
+- [x] FEN Parsing
+- [x] Board Design and Piece Information
+- [ ] Move Generator (WIP)
+- [x] Unit Tests for supported code
+- [x] CI Based Testing ![CI](https://github.com/oswalpalash/chess-engine-zig/actions/workflows/ci.yaml/badge.svg)
+
+**_NOTE:_** This is an evolving project. No backwards compatibility guaraenteed.
 
