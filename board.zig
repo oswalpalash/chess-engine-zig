@@ -143,6 +143,7 @@ pub const Position = struct {
 
     pub fn print(position: Position) [64]u8 {
         var printBuffer: [64]u8 = undefined;
+        std.debug.print("\n", .{});
         var i: u6 = 0;
         while (i < printBuffer.len) : (i += 1) {
             if (position.whitepieces.King.position >> i & 1 == 1) {
@@ -223,6 +224,7 @@ pub const Position = struct {
             }
             std.debug.print("{c}", .{printBuffer[printBuffer.len - 1 - index]});
         }
+        std.debug.print("\n", .{});
         return printBuffer;
     }
 };
