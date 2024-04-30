@@ -220,6 +220,13 @@ test "capture black rook at a8 in initial board" {
     try std.testing.expectEqual(newboard.position.blackpieces.Rook[0].position, 0);
 }
 
+test "ensure self captures are not allowed. add a3 pawn in init board and check pawn moves for a2 pawn" {
+    var board = b.Board{ .position = b.Position.init() };
+    board.position.whitepieces.Pawn[7].position = 0x10000;
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 0);
+}
+
 // valid pawn moves. only moves for white
 // return board array with all possible moves
 pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
