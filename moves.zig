@@ -563,7 +563,7 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    var king: b.Piece = undefined;
+    var king: b.Piece = piece;
     var dummypiece: b.Piece = undefined;
     const directional_kingshifts = [4]u6{ 1, 7, 8, 9 };
     // forward moves
@@ -653,4 +653,12 @@ test "ValidKingMoves for init board with king on e1" {
     const board = b.Board{ .position = b.Position.init() };
     const moves = ValidKingMoves(board.position.whitepieces.King, board);
     try std.testing.expectEqual(moves.len, 0);
+}
+
+test "ValidKingMoves for empty board with king on e1 and black piece on e2" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.blackpieces.Pawn[4].position = c.E2;
+    const moves = ValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 5);
 }
