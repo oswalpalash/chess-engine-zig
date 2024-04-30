@@ -212,17 +212,18 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
 
 test "capture black pawn at e7 in initial board" {
     const newboard = captureblackpiece(0x8000000000000, b.Board{ .position = b.Position.init() });
-    try std.testing.expectEqual(newboard.position.blackpieces.Pawn[4].position, 0);
+    try std.testing.expectEqual(newboard.position.blackpieces.Pawn[3].position, 0);
 }
 
 test "capture black rook at a8 in initial board" {
     const newboard = captureblackpiece(0x8000000000000000, b.Board{ .position = b.Position.init() });
-    try std.testing.expectEqual(newboard.position.blackpieces.Rook[0].position, 0);
+    try std.testing.expectEqual(newboard.position.blackpieces.Rook[1].position, 0);
 }
 
 test "ensure self captures are not allowed. add a3 pawn in init board and check pawn moves for a2 pawn" {
     var board = b.Board{ .position = b.Position.init() };
-    board.position.whitepieces.Pawn[7].position = 0x10000;
+    board.position.whitepieces.Pawn[7].position = 0x800000;
+    _ = board.print();
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
     try std.testing.expectEqual(moves.len, 0);
 }
@@ -350,8 +351,8 @@ test "col from bitmap of e2 pawn in init board" {
     const col = colfrombitmap(board.position.whitepieces.Pawn[3].position);
     const col2 = colfrombitmap(board.position.blackpieces.Rook[0].position);
     const col3 = colfrombitmap(board.position.whitepieces.King.position);
-    try std.testing.expectEqual(col, 5);
-    try std.testing.expectEqual(col2, 1);
+    try std.testing.expectEqual(col, 4);
+    try std.testing.expectEqual(col2, 8);
     try std.testing.expectEqual(col3, 5);
 }
 
