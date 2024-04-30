@@ -662,3 +662,160 @@ test "ValidKingMoves for empty board with king on e1 and black piece on e2" {
     const moves = ValidKingMoves(board.position.whitepieces.King, board);
     try std.testing.expectEqual(moves.len, 5);
 }
+
+// Valid knight moves
+pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
+    const bitmap: u64 = bitmapfromboard(board);
+    var moves: [256]b.Board = undefined;
+    var possiblemoves: u64 = 0;
+    var knight: b.Piece = piece;
+    var dummypiece: b.Piece = undefined;
+    const knightshifts = [4]u6{ 6, 10, 15, 17 };
+    const originalcolindex: u64 = colfrombitmap(knight.position);
+    var newcolindex: u64 = undefined;
+    // forward moves
+    for (knightshifts) |shift| {
+        if (knight.position << shift == 0) {
+            break;
+        }
+        // if there is no piece, allow shifting
+        // if there is a piece, check if it is of different colour, if so, capture it
+        // if it is of same colour, don't allow shifting
+        if (bitmap & (knight.position << shift) == 0) {
+            dummypiece = piecefromlocation(knight.position << shift, board);
+            newcolindex = colfrombitmap(knight.position << shift);
+            if (dummypiece.representation != '.') {
+                if (dummypiece.color == knight.color) {
+                    break;
+                }
+            }
+            if (newcolindex > originalcolindex) {
+                if (newcolindex - originalcolindex > 2) {
+                    // skip this move
+                    continue;
+                }
+            } else {
+                if (originalcolindex - newcolindex > 2) {
+                    continue;
+                }
+            }
+
+            dummypiece.position = knight.position << shift;
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Knight[0].position = dummypiece.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (knight.position << shift) != 0) {
+                dummypiece = piecefromlocation(knight.position << shift, board);
+                newcolindex = colfrombitmap(knight.position << shift);
+                if (newcolindex > originalcolindex) {
+                    if (newcolindex - originalcolindex > 2) {
+                        // skip this move
+                        continue;
+                    }
+                } else {
+                    if (originalcolindex - newcolindex > 2) {
+                        continue;
+                    }
+                }
+                if (dummypiece.representation != '.') {
+                    if (dummypiece.color != knight.color) {
+                        dummypiece.position = knight.position << shift;
+                        // update board
+                        moves[possiblemoves] = captureblackpiece(dummypiece.position, b.Board{ .position = board.position });
+                        moves[possiblemoves].position.whitepieces.Knight[0].position = dummypiece.position;
+                        _ = moves[possiblemoves].print();
+                        possiblemoves += 1;
+                    }
+                }
+            }
+        }
+    }
+    knight = piece;
+    // reverse moves
+    for (knightshifts) |shift| {
+        if (knight.position >> shift == 0) {
+            break;
+        }
+        if (bitmap & (knight.position >> shift) == 0) {
+            dummypiece = piecefromlocation(knight.position >> shift, board);
+            newcolindex = colfrombitmap(knight.position >> shift);
+            if (dummypiece.representation != '.') {
+                if (dummypiece.color == knight.color) {
+                    break;
+                }
+            }
+            if (newcolindex > originalcolindex) {
+                if (newcolindex - originalcolindex > 2) {
+                    continue;
+                }
+            } else {
+                if (originalcolindex - newcolindex > 2) {
+                    continue;
+                }
+            }
+            dummypiece.position = knight.position >> shift;
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Knight[0].position = dummypiece.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (knight.position >> shift) != 0) {
+                dummypiece = piecefromlocation(knight.position >> shift, board);
+                newcolindex = colfrombitmap(knight.position >> shift);
+                if (newcolindex > originalcolindex) {
+                    if (newcolindex - originalcolindex > 2) {
+                        continue;
+                    }
+                } else {
+                    if (originalcolindex - newcolindex > 2) {
+                        continue;
+                    }
+                }
+
+                if (newcolindex - originalcolindex >= 2 or newcolindex - originalcolindex <= -2) {
+                    break;
+                }
+                if (dummypiece.representation != '.') {
+                    if (dummypiece.color != knight.color) {
+                        dummypiece.position = knight.position >> shift;
+                        // update board
+                        moves[possiblemoves] = captureblackpiece(knight.position, b.Board{ .position = board.position });
+                        moves[possiblemoves].position.whitepieces.Knight[0].position = dummypiece.position;
+                        _ = moves[possiblemoves].print();
+                        possiblemoves += 1;
+                    }
+                }
+            }
+        }
+    }
+    return moves[0..possiblemoves];
+}
+
+test "ValidKnightMoves for empty board with knight on e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Knight[0].position = c.E4;
+    _ = board.print();
+    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 8);
+}
+
+test "ValidKnightMoves for init board with knight on b1" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 2);
+    try std.testing.expectEqual(moves[0].position.whitepieces.Knight[0].position, c.C3);
+    try std.testing.expectEqual(moves[1].position.whitepieces.Knight[0].position, c.A3);
+}
+
+test "ValidKnightMoves for empty board with knight on b1 and black piece on c3" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Knight[0].position = c.B1;
+    board.position.blackpieces.Pawn[2].position = c.C3;
+    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 3);
+    try std.testing.expectEqual(moves[1].position.blackpieces.Pawn[2].position, 0);
+}
