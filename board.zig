@@ -1,4 +1,5 @@
 const std = @import("std");
+const c = @import("consts.zig");
 // Board Representation
 
 // Board is a 64, bit integer. Each bit represents a square on the board.
@@ -54,24 +55,24 @@ pub const Position = struct {
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
         var blackpieces: BlackPieces = BlackPieces{};
-        whitepieces.King.position = 0x8;
-        whitepieces.Queen.position = 0x10;
-        whitepieces.Rook[0].position = 0x80;
-        whitepieces.Rook[1].position = 0x1;
-        whitepieces.Bishop[0].position = 0x20;
-        whitepieces.Bishop[1].position = 0x4;
-        whitepieces.Knight[0].position = 0x40;
-        whitepieces.Knight[1].position = 0x2;
-        whitepieces.Pawn[0].position = 0x8000;
-        whitepieces.Pawn[1].position = 0x4000;
-        whitepieces.Pawn[2].position = 0x2000;
-        whitepieces.Pawn[3].position = 0x1000;
-        whitepieces.Pawn[4].position = 0x800;
-        whitepieces.Pawn[5].position = 0x400;
-        whitepieces.Pawn[6].position = 0x200;
-        whitepieces.Pawn[7].position = 0x100;
-        blackpieces.King.position = 0x800000000000000;
-        blackpieces.Queen.position = 0x1000000000000000;
+        whitepieces.King.position = c.E1;
+        whitepieces.Queen.position = c.D1;
+        whitepieces.Rook[0].position = c.A1;
+        whitepieces.Rook[1].position = c.H1;
+        whitepieces.Bishop[0].position = c.C1;
+        whitepieces.Bishop[1].position = c.F1;
+        whitepieces.Knight[0].position = c.B1;
+        whitepieces.Knight[1].position = c.G1;
+        whitepieces.Pawn[0].position = c.A2;
+        whitepieces.Pawn[1].position = c.B2;
+        whitepieces.Pawn[2].position = c.C2;
+        whitepieces.Pawn[3].position = c.D2;
+        whitepieces.Pawn[4].position = c.E2;
+        whitepieces.Pawn[5].position = c.F2;
+        whitepieces.Pawn[6].position = c.G2;
+        whitepieces.Pawn[7].position = c.H2;
+        blackpieces.King.position = c.E8;
+        blackpieces.Queen.position = c.D8;
         blackpieces.Rook[0].position = reverse(whitepieces.Rook[0].position);
         blackpieces.Rook[1].position = reverse(whitepieces.Rook[1].position);
         blackpieces.Bishop[0].position = reverse(whitepieces.Bishop[0].position);

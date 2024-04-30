@@ -1,10 +1,11 @@
 const b = @import("board.zig");
+const c = @import("consts.zig");
 const std = @import("std");
 
 test "import works" {
     const board = b.Board{ .position = b.Position.init() };
     try std.testing.expectEqual(board.move_count, 0);
-    try std.testing.expectEqual(board.position.whitepieces.King.position, 0b1000);
+    try std.testing.expectEqual(board.position.whitepieces.King.position, c.E1);
 }
 
 const pawnShifts = [4]u6{ 8, 16, 7, 9 };
@@ -17,11 +18,7 @@ pub fn bitmapfromboard(board: b.Board) u64 {
     inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
         if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
             bitmap |= (@as(piece.type, @field(board.position.whitepieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
+        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
             for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
                 bitmap |= item.position;
             }
@@ -30,11 +27,7 @@ pub fn bitmapfromboard(board: b.Board) u64 {
     inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
         if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
             bitmap |= (@as(piece.type, @field(board.position.blackpieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
+        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
             for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
                 bitmap |= item.position;
             }
@@ -48,6 +41,7 @@ test "bitmap of initial board" {
     const board = b.Board{ .position = b.Position.init() };
     const bitmap = bitmapfromboard(board);
     try std.testing.expectEqual(bitmap, 0xFFFF00000000FFFF);
+    try std.testing.expectEqual(bitmap, c.A1 | c.B1 | c.C1 | c.D1 | c.E1 | c.F1 | c.G1 | c.H1 | c.A2 | c.B2 | c.C2 | c.D2 | c.E2 | c.F2 | c.G2 | c.H2 | c.A7 | c.B7 | c.C7 | c.D7 | c.E7 | c.F7 | c.G7 | c.H7 | c.A8 | c.B8 | c.C8 | c.D8 | c.E8 | c.F8 | c.G8 | c.H8);
 }
 
 pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
@@ -57,13 +51,7 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
             if ((@as(piece.type, @field(board.position.whitepieces, piece.name))).position == location) {
                 return (@as(piece.type, @field(board.position.whitepieces, piece.name)));
             }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
-                }
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
+        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
             for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
                 if (item.position == location) {
                     return item;
@@ -76,13 +64,7 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
             if ((@as(piece.type, @field(board.position.blackpieces, piece.name))).position == location) {
                 return (@as(piece.type, @field(board.position.blackpieces, piece.name)));
             }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
-                }
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
+        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
             for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
                 if (item.position == location) {
                     return item;
@@ -96,7 +78,7 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
 test "piece from location" {
     const board = b.Board{ .position = b.Position.init() };
     const piece = piecefromlocation(
-        0x1,
+        c.H1,
         board,
     );
     try std.testing.expectEqual(piece.representation, 'R');
@@ -105,7 +87,7 @@ test "piece from location" {
 test "white pawn from location" {
     const board = b.Board{ .position = b.Position.init() };
     const piece = piecefromlocation(
-        0x100,
+        c.H2,
         board,
     );
     try std.testing.expectEqual(piece.representation, 'P');
@@ -114,7 +96,7 @@ test "white pawn from location" {
 test "empty location" {
     const board = b.Board{ .position = b.Position.init() };
     const piece = piecefromlocation(
-        0x10000,
+        c.H3,
         board,
     );
     try std.testing.expectEqual(piece.representation, '.');
@@ -123,7 +105,7 @@ test "empty location" {
 test "black pawn from location" {
     const board = b.Board{ .position = b.Position.init() };
     const piece = piecefromlocation(
-        0x10000000000000,
+        c.H7,
         board,
     );
     try std.testing.expectEqual(piece.representation, 'p');
@@ -132,7 +114,7 @@ test "black pawn from location" {
 test "black piece from location" {
     const board = b.Board{ .position = b.Position.init() };
     const piece = piecefromlocation(
-        0x8000000000000000,
+        c.H8,
         board,
     );
     try std.testing.expectEqual(piece.representation, 'r');
@@ -211,18 +193,18 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
 }
 
 test "capture black pawn at e7 in initial board" {
-    const newboard = captureblackpiece(0x8000000000000, b.Board{ .position = b.Position.init() });
+    const newboard = captureblackpiece(c.E7, b.Board{ .position = b.Position.init() });
     try std.testing.expectEqual(newboard.position.blackpieces.Pawn[3].position, 0);
 }
 
 test "capture black rook at a8 in initial board" {
-    const newboard = captureblackpiece(0x8000000000000000, b.Board{ .position = b.Position.init() });
+    const newboard = captureblackpiece(c.A8, b.Board{ .position = b.Position.init() });
     try std.testing.expectEqual(newboard.position.blackpieces.Rook[1].position, 0);
 }
 
 test "ensure self captures are not allowed. add a3 pawn in init board and check pawn moves for a2 pawn" {
     var board = b.Board{ .position = b.Position.init() };
-    board.position.whitepieces.Pawn[7].position = 0x800000;
+    board.position.whitepieces.Pawn[7].position = c.A3;
     _ = board.print();
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
     try std.testing.expectEqual(moves.len, 0);
@@ -303,19 +285,20 @@ test "ValidPawnMoves from e2 in start position" {
 
 test "ValidPawnMoves from e7 in empty board" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Pawn[3].position = 0x8000000000000;
+    board.position.whitepieces.Pawn[3].position = c.E7;
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 1);
 }
 
 test "pawn capture e3 f4 or go to e4" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Pawn[3].position = 0x80000;
-    board.position.blackpieces.Pawn[2].position = 0x4000000;
+    board.position.whitepieces.Pawn[3].position = c.E3;
+    board.position.blackpieces.Pawn[2].position = c.F4;
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 2);
     try std.testing.expectEqual(moves[1].position.blackpieces.Pawn[2].position, 0);
-    try std.testing.expectEqual(moves[0].position.blackpieces.Pawn[2].position, 0x4000000);
+    try std.testing.expectEqual(moves[0].position.blackpieces.Pawn[2].position, c.F4);
+    try std.testing.expectEqual(moves[0].position.whitepieces.Pawn[3].position, c.E4);
 }
 
 pub fn rowfrombitmap(bitmap: u64) u64 {
@@ -542,7 +525,7 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
 // test "ValidRookMoves for empty board with rook on e1"
 test "ValidRookMoves for empty board with rook on e1" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Rook[0].position = 0x8;
+    board.position.whitepieces.Rook[0].position = c.E1;
     _ = board.print();
     // verify rook is on e1 by checking row and col
     const row = rowfrombitmap(board.position.whitepieces.Rook[0].position);
@@ -556,8 +539,8 @@ test "ValidRookMoves for empty board with rook on e1" {
 
 test "ValidRookMoves for empty board with rook on a1 and black piece on a8" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Rook[0].position = 0x80;
-    board.position.blackpieces.Rook[0].position = 0x8000000000000000;
+    board.position.whitepieces.Rook[0].position = c.A1;
+    board.position.blackpieces.Rook[0].position = c.A8;
     const moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
     try std.testing.expectEqual(moves.len, 14);
     try std.testing.expectEqual(moves[6].position.blackpieces.Rook[0].position, 0);
