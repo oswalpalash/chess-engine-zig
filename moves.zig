@@ -357,7 +357,6 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const rookshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
     const row: u64 = rowfrombitmap(rook.position);
     const col: u64 = colfrombitmap(rook.position);
-    std.debug.print("row, col: {}, {}\n", .{ row, col });
     var newrook: b.Piece = rook;
     var testpiece: b.Piece = undefined;
     // iterate through all possible forward moves
@@ -557,4 +556,101 @@ test "ValidRookMoves has 6 moves for a1 rook in init board with missing a2 pawn"
     board.position.whitepieces.Pawn[7].position = 0;
     const moves = ValidRookMoves(board.position.whitepieces.Rook[1], board);
     try std.testing.expectEqual(moves.len, 6);
+}
+
+// Valid king moves
+pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
+    const bitmap: u64 = bitmapfromboard(board);
+    var moves: [256]b.Board = undefined;
+    var possiblemoves: u64 = 0;
+    var king: b.Piece = undefined;
+    var dummypiece: b.Piece = undefined;
+    const directional_kingshifts = [4]u6{ 1, 7, 8, 9 };
+    // forward moves
+    for (directional_kingshifts) |shift| {
+        if (piece.position << shift == 0) {
+            break;
+        }
+        // if there is no piece, allow shifting
+        // if there is a piece, check if it is of different colour, if so, capture it
+        // if it is of same colour, don't allow shifting
+        if (bitmap & (piece.position << shift) == 0) {
+            dummypiece = piecefromlocation(piece.position << shift, board);
+            if (dummypiece.representation != '.') {
+                if (dummypiece.color == piece.color) {
+                    break;
+                }
+            }
+            king.position = piece.position << shift;
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.King.position = king.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (piece.position << shift) != 0) {
+                dummypiece = piecefromlocation(piece.position << shift, board);
+                if (dummypiece.representation != '.') {
+                    if (dummypiece.color != piece.color) {
+                        king.position = piece.position << shift;
+                        // update board
+                        moves[possiblemoves] = captureblackpiece(king.position, b.Board{ .position = board.position });
+                        moves[possiblemoves].position.whitepieces.King.position = king.position;
+                        _ = moves[possiblemoves].print();
+                        possiblemoves += 1;
+                    }
+                }
+            }
+        }
+    }
+    king = piece;
+    // reverse moves
+    for (directional_kingshifts) |shift| {
+        if (king.position >> shift == 0) {
+            break;
+        }
+        if (bitmap & (king.position >> shift) == 0) {
+            dummypiece = piecefromlocation(piece.position >> shift, board);
+            if (dummypiece.representation != '.') {
+                if (dummypiece.color == piece.color) {
+                    break;
+                }
+            }
+            king.position = piece.position >> shift;
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.King.position = king.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (piece.position >> shift) != 0) {
+                dummypiece = piecefromlocation(piece.position >> shift, board);
+                if (dummypiece.representation != '.') {
+                    if (dummypiece.color != piece.color) {
+                        king.position = piece.position >> shift;
+                        // update board
+                        moves[possiblemoves] = captureblackpiece(king.position, b.Board{ .position = board.position });
+                        moves[possiblemoves].position.whitepieces.King.position = king.position;
+                        _ = moves[possiblemoves].print();
+                        possiblemoves += 1;
+                    }
+                }
+            }
+        }
+    }
+    return moves[0..possiblemoves];
+}
+
+test "ValidKingMoves for empty board with king on e1" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E4;
+    _ = board.print();
+    const moves = ValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 8);
+}
+
+test "ValidKingMoves for init board with king on e1" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = ValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 0);
 }
