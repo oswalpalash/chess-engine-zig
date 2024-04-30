@@ -257,6 +257,14 @@ pub fn parseFen(fen: []const u8) Position {
     std.debug.assert(fen.len < BoardSize);
     var board: Board = Board{ .position = Position.emptyboard() }; // Assume emptyBoard initializes all bitboards to 0
     var index: u6 = 0; // Index on the bitboard, valid values are 0 to 63
+    var blackrooks: u6 = 0;
+    var blackknights: u6 = 0;
+    var blackbishops: u6 = 0;
+    var blackpawns: u6 = 0;
+    var whiterooks: u6 = 0;
+    var whiteknights: u6 = 0;
+    var whitebishops: u6 = 0;
+    var whitepawns: u6 = 0;
 
     var i: usize = 0; // Index to iterate through FEN string characters
     while (i < fen.len) {
@@ -267,16 +275,40 @@ pub fn parseFen(fen: []const u8) Position {
                 switch (fen[i]) {
                     'K' => board.position.whitepieces.King.position |= bit,
                     'Q' => board.position.whitepieces.Queen.position |= bit,
-                    'R' => board.position.whitepieces.Rook[0].position |= bit,
-                    'B' => board.position.whitepieces.Bishop[0].position |= bit,
-                    'N' => board.position.whitepieces.Knight[0].position |= bit,
-                    'P' => board.position.whitepieces.Pawn[0].position |= bit,
+                    'R' => {
+                        board.position.whitepieces.Rook[blackrooks].position |= bit;
+                        blackrooks += 1;
+                    },
+                    'B' => {
+                        board.position.whitepieces.Bishop[blackbishops].position |= bit;
+                        blackbishops += 1;
+                    },
+                    'N' => {
+                        board.position.whitepieces.Knight[blackknights].position |= bit;
+                        blackknights += 1;
+                    },
+                    'P' => {
+                        board.position.whitepieces.Pawn[blackpawns].position |= bit;
+                        blackpawns += 1;
+                    },
                     'k' => board.position.blackpieces.King.position |= bit,
                     'q' => board.position.blackpieces.Queen.position |= bit,
-                    'r' => board.position.blackpieces.Rook[0].position |= bit,
-                    'b' => board.position.blackpieces.Bishop[0].position |= bit,
-                    'n' => board.position.blackpieces.Knight[0].position |= bit,
-                    'p' => board.position.blackpieces.Pawn[0].position |= bit,
+                    'r' => {
+                        board.position.blackpieces.Rook[whiterooks].position |= bit;
+                        whiterooks += 1;
+                    },
+                    'b' => {
+                        board.position.blackpieces.Bishop[whitebishops].position |= bit;
+                        whitebishops += 1;
+                    },
+                    'n' => {
+                        board.position.blackpieces.Knight[whiteknights].position |= bit;
+                        whiteknights += 1;
+                    },
+                    'p' => {
+                        board.position.blackpieces.Pawn[whitepawns].position |= bit;
+                        whitepawns += 1;
+                    },
 
                     else => {}, // Should never happen, all cases are covered
                 }
@@ -308,4 +340,24 @@ test "print board" {
 test "fen" {
     var board: Board = Board{ .position = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR") };
     try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..BoardSize]);
+}
+
+test "fen to board" {
+    const board: Board = Board{ .position = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR") };
+    const board2: Board = Board{ .position = Position.init() };
+    _ = board2.print();
+    _ = board.print();
+    // iterate through pieces in both board.Position and ensure they are the same
+    // (@as(piece.type, @field(board.position.whitepieces, piece.name))).position
+    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
+        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (Piece)) {
+            std.debug.print("Comparing {s} {}\n", .{ piece.name, @as(u64, @field(board.position.whitepieces, piece.name).position) });
+            try std.testing.expectEqual(@as(u64, @field(board.position.whitepieces, piece.name).position), @as(u64, @field(board2.position.whitepieces, piece.name).position));
+        } else if ((@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]Piece)) or (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]Piece))) {
+            inline for (0..@as(piece.type, @field(board.position.whitepieces, piece.name)).len) |i| {
+                std.debug.print("Comparing {s} {} {}\n", .{ piece.name, i, @as(u64, @field(board.position.whitepieces, piece.name)[i].position) });
+                try std.testing.expectEqual(@as(u64, @field(board.position.whitepieces, piece.name)[i].position), @as(u64, @field(board2.position.whitepieces, piece.name)[i].position));
+            }
+        }
+    }
 }
