@@ -844,22 +844,28 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     var testpiece: b.Piece = undefined;
 
     //
-    // "Up‐Left" in standard chess = shift left by 9 bits
+    // "Up-Left" in standard chess = shift left by 9 bits
     //
     for (bishopshifts) |shift| {
-        if (row + shift > 8 or col - shift < 1) break;
+        if (row + shift > 8 or col - shift < 1) break; // Boundary check
+
         const step = shift * 9;
         const targetPos = bishop.position << step;
-        if (targetPos == 0) break; // shifted off board?
+        if (targetPos == 0) break; // Shifted off board?
+
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row + shift;
+        const targetCol = col - shift;
+        if (targetRow > 8 or targetCol < 1) break;
 
         if ((bitmap & targetPos) == 0) {
             // No piece blocking
             testpiece = piecefromlocation(targetPos, board);
-            // If same‐color piece is there (somehow), stop
+            // If same-color piece is there (somehow), stop
             if (testpiece.representation != '.' and testpiece.color == 0) {
                 break;
             }
-            // Otherwise it's a valid move
+            // Otherwise, it's a valid move
             newbishop.position = targetPos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
@@ -869,7 +875,7 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
             testpiece = piecefromlocation(targetPos, board);
             // Stop if it's white
             if (testpiece.color == 0) break;
-            // Otherwise capture black and stop
+            // Otherwise, capture black and stop
             newbishop.position = targetPos;
             moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
             moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
@@ -879,14 +885,20 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     //
-    // "Up‐Right" in standard chess = shift left by 7 bits
+    // "Up-Right" in standard chess = shift left by 7 bits
     //
     for (bishopshifts) |shift| {
-        if (row + shift > 8 or col + shift > 8) break;
+        if (row + shift > 8 or col + shift > 8) break; // Boundary check
+
         const step = shift * 7;
         const targetPos = bishop.position << step;
         if (targetPos == 0) break;
 
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row + shift;
+        const targetCol = col + shift;
+        if (targetRow > 8 or targetCol > 8) break;
+
         if ((bitmap & targetPos) == 0) {
             testpiece = piecefromlocation(targetPos, board);
             if (testpiece.representation != '.' and testpiece.color == 0) {
@@ -908,14 +920,20 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     //
-    // "Down‐Left" in standard chess = shift right by 9 bits
+    // "Down-Left" in standard chess = shift right by 9 bits
     //
     for (bishopshifts) |shift| {
-        if (row - shift < 1 or col - shift < 1) break;
+        if (row - shift < 1 or col - shift < 1) break; // Boundary check
+
         const step = shift * 9;
         const targetPos = bishop.position >> step;
         if (targetPos == 0) break;
 
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row - shift;
+        const targetCol = col - shift;
+        if (targetRow < 1 or targetCol < 1) break;
+
         if ((bitmap & targetPos) == 0) {
             testpiece = piecefromlocation(targetPos, board);
             if (testpiece.representation != '.' and testpiece.color == 0) {
@@ -937,13 +955,19 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     //
-    // "Down‐Right" in standard chess = shift right by 7 bits
+    // "Down-Right" in standard chess = shift right by 7 bits
     //
     for (bishopshifts) |shift| {
-        if (row - shift < 1 or col + shift > 8) break;
+        if (row - shift < 1 or col + shift > 8) break; // Boundary check
+
         const step = shift * 7;
         const targetPos = bishop.position >> step;
         if (targetPos == 0) break;
+
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row - shift;
+        const targetCol = col + shift;
+        if (targetRow < 1 or targetCol > 8) break;
 
         if ((bitmap & targetPos) == 0) {
             testpiece = piecefromlocation(targetPos, board);
