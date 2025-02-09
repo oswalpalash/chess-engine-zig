@@ -819,3 +819,184 @@ test "ValidKnightMoves for empty board with knight on b1 and black piece on c3" 
     try std.testing.expectEqual(moves.len, 3);
     try std.testing.expectEqual(moves[1].position.blackpieces.Pawn[2].position, 0);
 }
+
+pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
+    const bitmap: u64 = bitmapfromboard(board);
+    var moves: [256]b.Board = undefined;
+    var possiblemoves: u64 = 0;
+
+    // Identify which white bishop in the array we're moving
+    var bishop: b.Piece = piece;
+    var index: u64 = 0;
+    for (board.position.whitepieces.Bishop, 0..) |item, loopidx| {
+        if (item.position == piece.position) {
+            bishop = item;
+            index = loopidx;
+            break;
+        }
+    }
+
+    const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
+    const row = rowfrombitmap(bishop.position);
+    const col = colfrombitmap(bishop.position);
+
+    var newbishop: b.Piece = bishop;
+    var testpiece: b.Piece = undefined;
+
+    //
+    // "Up‐Left" in standard chess = shift left by 9 bits
+    //
+    for (bishopshifts) |shift| {
+        if (row + shift > 8 or col - shift < 1) break;
+        const step = shift * 9;
+        const targetPos = bishop.position << step;
+        if (targetPos == 0) break; // shifted off board?
+
+        if ((bitmap & targetPos) == 0) {
+            // No piece blocking
+            testpiece = piecefromlocation(targetPos, board);
+            // If same‐color piece is there (somehow), stop
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            // Otherwise it's a valid move
+            newbishop.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+        } else {
+            // There's a piece. Possibly capture?
+            testpiece = piecefromlocation(targetPos, board);
+            // Stop if it's white
+            if (testpiece.color == 0) break;
+            // Otherwise capture black and stop
+            newbishop.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    //
+    // "Up‐Right" in standard chess = shift left by 7 bits
+    //
+    for (bishopshifts) |shift| {
+        if (row + shift > 8 or col + shift > 8) break;
+        const step = shift * 7;
+        const targetPos = bishop.position << step;
+        if (targetPos == 0) break;
+
+        if ((bitmap & targetPos) == 0) {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            newbishop.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+        } else {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.color == 0) break;
+            newbishop.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    //
+    // "Down‐Left" in standard chess = shift right by 9 bits
+    //
+    for (bishopshifts) |shift| {
+        if (row - shift < 1 or col - shift < 1) break;
+        const step = shift * 9;
+        const targetPos = bishop.position >> step;
+        if (targetPos == 0) break;
+
+        if ((bitmap & targetPos) == 0) {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            newbishop.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+        } else {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.color == 0) break;
+            newbishop.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    //
+    // "Down‐Right" in standard chess = shift right by 7 bits
+    //
+    for (bishopshifts) |shift| {
+        if (row - shift < 1 or col + shift > 8) break;
+        const step = shift * 7;
+        const targetPos = bishop.position >> step;
+        if (targetPos == 0) break;
+
+        if ((bitmap & targetPos) == 0) {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            newbishop.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+        } else {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.color == 0) break;
+            newbishop.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    return moves[0..possiblemoves];
+}
+
+test "ValidBishopMoves for empty board with bishop on c1" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.C1;
+    _ = board.print();
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+
+    // Expected moves: d2, e3, f4, g5, h6, b2, a3
+    const expectedMoves: [7]u64 = .{
+        c.D2,
+        c.E3,
+        c.F4,
+        c.G5,
+        c.H6,
+        c.B2,
+        c.A3,
+    };
+
+    try std.testing.expect(moves.len == expectedMoves.len);
+
+    // Check each expected move is present
+    for (expectedMoves) |expected| {
+        var found = false;
+        for (moves) |move| {
+            if (move.position.whitepieces.Bishop[0].position == expected) {
+                found = true;
+                break;
+            }
+        }
+        try std.testing.expect(found);
+    }
+}
