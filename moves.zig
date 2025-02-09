@@ -1024,3 +1024,369 @@ test "ValidBishopMoves for empty board with bishop on c1" {
         try std.testing.expect(found);
     }
 }
+
+pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
+    const bitmap: u64 = bitmapfromboard(board);
+    var moves: [256]b.Board = undefined;
+    var possiblemoves: u64 = 0;
+    const queen: b.Piece = piece;
+
+    const rookshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
+    const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
+    const row: u64 = rowfrombitmap(queen.position);
+    const col: u64 = colfrombitmap(queen.position);
+    var newqueen: b.Piece = queen;
+    var testpiece: b.Piece = undefined;
+
+    // iterate through all possible forward moves
+    for (rookshifts) |shift| {
+        if (row + shift == 9) {
+            break;
+        }
+        if (bitmap & (newqueen.position << (shift * 8)) == 0) {
+            testpiece = piecefromlocation(newqueen.position << (shift * 8), board);
+            if (testpiece.representation != '.') {
+                if (testpiece.color == 0) {
+                    break;
+                }
+            }
+            newqueen.position = newqueen.position << (shift * 8);
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (newqueen.position << (shift * 8)) != 0) {
+                testpiece = piecefromlocation(newqueen.position << (shift * 8), board);
+                if (testpiece.representation != '.') {
+                    if (testpiece.color == 0) {
+                        break;
+                    }
+                }
+                newqueen.position = newqueen.position << (shift * 8);
+                // update board
+                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+                newqueen.position = queen.position;
+                break;
+            }
+        }
+        newqueen.position = queen.position;
+    }
+    // iterate through all possible backward moves
+    for (rookshifts) |shift| {
+        if (row - shift == 0) {
+            break;
+        }
+        if (bitmap & (newqueen.position >> (shift * 8)) == 0) {
+            testpiece = piecefromlocation(newqueen.position >> (shift * 8), board);
+            if (testpiece.representation != '.') {
+                if (testpiece.color == 0) {
+                    break;
+                }
+            }
+            newqueen.position = newqueen.position >> (shift * 8);
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (newqueen.position >> (shift * 8)) != 0) {
+                testpiece = piecefromlocation(newqueen.position >> (shift * 8), board);
+                if (testpiece.representation != '.') {
+                    if (testpiece.color == 0) {
+                        break;
+                    }
+                }
+                newqueen.position = newqueen.position >> (shift * 8);
+                // update board
+                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+                newqueen.position = queen.position;
+                break;
+            }
+        }
+        newqueen.position = queen.position;
+    }
+    // iterate through all possible left moves
+    for (rookshifts) |shift| {
+        if (col - shift == 0) {
+            break;
+        }
+        if (bitmap & (newqueen.position << shift) == 0) {
+            testpiece = piecefromlocation(newqueen.position << shift, board);
+            if (testpiece.representation != '.') {
+                if (testpiece.color == 0) {
+                    break;
+                }
+            }
+            newqueen.position = newqueen.position << shift;
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (newqueen.position << shift) != 0) {
+                testpiece = piecefromlocation(newqueen.position << shift, board);
+                if (testpiece.representation != '.') {
+                    if (testpiece.color == 0) {
+                        break;
+                    }
+                }
+                newqueen.position = newqueen.position << shift;
+                // update board
+                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+                newqueen.position = queen.position;
+                break;
+            }
+        }
+        newqueen.position = queen.position;
+    }
+    // iterate through all possible right moves
+    for (rookshifts) |shift| {
+        if (col + shift == 9) {
+            break;
+        }
+        if (bitmap & (newqueen.position >> shift) == 0) {
+            testpiece = piecefromlocation(newqueen.position >> shift, board);
+            if (testpiece.representation != '.') {
+                if (testpiece.color == 0) {
+                    break;
+                }
+            }
+            newqueen.position = newqueen.position >> shift;
+            // update board
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        } else {
+            if (bitmap & (newqueen.position >> shift) != 0) {
+                testpiece = piecefromlocation(newqueen.position >> shift, board);
+                if (testpiece.representation != '.') {
+                    if (testpiece.color == 0) {
+                        break;
+                    }
+                }
+                newqueen.position = newqueen.position >> shift;
+                // update board
+                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+                _ = moves[possiblemoves].print();
+                possiblemoves += 1;
+                newqueen.position = queen.position;
+                break;
+            }
+        }
+        newqueen.position = queen.position;
+    }
+
+    newqueen = queen;
+
+    // "Up-Left" in standard chess = shift left by 9 bits
+    for (bishopshifts) |shift| {
+        if (row + shift > 8 or col - shift < 1) break; // Boundary check
+
+        const step = shift * 9;
+        const targetPos = queen.position << step;
+        if (targetPos == 0) break; // Shifted off board?
+
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row + shift;
+        const targetCol = col - shift;
+        if (targetRow > 8 or targetCol < 1) break;
+
+        if ((bitmap & targetPos) == 0) {
+            // No piece blocking
+            testpiece = piecefromlocation(targetPos, board);
+            // If same-color piece is there (somehow), stop
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            // Otherwise, it's a valid move
+            newqueen.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+        } else {
+            // There's a piece. Possibly capture?
+            testpiece = piecefromlocation(targetPos, board);
+            // Stop if it's white
+            if (testpiece.color == 0) break;
+            // Otherwise, capture black and stop
+            newqueen.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    // "Up-Right" in standard chess = shift left by 7 bits
+    for (bishopshifts) |shift| {
+        if (row + shift > 8 or col + shift > 8) break; // Boundary check
+
+        const step = shift * 7;
+        const targetPos = queen.position << step;
+        if (targetPos == 0) break;
+
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row + shift;
+        const targetCol = col + shift;
+        if (targetRow > 8 or targetCol > 8) break;
+
+        if ((bitmap & targetPos) == 0) {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            newqueen.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+        } else {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.color == 0) break;
+            newqueen.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    // "Down-Left" in standard chess = shift right by 9 bits
+    for (bishopshifts) |shift| {
+        if (row - shift < 1 or col - shift < 1) break; // Boundary check
+
+        const step = shift * 9;
+        const targetPos = queen.position >> step;
+        if (targetPos == 0) break;
+
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row - shift;
+        const targetCol = col - shift;
+        if (targetRow < 1 or targetCol < 1) break;
+
+        if ((bitmap & targetPos) == 0) {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            newqueen.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+        } else {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.color == 0) break;
+            newqueen.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    // "Down-Right" in standard chess = shift right by 7 bits
+    for (bishopshifts) |shift| {
+        if (row - shift < 1 or col + shift > 8) break; // Boundary check
+
+        const step = shift * 7;
+        const targetPos = queen.position >> step;
+        if (targetPos == 0) break;
+
+        // Additional boundary check to prevent wrapping across rows
+        const targetRow = row - shift;
+        const targetCol = col + shift;
+        if (targetRow < 1 or targetCol > 8) break;
+
+        if ((bitmap & targetPos) == 0) {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.representation != '.' and testpiece.color == 0) {
+                break;
+            }
+            newqueen.position = targetPos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+        } else {
+            testpiece = piecefromlocation(targetPos, board);
+            if (testpiece.color == 0) break;
+            newqueen.position = targetPos;
+            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
+            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            possiblemoves += 1;
+            break;
+        }
+    }
+
+    return moves[0..possiblemoves];
+}
+
+// Test cases for ValidQueenMoves
+test "ValidQueenMoves for initial board (no moves expected)" {
+    const board = b.Board{ .position = b.Position.init() };
+    const queen = board.position.whitepieces.Queen;
+    const moves = ValidQueenMoves(queen, board);
+    try std.testing.expectEqual(moves.len, 0); // Queen is blocked by own pieces
+}
+
+test "ValidQueenMoves for empty board with queen on d4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.D4;
+    _ = board.print();
+
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+
+    // Expected moves: 27 moves (all directions until the edge of the board)
+    try std.testing.expect(moves.len == 27);
+}
+
+test "ValidQueenMoves for empty board with queen on a1" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.A1;
+    _ = board.print();
+
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+
+    // From a1, queen can move to:
+    // a2-a8, b1-h1, b2-h8 => total 7 + 7 + 7 = 21 moves
+    try std.testing.expect(moves.len == 21);
+}
+
+test "ValidQueenMoves with obstacles" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.D4;
+    // Place friendly pieces at d5 and e4
+    board.position.whitepieces.Pawn[0].position = c.D5;
+    board.position.whitepieces.Pawn[1].position = c.E4;
+    // Place enemy piece at c5 and e5
+    board.position.blackpieces.Pawn[0].position = c.C5;
+    board.position.blackpieces.Pawn[1].position = c.E5;
+    _ = board.print();
+
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+
+    // Expected moves:
+    // d5 blocked by own piece (no move up)
+    // d3, d2, d1
+    // e4 captures own piece (invalid), so no moves east
+    // c4, b4, a4
+    // e5 captures enemy piece
+    // c5 captures enemy piece
+    // e3, f2, g1
+    // c3, b2, a1
+
+    try std.testing.expect(moves.len == 14);
+}
