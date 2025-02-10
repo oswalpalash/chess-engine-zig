@@ -51,6 +51,10 @@ const BlackPieces = struct {
 pub const Position = struct {
     whitepieces: WhitePieces = WhitePieces{},
     blackpieces: BlackPieces = BlackPieces{},
+    canCastleWhiteKingside: bool = false,
+    canCastleWhiteQueenside: bool = false,
+    canCastleBlackKingside: bool = false,
+    canCastleBlackQueenside: bool = false,
 
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
@@ -90,6 +94,12 @@ pub const Position = struct {
         return Position{
             .whitepieces = whitepieces,
             .blackpieces = blackpieces,
+
+            // By default, from standard chess opening, these are true:
+            .canCastleWhiteKingside = true,
+            .canCastleWhiteQueenside = true,
+            .canCastleBlackKingside = true,
+            .canCastleBlackQueenside = true,
         };
     }
 
@@ -97,6 +107,12 @@ pub const Position = struct {
         return Position{
             .whitepieces = WhitePieces{},
             .blackpieces = BlackPieces{},
+
+            // Typically, if you had an empty board, there’s no castling:
+            .canCastleWhiteKingside = false,
+            .canCastleWhiteQueenside = false,
+            .canCastleBlackKingside = false,
+            .canCastleBlackQueenside = false,
         };
     }
 
@@ -255,68 +271,117 @@ pub fn reverse(self: u64) u64 { // inverts from the center
 // function to parse fen string
 // example FEN : rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
 pub fn parseFen(fen: []const u8) Position {
-    std.debug.assert(fen.len < BoardSize);
-    var board: Board = Board{ .position = Position.emptyboard() }; // Assume emptyBoard initializes all bitboards to 0
-    var index: u6 = 0; // Index on the bitboard, valid values are 0 to 63
-    var blackrooks: u6 = 0;
-    var blackknights: u6 = 0;
-    var blackbishops: u6 = 0;
-    var blackpawns: u6 = 0;
-    var whiterooks: u6 = 0;
-    var whiteknights: u6 = 0;
-    var whitebishops: u6 = 0;
-    var whitepawns: u6 = 0;
+    // A typical FEN has up to 6 fields:
+    //   1) Piece placement
+    //   2) Active color (w or b)
+    //   3) Castling rights (KQkq or some subset, or "-")
+    //   4) En-passant target square
+    //   5) Halfmove clock
+    //   6) Fullmove number
+    //
+    // We tokenize on spaces and parse only the fields we need:
+    var tokens = std.mem.tokenize(u8, fen, " ");
+    const first_token = tokens.next();
+    if (first_token == null) {
+        // Invalid: no piece placement
+        std.debug.print("FEN string empty or invalid piece placement\n", .{});
+        return Position.emptyboard();
+    }
 
-    var i: usize = 0; // Index to iterate through FEN string characters
-    while (i < fen.len) {
-        switch (fen[i]) {
-            // Major and minor pieces
-            'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
-                const bit: u64 = @as(u64, 1) << index;
-                switch (fen[i]) {
-                    'K' => board.position.whitepieces.King.position |= bit,
-                    'Q' => board.position.whitepieces.Queen.position |= bit,
+    // 1) Parse piece placement
+    const piecePlacement = first_token.?;
+    // Start with an empty board:
+    var position = Position.emptyboard();
+
+    var index: u6 = 0;
+    var i: usize = 0;
+    while (i < piecePlacement.len) : (i += 1) {
+        const ch = piecePlacement[i];
+        switch (ch) {
+            // Major + minor pieces
+            inline 'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
+                const bit: u64 = (@as(u64, 1) << @as(u6, index));
+                switch (ch) {
+                    'K' => position.whitepieces.King.position |= bit,
+                    'Q' => position.whitepieces.Queen.position |= bit,
                     'R' => {
-                        board.position.whitepieces.Rook[blackrooks].position |= bit;
-                        blackrooks += 1;
+                        // Find first free White Rook slot, etc.
+                        var rookCount: u6 = 0;
+                        while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
+                            if (position.whitepieces.Rook[rookCount].position == 0) {
+                                position.whitepieces.Rook[rookCount].position = bit;
+                                break;
+                            }
+                        }
                     },
                     'B' => {
-                        board.position.whitepieces.Bishop[blackbishops].position |= bit;
-                        blackbishops += 1;
+                        var bishopCount: u6 = 0;
+                        while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
+                            if (position.whitepieces.Bishop[bishopCount].position == 0) {
+                                position.whitepieces.Bishop[bishopCount].position = bit;
+                                break;
+                            }
+                        }
                     },
                     'N' => {
-                        board.position.whitepieces.Knight[blackknights].position |= bit;
-                        blackknights += 1;
+                        var knightCount: u6 = 0;
+                        while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
+                            if (position.whitepieces.Knight[knightCount].position == 0) {
+                                position.whitepieces.Knight[knightCount].position = bit;
+                                break;
+                            }
+                        }
                     },
                     'P' => {
-                        board.position.whitepieces.Pawn[blackpawns].position |= bit;
-                        blackpawns += 1;
+                        var pawnCount: u6 = 0;
+                        while (pawnCount < position.whitepieces.Pawn.len) : (pawnCount += 1) {
+                            if (position.whitepieces.Pawn[pawnCount].position == 0) {
+                                position.whitepieces.Pawn[pawnCount].position = bit;
+                                break;
+                            }
+                        }
                     },
-                    'k' => board.position.blackpieces.King.position |= bit,
-                    'q' => board.position.blackpieces.Queen.position |= bit,
+                    'k' => position.blackpieces.King.position |= bit,
+                    'q' => position.blackpieces.Queen.position |= bit,
                     'r' => {
-                        board.position.blackpieces.Rook[whiterooks].position |= bit;
-                        whiterooks += 1;
+                        var rookCount: u6 = 0;
+                        while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
+                            if (position.blackpieces.Rook[rookCount].position == 0) {
+                                position.blackpieces.Rook[rookCount].position = bit;
+                                break;
+                            }
+                        }
                     },
                     'b' => {
-                        board.position.blackpieces.Bishop[whitebishops].position |= bit;
-                        whitebishops += 1;
+                        var bishopCount: u6 = 0;
+                        while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
+                            if (position.blackpieces.Bishop[bishopCount].position == 0) {
+                                position.blackpieces.Bishop[bishopCount].position = bit;
+                                break;
+                            }
+                        }
                     },
                     'n' => {
-                        board.position.blackpieces.Knight[whiteknights].position |= bit;
-                        whiteknights += 1;
+                        var knightCount: u6 = 0;
+                        while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
+                            if (position.blackpieces.Knight[knightCount].position == 0) {
+                                position.blackpieces.Knight[knightCount].position = bit;
+                                break;
+                            }
+                        }
                     },
                     'p' => {
-                        board.position.blackpieces.Pawn[whitepawns].position |= bit;
-                        whitepawns += 1;
+                        var pawnCount: u6 = 0;
+                        while (pawnCount < position.blackpieces.Pawn.len) : (pawnCount += 1) {
+                            if (position.blackpieces.Pawn[pawnCount].position == 0) {
+                                position.blackpieces.Pawn[pawnCount].position = bit;
+                                break;
+                            }
+                        }
                     },
-
-                    else => {}, // Should never happen, all cases are covered
+                    else => {},
                 }
-                if (index == BoardSize - 1) {
-                    break;
-                }
-                index += 1;
+                if (index < 63) index += 1;
             },
             '1' => index += 1,
             '2' => index += 2,
@@ -326,11 +391,56 @@ pub fn parseFen(fen: []const u8) Position {
             '6' => index += 6,
             '7' => index += 7,
             '8' => index += 8,
-            else => {},
+            '/' => {
+                // Just means new rank; nothing special to do besides continue
+            },
+            else => {
+                // For safety, ignore/goto next character
+            },
         }
-        i += 1;
+        if (index > 63) {
+            // We read too many squares; the FEN might be malformed, but we just stop.
+            break;
+        }
     }
-    return board.position.flip();
+
+    // Because of the existing code convention, we flip at the end:
+    position = position.flip();
+
+    const second_token = tokens.next();
+    if (second_token == null) {
+        // Invalid: no side to move
+        std.debug.print("FEN string missing side to move\n", .{});
+        //return Position.emptyboard();
+    }
+
+    const third_token = tokens.next();
+    if (third_token != null) {
+        const castling = third_token.?;
+        // If FEN has '-', there are no castling rights
+        if (!std.mem.eql(u8, castling, "-")) {
+            if (std.mem.containsAtLeast(u8, castling, 1, "K")) {
+                position.canCastleWhiteKingside = true;
+            }
+            if (std.mem.containsAtLeast(u8, castling, 1, "Q")) {
+                position.canCastleWhiteQueenside = true;
+            }
+            if (std.mem.containsAtLeast(u8, castling, 1, "k")) {
+                position.canCastleBlackKingside = true;
+            }
+            if (std.mem.containsAtLeast(u8, castling, 1, "q")) {
+                position.canCastleBlackQueenside = true;
+            }
+        } else {
+            // If exactly "-", then none are allowed
+            position.canCastleWhiteKingside = false;
+            position.canCastleWhiteQueenside = false;
+            position.canCastleBlackKingside = false;
+            position.canCastleBlackQueenside = false;
+        }
+    }
+
+    return position;
 }
 
 test "print board" {
