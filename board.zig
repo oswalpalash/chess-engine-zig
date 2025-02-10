@@ -280,7 +280,7 @@ pub fn parseFen(fen: []const u8) Position {
     //   6) Fullmove number
     //
     // We tokenize on spaces and parse only the fields we need:
-    var tokens = std.mem.tokenize(u8, fen, " ");
+    var tokens = std.mem.tokenizeAny(u8, fen, " ");
     const first_token = tokens.next();
     if (first_token == null) {
         // Invalid: no piece placement
