@@ -8,7 +8,7 @@ const std = @import("std");
 pub fn isCheck(board: b.Board, isWhite: bool) bool {
     // Get the king's position based on color
     const kingPosition = if (isWhite) board.position.whitepieces.King.position else board.position.blackpieces.King.position;
-    
+
     // For each enemy piece, check if it can capture the king
     // For white king in check, check all black pieces
     if (isWhite) {
@@ -29,11 +29,11 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             // Knight moves are special - check all possible knight moves from king position
             // and see if they intersect with enemy knight position
             const knightMoves = [8]u64{
-                kingPosition << 6,  // Up 1, Left 2
+                kingPosition << 6, // Up 1, Left 2
                 kingPosition << 10, // Up 1, Right 2
                 kingPosition << 15, // Up 2, Left 1
                 kingPosition << 17, // Up 2, Right 1
-                kingPosition >> 6,  // Down 1, Right 2
+                kingPosition >> 6, // Down 1, Right 2
                 kingPosition >> 10, // Down 1, Left 2
                 kingPosition >> 15, // Down 2, Right 1
                 kingPosition >> 17, // Down 2, Left 1
@@ -95,11 +95,11 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             // Knight moves are special - check all possible knight moves from king position
             // and see if they intersect with enemy knight position
             const knightMoves = [8]u64{
-                kingPosition << 6,  // Up 1, Left 2
+                kingPosition << 6, // Up 1, Left 2
                 kingPosition << 10, // Up 1, Right 2
                 kingPosition << 15, // Up 2, Left 1
                 kingPosition << 17, // Up 2, Right 1
-                kingPosition >> 6,  // Down 1, Right 2
+                kingPosition >> 6, // Down 1, Right 2
                 kingPosition >> 10, // Down 1, Left 2
                 kingPosition >> 15, // Down 2, Right 1
                 kingPosition >> 17, // Down 2, Left 1
@@ -149,7 +149,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
 
 test "isCheck - initial board position is not check" {
     const board = b.Board{ .position = b.Position.init() };
-    try std.testing.expect(!isCheck(board, true));  // White king not in check
+    try std.testing.expect(!isCheck(board, true)); // White king not in check
     try std.testing.expect(!isCheck(board, false)); // Black king not in check
 }
 
@@ -159,21 +159,21 @@ test "isCheck - white king in check by black queen" {
     board.position.whitepieces.King.position = c.E1;
     // Place black queen on e8
     board.position.blackpieces.Queen.position = c.E8;
-    
+
     // Print board state
     _ = board.print();
-    
+
     // Create temp board for queen moves
     var tempBoard = b.Board{ .position = b.Position.emptyboard() };
     tempBoard.position.blackpieces.Queen = board.position.blackpieces.Queen;
     tempBoard.position.whitepieces.King = board.position.whitepieces.King;
-    
+
     // Print queen moves
     const moves = m.ValidQueenMoves(board.position.blackpieces.Queen, tempBoard);
     for (moves) |move| {
         _ = move.print();
     }
-    
+
     try std.testing.expect(isCheck(board, true));
 }
 
@@ -213,4 +213,4 @@ test "isCheck - blocked check is not check" {
     // Place white pawn on e2 blocking the check
     board.position.whitepieces.Pawn[4].position = c.E2;
     try std.testing.expect(!isCheck(board, true));
-} 
+}
