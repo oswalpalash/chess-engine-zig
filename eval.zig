@@ -87,3 +87,23 @@ test "evaluate empty board" {
     const score = evaluate(board);
     try std.testing.expectEqual(score, 0);
 }
+
+test "evaluate position with multiple missing pieces" {
+    var board = Board{ .position = b.Position.init() };
+    var pos = board.position;
+    pos.blackpieces.Pawn[0].position = 0; // Remove a black pawn
+    pos.blackpieces.Knight[0].position = 0; // Remove a black knight
+    board.position = pos;
+    const score = evaluate(board);
+    try std.testing.expectEqual(score, 400); // pawn (100) + knight (300)
+}
+
+test "evaluate position with pieces missing on both sides" {
+    var board = Board{ .position = b.Position.init() };
+    var pos = board.position;
+    pos.blackpieces.Pawn[0].position = 0; // Remove a black pawn
+    pos.whitepieces.Knight[0].position = 0; // Remove a white knight
+    board.position = pos;
+    const score = evaluate(board);
+    try std.testing.expectEqual(score, -200); // black pawn removed (+100) and white knight removed (-300)
+}
