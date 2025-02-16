@@ -448,6 +448,46 @@ pub fn parseFen(fen: []const u8) Position {
         }
     }
 
+    // Parse en-passant square
+    const fourth_token = tokens.next();
+    if (fourth_token != null) {
+        const enPassant = fourth_token.?;
+        if (!std.mem.eql(u8, enPassant, "-")) {
+            // Convert algebraic notation (e.g. "e3") to bitboard position
+            const file = enPassant[0];
+            const rank = enPassant[1];
+            // Convert file letter to 0-7 index
+            var fileIndex: u6 = undefined;
+            switch (file) {
+                'a' => fileIndex = 0,
+                'b' => fileIndex = 1,
+                'c' => fileIndex = 2,
+                'd' => fileIndex = 3,
+                'e' => fileIndex = 4,
+                'f' => fileIndex = 5,
+                'g' => fileIndex = 6,
+                'h' => fileIndex = 7,
+                else => fileIndex = 0,
+            }
+            // Convert rank number to 0-7 index
+            var rankIndex: u6 = undefined;
+            switch (rank) {
+                '1' => rankIndex = 0,
+                '2' => rankIndex = 1,
+                '3' => rankIndex = 2,
+                '4' => rankIndex = 3,
+                '5' => rankIndex = 4,
+                '6' => rankIndex = 5,
+                '7' => rankIndex = 6,
+                '8' => rankIndex = 7,
+                else => rankIndex = 0,
+            }
+            const shift = rankIndex * 8 + fileIndex;
+            position.enPassantSquare = @as(u64, 1) << shift;
+            position.enPassantSquare = reverse(position.enPassantSquare); // Flip since we flip the whole position
+        }
+    }
+
     return position;
 }
 
