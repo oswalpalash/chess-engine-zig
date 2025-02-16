@@ -368,18 +368,18 @@ test "isCheckmate - scholar's mate" {
     // 2. Bc4 Nc6
     // 3. Qh5 Nf6??
     // 4. Qxf7#
-    
+
     // White pieces
     board.position.whitepieces.Pawn[4].position = c.E4; // e4
     board.position.whitepieces.Bishop[1].position = c.C4; // Bc4
     board.position.whitepieces.Queen.position = c.F7; // Qxf7
-    
+
     // Black pieces
     board.position.blackpieces.Pawn[4].position = c.E5; // e5
     board.position.blackpieces.Knight[0].position = c.C6; // Nc6
     board.position.blackpieces.Knight[1].position = c.F6; // Nf6
     board.position.blackpieces.Pawn[5].position = 0; // f7 pawn captured by white queen
-    
+
     // Keep all other pieces in their initial positions
     // White pieces
     board.position.whitepieces.King.position = c.E1;
@@ -395,7 +395,7 @@ test "isCheckmate - scholar's mate" {
     board.position.whitepieces.Pawn[5].position = c.F2;
     board.position.whitepieces.Pawn[6].position = c.G2;
     board.position.whitepieces.Pawn[7].position = c.H2;
-    
+
     // Black pieces
     board.position.blackpieces.King.position = c.E8;
     board.position.blackpieces.Queen.position = c.D8;
