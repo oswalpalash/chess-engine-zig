@@ -1785,3 +1785,93 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
     };
     return boardCopy;
 }
+
+pub fn isSquareUnderattack(square: u64, color: u8, boards: []b.Board) bool {
+    for (boards) |board| {
+        // Check if any piece of the specified color occupies the target square
+        const piece = piecefromlocation(square, board);
+        if (piece.color == color and piece.position == square) {
+            return true;
+        }
+    }
+    return false;
+}
+
+test "isSquareUnderattack - white pawn attacking e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E3;
+    const moves = getValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - black pawn attacking e5" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Pawn[0].position = c.E6;
+    const moves = getValidPawnMoves(board.position.blackpieces.Pawn[0], board);
+    try std.testing.expect(isSquareUnderattack(c.E5, 1, moves));
+}
+
+test "isSquareUnderattack - white knight attacking e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Knight[0].position = c.F2;
+    const moves = getValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - white bishop attacking e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.B1;
+    const moves = getValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - white rook attacking e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.E1;
+    const moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - white queen attacking e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.A4;
+    const moves = getValidQueenMoves(board.position.whitepieces.Queen, board);
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - white king attacking e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E3;
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - square not under attack" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expect(!isSquareUnderattack(c.E4, 0, moves));
+}
+
+test "isSquareUnderattack - multiple pieces attacking same square" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.A4;
+    board.position.whitepieces.Rook[0].position = c.E1;
+    
+    var allMoves: [256]b.Board = undefined;
+    var moveCount: usize = 0;
+    
+    const queenMoves = getValidQueenMoves(board.position.whitepieces.Queen, board);
+    const rookMoves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    
+    for (queenMoves) |move| {
+        allMoves[moveCount] = move;
+        moveCount += 1;
+    }
+    for (rookMoves) |move| {
+        allMoves[moveCount] = move;
+        moveCount += 1;
+    }
+    
+    try std.testing.expect(isSquareUnderattack(c.E4, 0, allMoves[0..moveCount]));
+}
