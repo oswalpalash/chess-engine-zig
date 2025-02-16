@@ -675,8 +675,8 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     var newcolindex: u64 = undefined;
     // forward moves
     for (knightshifts) |shift| {
-        if (knight.position << shift == 0) {
-            break;
+        if (knight.position == 0 or knight.position << shift == 0) {
+            continue;
         }
         // if there is no piece, allow shifting
         // if there is a piece, check if it is of different colour, if so, capture it
@@ -686,7 +686,7 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
             newcolindex = colfrombitmap(knight.position << shift);
             if (dummypiece.representation != '.') {
                 if (dummypiece.color == knight.color) {
-                    break;
+                    continue;
                 }
             }
             if (newcolindex > originalcolindex) {
@@ -736,15 +736,15 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     knight = piece;
     // reverse moves
     for (knightshifts) |shift| {
-        if (knight.position >> shift == 0) {
-            break;
+        if (knight.position == 0 or knight.position >> shift == 0) {
+            continue;
         }
         if (bitmap & (knight.position >> shift) == 0) {
             dummypiece = piecefromlocation(knight.position >> shift, board);
             newcolindex = colfrombitmap(knight.position >> shift);
             if (dummypiece.representation != '.') {
                 if (dummypiece.color == knight.color) {
-                    break;
+                    continue;
                 }
             }
             if (newcolindex > originalcolindex) {
@@ -776,9 +776,6 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
                     }
                 }
 
-                if (newcolindex - originalcolindex >= 2 or newcolindex - originalcolindex <= -2) {
-                    break;
-                }
                 if (dummypiece.representation != '.') {
                     if (dummypiece.color != knight.color) {
                         dummypiece.position = knight.position >> shift;
@@ -1031,302 +1028,290 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     var possiblemoves: u64 = 0;
     const queen: b.Piece = piece;
 
-    const rookshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
-    const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
+    const shifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
     const row: u64 = rowfrombitmap(queen.position);
     const col: u64 = colfrombitmap(queen.position);
     var newqueen: b.Piece = queen;
     var testpiece: b.Piece = undefined;
 
-    // iterate through all possible forward moves
-    for (rookshifts) |shift| {
-        if (row + shift == 9) {
-            break;
-        }
-        if (bitmap & (newqueen.position << (shift * 8)) == 0) {
-            testpiece = piecefromlocation(newqueen.position << (shift * 8), board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newqueen.position = newqueen.position << (shift * 8);
-            // update board
+    // Rook-like moves
+    // Forward moves
+    for (shifts) |shift| {
+        if (row + shift > 8) break;
+        const newpos = queen.position << (shift * 8);
+        if (newpos == 0) break;
+
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            _ = moves[possiblemoves].print();
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            if (bitmap & (newqueen.position << (shift * 8)) != 0) {
-                testpiece = piecefromlocation(newqueen.position << (shift * 8), board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
-                newqueen.position = newqueen.position << (shift * 8);
-                // update board
-                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-                _ = moves[possiblemoves].print();
                 possiblemoves += 1;
-                newqueen.position = queen.position;
-                break;
             }
-        }
-        newqueen.position = queen.position;
-    }
-    // iterate through all possible backward moves
-    for (rookshifts) |shift| {
-        if (row - shift == 0) {
             break;
         }
-        if (bitmap & (newqueen.position >> (shift * 8)) == 0) {
-            testpiece = piecefromlocation(newqueen.position >> (shift * 8), board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newqueen.position = newqueen.position >> (shift * 8);
-            // update board
+    }
+
+    // Backward moves
+    for (shifts) |shift| {
+        if (row <= shift) break;
+        const newpos = queen.position >> (shift * 8);
+        if (newpos == 0) break;
+
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            _ = moves[possiblemoves].print();
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            if (bitmap & (newqueen.position >> (shift * 8)) != 0) {
-                testpiece = piecefromlocation(newqueen.position >> (shift * 8), board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
-                newqueen.position = newqueen.position >> (shift * 8);
-                // update board
-                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-                _ = moves[possiblemoves].print();
                 possiblemoves += 1;
-                newqueen.position = queen.position;
-                break;
             }
-        }
-        newqueen.position = queen.position;
-    }
-    // iterate through all possible left moves
-    for (rookshifts) |shift| {
-        if (col - shift == 0) {
             break;
         }
-        if (bitmap & (newqueen.position << shift) == 0) {
-            testpiece = piecefromlocation(newqueen.position << shift, board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newqueen.position = newqueen.position << shift;
-            // update board
+    }
+
+    // Left moves
+    for (shifts) |shift| {
+        if (col <= shift) break;
+        const newpos = queen.position << shift;
+        if (newpos == 0) break;
+
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            _ = moves[possiblemoves].print();
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            if (bitmap & (newqueen.position << shift) != 0) {
-                testpiece = piecefromlocation(newqueen.position << shift, board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
-                newqueen.position = newqueen.position << shift;
-                // update board
-                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-                _ = moves[possiblemoves].print();
                 possiblemoves += 1;
-                newqueen.position = queen.position;
-                break;
             }
-        }
-        newqueen.position = queen.position;
-    }
-    // iterate through all possible right moves
-    for (rookshifts) |shift| {
-        if (col + shift == 9) {
             break;
         }
-        if (bitmap & (newqueen.position >> shift) == 0) {
-            testpiece = piecefromlocation(newqueen.position >> shift, board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newqueen.position = newqueen.position >> shift;
-            // update board
+    }
+
+    // Right moves
+    for (shifts) |shift| {
+        if (col + shift > 8) break;
+        const newpos = queen.position >> shift;
+        if (newpos == 0) break;
+
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            _ = moves[possiblemoves].print();
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            if (bitmap & (newqueen.position >> shift) != 0) {
-                testpiece = piecefromlocation(newqueen.position >> shift, board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
-                newqueen.position = newqueen.position >> shift;
-                // update board
-                moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-                _ = moves[possiblemoves].print();
                 possiblemoves += 1;
-                newqueen.position = queen.position;
-                break;
             }
-        }
-        newqueen.position = queen.position;
-    }
-
-    newqueen = queen;
-
-    // "Up-Left" in standard chess = shift left by 9 bits
-    for (bishopshifts) |shift| {
-        if (row + shift > 8 or col - shift < 1) break; // Boundary check
-
-        const step = shift * 9;
-        const targetPos = queen.position << step;
-        if (targetPos == 0) break; // Shifted off board?
-
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row + shift;
-        const targetCol = col - shift;
-        if (targetRow > 8 or targetCol < 1) break;
-
-        if ((bitmap & targetPos) == 0) {
-            // No piece blocking
-            testpiece = piecefromlocation(targetPos, board);
-            // If same-color piece is there (somehow), stop
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            // Otherwise, it's a valid move
-            newqueen.position = targetPos;
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            possiblemoves += 1;
-        } else {
-            // There's a piece. Possibly capture?
-            testpiece = piecefromlocation(targetPos, board);
-            // Stop if it's white
-            if (testpiece.color == 0) break;
-            // Otherwise, capture black and stop
-            newqueen.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            possiblemoves += 1;
             break;
         }
     }
 
-    // "Up-Right" in standard chess = shift left by 7 bits
-    for (bishopshifts) |shift| {
-        if (row + shift > 8 or col + shift > 8) break; // Boundary check
+    // Bishop-like moves
+    // Up-Left diagonal
+    for (shifts) |shift| {
+        if (row + shift > 8 or col <= shift) break;
+        const newpos = queen.position << (shift * 9);
+        if (newpos == 0) break;
 
-        const step = shift * 7;
-        const targetPos = queen.position << step;
-        if (targetPos == 0) break;
-
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row + shift;
-        const targetCol = col + shift;
-        if (targetRow > 8 or targetCol > 8) break;
-
-        if ((bitmap & targetPos) == 0) {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            newqueen.position = targetPos;
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.color == 0) break;
-            newqueen.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            possiblemoves += 1;
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
+                }
+                possiblemoves += 1;
+            }
             break;
         }
     }
 
-    // "Down-Left" in standard chess = shift right by 9 bits
-    for (bishopshifts) |shift| {
-        if (row - shift < 1 or col - shift < 1) break; // Boundary check
+    // Up-Right diagonal
+    for (shifts) |shift| {
+        if (row + shift > 8 or col + shift > 8) break;
+        const newpos = queen.position << (shift * 7);
+        if (newpos == 0) break;
 
-        const step = shift * 9;
-        const targetPos = queen.position >> step;
-        if (targetPos == 0) break;
-
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row - shift;
-        const targetCol = col - shift;
-        if (targetRow < 1 or targetCol < 1) break;
-
-        if ((bitmap & targetPos) == 0) {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            newqueen.position = targetPos;
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.color == 0) break;
-            newqueen.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
-            possiblemoves += 1;
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
+                }
+                possiblemoves += 1;
+            }
             break;
         }
     }
 
-    // "Down-Right" in standard chess = shift right by 7 bits
-    for (bishopshifts) |shift| {
-        if (row - shift < 1 or col + shift > 8) break; // Boundary check
+    // Down-Left diagonal
+    for (shifts) |shift| {
+        if (row <= shift or col <= shift) break;
+        const newpos = queen.position >> (shift * 7);
+        if (newpos == 0) break;
 
-        const step = shift * 7;
-        const targetPos = queen.position >> step;
-        if (targetPos == 0) break;
-
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row - shift;
-        const targetCol = col + shift;
-        if (targetRow < 1 or targetCol > 8) break;
-
-        if ((bitmap & targetPos) == 0) {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            newqueen.position = targetPos;
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
         } else {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.color == 0) break;
-            newqueen.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newqueen.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Queen.position = newqueen.position;
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
+                }
+                possiblemoves += 1;
+            }
+            break;
+        }
+    }
+
+    // Down-Right diagonal
+    for (shifts) |shift| {
+        if (row <= shift or col + shift > 8) break;
+        const newpos = queen.position >> (shift * 9);
+        if (newpos == 0) break;
+
+        if (bitmap & newpos == 0) {
+            // Empty square
+            newqueen.position = newpos;
+            moves[possiblemoves] = b.Board{ .position = board.position };
+            if (queen.color == 0) {
+                moves[possiblemoves].position.whitepieces.Queen = newqueen;
+            } else {
+                moves[possiblemoves].position.blackpieces.Queen = newqueen;
+            }
             possiblemoves += 1;
+        } else {
+            // Check for capture
+            testpiece = piecefromlocation(newpos, board);
+            if (testpiece.color != queen.color) {
+                newqueen.position = newpos;
+                if (queen.color == 0) {
+                    moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
+                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
+                } else {
+                    // TODO: Implement capturewhitepiece
+                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
+                }
+                possiblemoves += 1;
+            }
             break;
         }
     }
