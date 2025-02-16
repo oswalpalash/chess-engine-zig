@@ -48,3 +48,71 @@ test "en passant test placeholder" {
     // Without en passant implemented, the moves.len should reflect only that basic move.
     try std.testing.expectEqual(moves.len, 1);
 }
+
+// Test for en passant captures
+test "en passant capture - white pawn captures black pawn" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Place a white pawn on e5
+    board.position.whitepieces.Pawn[4].position = c.E5;
+    // Place a black pawn on d5 (just moved there from d7)
+    board.position.blackpieces.Pawn[3].position = c.D5;
+    // Set the en-passant square to d6 (the square behind the black pawn)
+    board.position.enPassantSquare = c.D6;
+
+    const moves = m.getValidPawnMoves(board.position.whitepieces.Pawn[4], board);
+    // Should have 2 moves: forward to e6 and en-passant capture to d6
+    try std.testing.expectEqual(moves.len, 2);
+
+    // Find the en-passant capture move
+    var foundEnPassant = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Pawn[4].position == c.D6) {
+            // Verify the black pawn was captured
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[3].position, 0);
+            foundEnPassant = true;
+            break;
+        }
+    }
+    try std.testing.expect(foundEnPassant);
+}
+
+test "en passant capture - black pawn captures white pawn" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Place a black pawn on e4
+    board.position.blackpieces.Pawn[4].position = c.E4;
+    // Place a white pawn on d4 (just moved there from d2)
+    board.position.whitepieces.Pawn[3].position = c.D4;
+    // Set the en-passant square to d3 (the square behind the white pawn)
+    board.position.enPassantSquare = c.D3;
+
+    const moves = m.getValidPawnMoves(board.position.blackpieces.Pawn[4], board);
+    // Should have 2 moves: forward to e3 and en-passant capture to d3
+    try std.testing.expectEqual(moves.len, 2);
+
+    // Find the en-passant capture move
+    var foundEnPassant = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[4].position == c.D3) {
+            // Verify the white pawn was captured
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[3].position, 0);
+            foundEnPassant = true;
+            break;
+        }
+    }
+    try std.testing.expect(foundEnPassant);
+}
+
+test "en passant capture - only available immediately after double pawn move" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Place a white pawn on e5
+    board.position.whitepieces.Pawn[4].position = c.E5;
+    // Place a black pawn on d5
+    board.position.blackpieces.Pawn[3].position = c.D5;
+    // No en-passant square set (simulating a move in between)
+    board.position.enPassantSquare = 0;
+
+    const moves = m.getValidPawnMoves(board.position.whitepieces.Pawn[4], board);
+    // Should only have 1 move: forward to e6
+    try std.testing.expectEqual(moves.len, 1);
+    try std.testing.expectEqual(moves[0].position.whitepieces.Pawn[4].position, c.E6);
+}

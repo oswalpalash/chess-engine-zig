@@ -10,7 +10,7 @@ A chess engine written in zig. Mostly written as a means to learn and improve at
 - [ ] Basic Evaluation
 - [x] FEN Parsing
 - [x] Board Design and Piece Information
-- [ ] Move Generator (WIP)
+- [x] Move Generator
 - [x] Unit Tests for supported code
 - [x] CI Based Testing ![CI](https://github.com/oswalpalash/chess-engine-zig/actions/workflows/ci.yaml/badge.svg)
 
