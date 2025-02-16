@@ -55,6 +55,7 @@ pub const Position = struct {
     canCastleWhiteQueenside: bool = false,
     canCastleBlackKingside: bool = false,
     canCastleBlackQueenside: bool = false,
+    enPassantSquare: u64 = 0,
 
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
@@ -100,6 +101,7 @@ pub const Position = struct {
             .canCastleWhiteQueenside = true,
             .canCastleBlackKingside = true,
             .canCastleBlackQueenside = true,
+            .enPassantSquare = 0,
         };
     }
 
@@ -108,11 +110,12 @@ pub const Position = struct {
             .whitepieces = WhitePieces{},
             .blackpieces = BlackPieces{},
 
-            // Typically, if you had an empty board, there’s no castling:
+            // Typically, if you had an empty board, there's no castling:
             .canCastleWhiteKingside = false,
             .canCastleWhiteQueenside = false,
             .canCastleBlackKingside = false,
             .canCastleBlackQueenside = false,
+            .enPassantSquare = 0,
         };
     }
 
@@ -155,6 +158,11 @@ pub const Position = struct {
         return Position{
             .whitepieces = whitepieces,
             .blackpieces = blackpieces,
+            .canCastleWhiteKingside = self.canCastleWhiteKingside,
+            .canCastleWhiteQueenside = self.canCastleWhiteQueenside,
+            .canCastleBlackKingside = self.canCastleBlackKingside,
+            .canCastleBlackQueenside = self.canCastleBlackQueenside,
+            .enPassantSquare = reverse(self.enPassantSquare),
         };
     }
 
@@ -471,4 +479,47 @@ test "fen to board" {
             }
         }
     }
+}
+
+test "flip symmetry returns original state after double flip" {
+    const pos = Position.init();
+    const flipped = pos.flip();
+    const doubleFlipped = flipped.flip();
+    try std.testing.expectEqual(pos.whitepieces.King.position, doubleFlipped.whitepieces.King.position);
+    try std.testing.expectEqual(pos.whitepieces.Queen.position, doubleFlipped.whitepieces.Queen.position);
+    inline for (0..pos.whitepieces.Rook.len) |i| {
+        try std.testing.expectEqual(pos.whitepieces.Rook[i].position, doubleFlipped.whitepieces.Rook[i].position);
+    }
+    inline for (0..pos.whitepieces.Bishop.len) |i| {
+        try std.testing.expectEqual(pos.whitepieces.Bishop[i].position, doubleFlipped.whitepieces.Bishop[i].position);
+    }
+    inline for (0..pos.whitepieces.Knight.len) |i| {
+        try std.testing.expectEqual(pos.whitepieces.Knight[i].position, doubleFlipped.whitepieces.Knight[i].position);
+    }
+    inline for (0..pos.whitepieces.Pawn.len) |i| {
+        try std.testing.expectEqual(pos.whitepieces.Pawn[i].position, doubleFlipped.whitepieces.Pawn[i].position);
+    }
+    try std.testing.expectEqual(pos.blackpieces.King.position, doubleFlipped.blackpieces.King.position);
+    try std.testing.expectEqual(pos.blackpieces.Queen.position, doubleFlipped.blackpieces.Queen.position);
+    inline for (0..pos.blackpieces.Rook.len) |i| {
+        try std.testing.expectEqual(pos.blackpieces.Rook[i].position, doubleFlipped.blackpieces.Rook[i].position);
+    }
+    inline for (0..pos.blackpieces.Bishop.len) |i| {
+        try std.testing.expectEqual(pos.blackpieces.Bishop[i].position, doubleFlipped.blackpieces.Bishop[i].position);
+    }
+    inline for (0..pos.blackpieces.Knight.len) |i| {
+        try std.testing.expectEqual(pos.blackpieces.Knight[i].position, doubleFlipped.blackpieces.Knight[i].position);
+    }
+    inline for (0..pos.blackpieces.Pawn.len) |i| {
+        try std.testing.expectEqual(pos.blackpieces.Pawn[i].position, doubleFlipped.blackpieces.Pawn[i].position);
+    }
+}
+
+test "parse fen with castling rights" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+    const pos = parseFen(fenStr);
+    try std.testing.expect(pos.canCastleWhiteKingside);
+    try std.testing.expect(pos.canCastleWhiteQueenside);
+    try std.testing.expect(pos.canCastleBlackKingside);
+    try std.testing.expect(pos.canCastleBlackQueenside);
 }

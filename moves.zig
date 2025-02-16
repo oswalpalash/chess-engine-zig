@@ -235,9 +235,14 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         8 => {
             if (bitmap & (piece.position << 8) == 0) {
                 pawn.position = piece.position << 8;
-                // update board
+                const newRow = rowfrombitmap(pawn.position);
+                if (newRow == 8) {
+                    // Pawn promotion: default promote to Queen
+                    pawn.representation = 'Q';
+                }
                 moves[possiblemoves] = b.Board{ .position = board.position };
                 moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
+                moves[possiblemoves].position.whitepieces.Pawn[index].representation = pawn.representation;
                 _ = moves[possiblemoves].print();
                 possiblemoves += 1;
             }
@@ -255,21 +260,37 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             }
         },
         7 => {
-            // remove captured piece from board
-            if (bitmap & (piece.position << 7) != 0) {
-                pawn.position = piece.position << 7;
-                // update board
-                moves[possiblemoves] = captureblackpiece(pawn.position, b.Board{ .position = board.position });
+            const targetPos = piece.position << 7;
+            if (targetPos == board.position.enPassantSquare) {
+                // En passant capture: captured pawn is directly behind target
+                const capturedPawnPos = targetPos >> 8;
+                var newBoard = board;
+                newBoard = captureblackpiece(capturedPawnPos, board);
+                newBoard.position.whitepieces.Pawn[index].position = targetPos;
+                _ = newBoard.print();
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            } else if (bitmap & targetPos != 0) {
+                pawn.position = targetPos;
+                moves[possiblemoves] = captureblackpiece(targetPos, b.Board{ .position = board.position });
                 moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
                 _ = moves[possiblemoves].print();
                 possiblemoves += 1;
             }
         },
         9 => {
-            if (bitmap & (piece.position << 9) != 0) {
-                pawn.position = piece.position << 9;
-                // update board
-                moves[possiblemoves] = captureblackpiece(pawn.position, b.Board{ .position = board.position });
+            const targetPos = piece.position << 9;
+            if (targetPos == board.position.enPassantSquare) {
+                const capturedPawnPos = targetPos >> 8;
+                var newBoard = board;
+                newBoard = captureblackpiece(capturedPawnPos, board);
+                newBoard.position.whitepieces.Pawn[index].position = targetPos;
+                _ = newBoard.print();
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            } else if (bitmap & targetPos != 0) {
+                pawn.position = targetPos;
+                moves[possiblemoves] = captureblackpiece(targetPos, b.Board{ .position = board.position });
                 moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
                 _ = moves[possiblemoves].print();
                 possiblemoves += 1;
@@ -641,6 +662,25 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             }
         }
     }
+
+    // Add castling moves for white king (kingside) if available
+    if (piece.color == 0 and board.position.canCastleWhiteKingside and piece.position == c.E1) {
+        // Check if squares F1 and G1 are empty
+        if ((bitmap & c.F1) == 0 and (bitmap & c.G1) == 0) {
+            var castledKing = piece;
+            castledKing.position = c.G1; // king moves two squares towards rook
+            var newBoard = board;
+            newBoard.position.whitepieces.King = castledKing;
+            // Update kingside rook: from H1 to F1
+            newBoard.position.whitepieces.Rook[1].position = c.F1;
+            // Remove castling right
+            newBoard.position.canCastleWhiteKingside = false;
+            moves[possiblemoves] = newBoard;
+            _ = moves[possiblemoves].print();
+            possiblemoves += 1;
+        }
+    }
+
     return moves[0..possiblemoves];
 }
 
@@ -1594,4 +1634,19 @@ test "getValidKingMoves works for black king" {
     board.position.blackpieces.King.position = c.E4;
     const moves = getValidKingMoves(board.position.blackpieces.King, board);
     try std.testing.expectEqual(moves.len, 8); // King on e4 can move to 8 squares
+}
+
+test "ValidKnightMoves unordered test for knight on b1" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Knight[0].position = c.B1;
+    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    var foundC3 = false;
+    var foundA3 = false;
+    for (moves) |move| {
+        const newPos = move.position.whitepieces.Knight[0].position;
+        if (newPos == c.C3) foundC3 = true;
+        if (newPos == c.A3) foundA3 = true;
+    }
+    try std.testing.expect(foundC3);
+    try std.testing.expect(foundA3);
 }
