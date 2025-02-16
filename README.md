@@ -7,7 +7,7 @@ A chess engine written in zig. Mostly written as a means to learn and improve at
 #### What works?
 
 - [ ] UCI Compliant
-- [ ] Basic Evaluation
+- [x] Basic Evaluation
 - [x] FEN Parsing
 - [x] Board Design and Piece Information
 - [x] Move Generator
