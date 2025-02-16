@@ -2,6 +2,9 @@ const b = @import("board.zig");
 const c = @import("consts.zig");
 const std = @import("std");
 
+// Import the reverse function from board.zig
+const reverse = b.reverse;
+
 test "import works" {
     const board = b.Board{ .position = b.Position.init() };
     try std.testing.expectEqual(board.move_count, 0);
@@ -780,7 +783,7 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
                     if (dummypiece.color != knight.color) {
                         dummypiece.position = knight.position >> shift;
                         // update board
-                        moves[possiblemoves] = captureblackpiece(knight.position, b.Board{ .position = board.position });
+                        moves[possiblemoves] = captureblackpiece(dummypiece.position, b.Board{ .position = board.position });
                         moves[possiblemoves].position.whitepieces.Knight[0].position = dummypiece.position;
                         _ = moves[possiblemoves].print();
                         possiblemoves += 1;
@@ -955,7 +958,7 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     // "Down-Right" in standard chess = shift right by 7 bits
     //
     for (bishopshifts) |shift| {
-        if (row - shift < 1 or col + shift > 8) break; // Boundary check
+        if (row <= shift or col + shift > 8) break; // Boundary check
 
         const step = shift * 7;
         const targetPos = bishop.position >> step;
@@ -1374,4 +1377,221 @@ test "ValidQueenMoves with obstacles" {
     // c3, b2, a1
 
     try std.testing.expect(moves.len == 14);
+}
+
+// Color-specific move functions
+pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
+    if (piece.color == 0) {
+        return ValidPawnMoves(piece, board);
+    } else {
+        var flippedBoard = board;
+        flippedBoard.position = flippedBoard.position.flip();
+        var flippedPiece = piece;
+        flippedPiece.position = b.reverse(piece.position);
+        
+        const moves = ValidPawnMoves(flippedPiece, flippedBoard);
+        var flippedMoves: [256]b.Board = undefined;
+        
+        for (moves, 0..) |move, i| {
+            flippedMoves[i] = move;
+            flippedMoves[i].position = flippedMoves[i].position.flip();
+        }
+        
+        return flippedMoves[0..moves.len];
+    }
+}
+
+test "getValidPawnMoves works for white pawns" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = getValidPawnMoves(board.position.whitepieces.Pawn[4], board);
+    try std.testing.expectEqual(moves.len, 2); // e2 pawn can move to e3 and e4
+}
+
+test "getValidPawnMoves works for black pawns" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = getValidPawnMoves(board.position.blackpieces.Pawn[4], board);
+    try std.testing.expectEqual(moves.len, 2); // e7 pawn can move to e6 and e5
+}
+
+pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
+    if (piece.color == 0) {
+        return ValidRookMoves(piece, board);
+    } else {
+        var flippedBoard = board;
+        flippedBoard.position = flippedBoard.position.flip();
+        var flippedPiece = piece;
+        flippedPiece.position = b.reverse(piece.position);
+        flippedPiece.color = 0; // Make it a white piece for ValidRookMoves
+        
+        // Find which rook it is and update it in the flipped board
+        for (board.position.blackpieces.Rook, 0..) |item, i| {
+            if (item.position == piece.position) {
+                flippedBoard.position.whitepieces.Rook[i].position = flippedPiece.position;
+                flippedBoard.position.whitepieces.Rook[i].color = 0;
+                break;
+            }
+        }
+        
+        const moves = ValidRookMoves(flippedPiece, flippedBoard);
+        var flippedMoves: [256]b.Board = undefined;
+        
+        for (moves, 0..) |move, i| {
+            flippedMoves[i] = move;
+            flippedMoves[i].position = flippedMoves[i].position.flip();
+        }
+        
+        return flippedMoves[0..moves.len];
+    }
+}
+
+test "getValidRookMoves works for white rooks" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.E4;
+    const moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // Rook on e4 can move to 14 squares
+}
+
+test "getValidRookMoves works for black rooks" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Rook[0].position = c.E4;
+    const moves = getValidRookMoves(board.position.blackpieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // Rook on e4 can move to 14 squares (7 horizontal + 7 vertical)
+}
+
+pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
+    if (piece.color == 0) {
+        return ValidKnightMoves(piece, board);
+    } else {
+        var flippedBoard = board;
+        flippedBoard.position = flippedBoard.position.flip();
+        var flippedPiece = piece;
+        flippedPiece.position = b.reverse(piece.position);
+        
+        const moves = ValidKnightMoves(flippedPiece, flippedBoard);
+        var flippedMoves: [256]b.Board = undefined;
+        
+        for (moves, 0..) |move, i| {
+            flippedMoves[i] = move;
+            flippedMoves[i].position = flippedMoves[i].position.flip();
+        }
+        
+        return flippedMoves[0..moves.len];
+    }
+}
+
+test "getValidKnightMoves works for white knights" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = getValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 2); // b1 knight can move to a3 and c3
+}
+
+test "getValidKnightMoves works for black knights" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = getValidKnightMoves(board.position.blackpieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 2); // b8 knight can move to a6 and c6
+}
+
+pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
+    if (piece.color == 0) {
+        return ValidBishopMoves(piece, board);
+    } else {
+        var flippedBoard = board;
+        flippedBoard.position = flippedBoard.position.flip();
+        var flippedPiece = piece;
+        flippedPiece.position = b.reverse(piece.position);
+        
+        const moves = ValidBishopMoves(flippedPiece, flippedBoard);
+        var flippedMoves: [256]b.Board = undefined;
+        
+        for (moves, 0..) |move, i| {
+            flippedMoves[i] = move;
+            flippedMoves[i].position = flippedMoves[i].position.flip();
+        }
+        
+        return flippedMoves[0..moves.len];
+    }
+}
+
+test "getValidBishopMoves works for white bishops" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.E4;
+    const moves = getValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    try std.testing.expectEqual(moves.len, 13); // Bishop on e4 can move to 13 squares
+}
+
+test "getValidBishopMoves works for black bishops" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Bishop[0].position = c.E4;
+    const moves = getValidBishopMoves(board.position.blackpieces.Bishop[0], board);
+    try std.testing.expectEqual(moves.len, 13); // Bishop on e4 can move to 13 squares
+}
+
+pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
+    if (piece.color == 0) {
+        return ValidQueenMoves(piece, board);
+    } else {
+        var flippedBoard = board;
+        flippedBoard.position = flippedBoard.position.flip();
+        var flippedPiece = piece;
+        flippedPiece.position = b.reverse(piece.position);
+        
+        const moves = ValidQueenMoves(flippedPiece, flippedBoard);
+        var flippedMoves: [256]b.Board = undefined;
+        
+        for (moves, 0..) |move, i| {
+            flippedMoves[i] = move;
+            flippedMoves[i].position = flippedMoves[i].position.flip();
+        }
+        
+        return flippedMoves[0..moves.len];
+    }
+}
+
+test "getValidQueenMoves works for white queen" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.E4;
+    const moves = getValidQueenMoves(board.position.whitepieces.Queen, board);
+    try std.testing.expectEqual(moves.len, 27); // Queen on e4 can move to 27 squares
+}
+
+test "getValidQueenMoves works for black queen" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+    const moves = getValidQueenMoves(board.position.blackpieces.Queen, board);
+    try std.testing.expectEqual(moves.len, 27); // Queen on e4 can move to 27 squares
+}
+
+pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
+    if (piece.color == 0) {
+        return ValidKingMoves(piece, board);
+    } else {
+        var flippedBoard = board;
+        flippedBoard.position = flippedBoard.position.flip();
+        var flippedPiece = piece;
+        flippedPiece.position = b.reverse(piece.position);
+        
+        const moves = ValidKingMoves(flippedPiece, flippedBoard);
+        var flippedMoves: [256]b.Board = undefined;
+        
+        for (moves, 0..) |move, i| {
+            flippedMoves[i] = move;
+            flippedMoves[i].position = flippedMoves[i].position.flip();
+        }
+        
+        return flippedMoves[0..moves.len];
+    }
+}
+
+test "getValidKingMoves works for white king" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E4;
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 8); // King on e4 can move to 8 squares
+}
+
+test "getValidKingMoves works for black king" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E4;
+    const moves = getValidKingMoves(board.position.blackpieces.King, board);
+    try std.testing.expectEqual(moves.len, 8); // King on e4 can move to 8 squares
 }
