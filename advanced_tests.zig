@@ -13,8 +13,8 @@ test "castling moves for white king available" {
     board.position = b.Position.init();
     // Clear squares between king and rook (F1 and G1) so moves are allowed
     board.position.whitepieces.Bishop[1].position = 0; // originally at F1
-    board.position.whitepieces.Knight[1].position = 0;   // originally at G1
-    
+    board.position.whitepieces.Knight[1].position = 0; // originally at G1
+
     const moves = m.getValidKingMoves(board.position.whitepieces.King, board);
     // Expect two moves: one normal king move (E1->F1) and one castling move (E1->G1 with rook from H1->F1)
     try std.testing.expectEqual(moves.len, 2);
@@ -42,9 +42,9 @@ test "en passant test placeholder" {
     board.position.whitepieces.Pawn[0].position = c.E5;
     // Place a black pawn on d5 in a position that would normally allow en passant capture
     board.position.blackpieces.Pawn[3].position = c.D5;
-    
+
     const moves = m.getValidPawnMoves(board.position.whitepieces.Pawn[0], board);
     // For a pawn on e5 in an otherwise empty board, normally only a forward move (to e6) would be generated.
     // Without en passant implemented, the moves.len should reflect only that basic move.
     try std.testing.expectEqual(moves.len, 1);
-} 
+}

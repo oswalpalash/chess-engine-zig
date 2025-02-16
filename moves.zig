@@ -1428,15 +1428,15 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         flippedBoard.position = flippedBoard.position.flip();
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
-        
+
         const moves = ValidPawnMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-        
+
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-        
+
         return flippedMoves[0..moves.len];
     }
 }
@@ -1462,7 +1462,7 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
         flippedPiece.color = 0; // Make it a white piece for ValidRookMoves
-        
+
         // Find which rook it is and update it in the flipped board
         for (board.position.blackpieces.Rook, 0..) |item, i| {
             if (item.position == piece.position) {
@@ -1471,15 +1471,15 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
                 break;
             }
         }
-        
+
         const moves = ValidRookMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-        
+
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-        
+
         return flippedMoves[0..moves.len];
     }
 }
@@ -1506,15 +1506,15 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
         flippedBoard.position = flippedBoard.position.flip();
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
-        
+
         const moves = ValidKnightMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-        
+
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-        
+
         return flippedMoves[0..moves.len];
     }
 }
@@ -1539,15 +1539,15 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
         flippedBoard.position = flippedBoard.position.flip();
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
-        
+
         const moves = ValidBishopMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-        
+
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-        
+
         return flippedMoves[0..moves.len];
     }
 }
@@ -1574,15 +1574,15 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         flippedBoard.position = flippedBoard.position.flip();
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
-        
+
         const moves = ValidQueenMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-        
+
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-        
+
         return flippedMoves[0..moves.len];
     }
 }
@@ -1609,15 +1609,15 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
         flippedBoard.position = flippedBoard.position.flip();
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
-        
+
         const moves = ValidKingMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-        
+
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-        
+
         return flippedMoves[0..moves.len];
     }
 }
