@@ -455,7 +455,7 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
     const rook = piece;
-    var index: u64 = undefined;
+    var index: u64 = 0; // Initialize with a default value
 
     // Find which rook we're moving
     if (piece.color == 0) {
@@ -2143,4 +2143,29 @@ test "getValidRookMoves for black rook at a8 in initial board" {
     }
     
     try std.testing.expectEqual(moves.len, 0);
+}
+
+test "ValidRookMoves debug test for black rooks" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Place a black rook at e4
+    board.position.blackpieces.Rook[0].position = c.E4;
+    
+    // Debug print the board
+    _ = board.print();
+    
+    // Get moves for the black rook
+    const moves = ValidRookMoves(board.position.blackpieces.Rook[0], board);
+    
+    // Print number of moves found
+    std.debug.print("\nFound {d} moves for black rook\n", .{moves.len});
+    
+    // Verify moves are valid
+    try std.testing.expectEqual(moves.len, 14); // Should have 14 possible moves (7 horizontal + 7 vertical)
+    
+    // Verify the rook's position is properly updated in each move
+    for (moves) |move| {
+        const newPos = move.position.blackpieces.Rook[0].position;
+        try std.testing.expect(newPos != 0); // Position should never be 0
+        try std.testing.expect(newPos != c.E4); // Position should be different from starting position
+    }
 }
