@@ -778,13 +778,13 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
 
     // All possible knight moves relative to current position
     const knightMoves = [8]struct { row: i8, col: i8 }{
-        .{ .row = 2, .col = 1 },   // Up 2, right 1
-        .{ .row = 2, .col = -1 },  // Up 2, left 1
-        .{ .row = -2, .col = 1 },  // Down 2, right 1
+        .{ .row = 2, .col = 1 }, // Up 2, right 1
+        .{ .row = 2, .col = -1 }, // Up 2, left 1
+        .{ .row = -2, .col = 1 }, // Down 2, right 1
         .{ .row = -2, .col = -1 }, // Down 2, left 1
-        .{ .row = 1, .col = 2 },   // Up 1, right 2
-        .{ .row = 1, .col = -2 },  // Up 1, left 2
-        .{ .row = -1, .col = 2 },  // Down 1, right 2
+        .{ .row = 1, .col = 2 }, // Up 1, right 2
+        .{ .row = 1, .col = -2 }, // Up 1, left 2
+        .{ .row = -1, .col = 2 }, // Down 1, right 2
         .{ .row = -1, .col = -2 }, // Down 1, left 2
     };
 
@@ -863,12 +863,12 @@ test "ValidKnightMoves for empty board with knight on b1 and black piece on c3" 
 
 test "ValidKnightMoves for corner positions" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // Test from a1 corner
     board.position.whitepieces.Knight[0].position = c.A1;
     var moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
     try std.testing.expectEqual(moves.len, 2); // Can only move to b3 and c2
-    
+
     // Test from h8 corner
     board.position.whitepieces.Knight[0].position = c.H8;
     moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
@@ -879,10 +879,10 @@ test "ValidKnightMoves with both knights" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Knight[0].position = c.B1;
     board.position.whitepieces.Knight[1].position = c.G1;
-    
+
     const moves1 = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
     try std.testing.expectEqual(moves1.len, 3); // Can move to a3, c3, and d2
-    
+
     const moves2 = ValidKnightMoves(board.position.whitepieces.Knight[1], board);
     try std.testing.expectEqual(moves2.len, 3); // Can move to e2, f3, and h3
 }
@@ -890,20 +890,21 @@ test "ValidKnightMoves with both knights" {
 test "ValidKnightMoves captures" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Knight[0].position = c.E4;
-    
+
     // Place some black pieces in knight's path
     board.position.blackpieces.Pawn[0].position = c.F6; // Can be captured
     board.position.blackpieces.Pawn[1].position = c.D6; // Can be captured
     board.position.whitepieces.Pawn[0].position = c.G5; // Blocked by own piece
-    
+
     const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
     try std.testing.expectEqual(moves.len, 7); // 8 possible moves - 1 blocked by own piece
-    
+
     // Verify captures are possible
     var foundCaptures = false;
     for (moves) |move| {
-        if (move.position.blackpieces.Pawn[0].position == 0 or 
-            move.position.blackpieces.Pawn[1].position == 0) {
+        if (move.position.blackpieces.Pawn[0].position == 0 or
+            move.position.blackpieces.Pawn[1].position == 0)
+        {
             foundCaptures = true;
             break;
         }
