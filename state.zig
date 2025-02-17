@@ -116,7 +116,9 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (bishop.position == 0) continue;
             const moves = m.ValidBishopMoves(bishop, board);
             for (moves) |move| {
-                if (move.position.whitepieces.Bishop[0].position == kingPosition) {
+                if (move.position.whitepieces.Bishop[0].position == kingPosition or
+                    move.position.whitepieces.Bishop[1].position == kingPosition)
+                {
                     return true;
                 }
             }
@@ -127,7 +129,9 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (rook.position == 0) continue;
             const moves = m.ValidRookMoves(rook, board);
             for (moves) |move| {
-                if (move.position.whitepieces.Rook[0].position == kingPosition) {
+                if (move.position.whitepieces.Rook[0].position == kingPosition or
+                    move.position.whitepieces.Rook[1].position == kingPosition)
+                {
                     return true;
                 }
             }
