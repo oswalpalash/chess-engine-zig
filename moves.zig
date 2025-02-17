@@ -932,151 +932,100 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     const row = rowfrombitmap(bishop.position);
     const col = colfrombitmap(bishop.position);
 
-    var newbishop: b.Piece = bishop;
-    var testpiece: b.Piece = undefined;
-
-    //
-    // "Up-Left" in standard chess = shift left by 9 bits
-    //
+    // Up-Right diagonal moves
     for (bishopshifts) |shift| {
-        if (row + shift > 8 or col - shift < 1) break; // Boundary check
+        if (row + shift > 8 or col + shift > 8) break;
 
-        const step = shift * 9;
-        const targetPos = bishop.position << step;
-        if (targetPos == 0) break; // Shifted off board?
+        const newpos = bishop.position << (shift * 7);
+        if (newpos == 0) break;
 
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row + shift;
-        const targetCol = col - shift;
-        if (targetRow > 8 or targetCol < 1) break;
-
-        if ((bitmap & targetPos) == 0) {
-            // No piece blocking
-            testpiece = piecefromlocation(targetPos, board);
-            // If same-color piece is there (somehow), stop
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            // Otherwise, it's a valid move
-            newbishop.position = targetPos;
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+        // Check if target square is empty
+        if (bitmap & newpos == 0) {
+            var newBoard = b.Board{ .position = board.position };
+            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
-            // There's a piece. Possibly capture?
-            testpiece = piecefromlocation(targetPos, board);
-            // Stop if it's white
-            if (testpiece.color == 0) break;
-            // Otherwise, capture black and stop
-            newbishop.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+            // Check if enemy piece (possible capture)
+            const targetPiece = piecefromlocation(newpos, board);
+            if (targetPiece.color != bishop.color) {
+                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            }
+            break; // Stop in this direction after capture or blocked
+        }
+    }
+
+    // Up-Left diagonal moves
+    for (bishopshifts) |shift| {
+        if (row + shift > 8 or col <= shift) break;
+
+        const newpos = bishop.position << (shift * 9);
+        if (newpos == 0) break;
+
+        if (bitmap & newpos == 0) {
+            var newBoard = b.Board{ .position = board.position };
+            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            moves[possiblemoves] = newBoard;
             possiblemoves += 1;
+        } else {
+            const targetPiece = piecefromlocation(newpos, board);
+            if (targetPiece.color != bishop.color) {
+                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            }
             break;
         }
     }
 
-    //
-    // "Up-Right" in standard chess = shift left by 7 bits
-    //
+    // Down-Right diagonal moves
     for (bishopshifts) |shift| {
-        if (row + shift > 8 or col + shift > 8) break; // Boundary check
+        if (row <= shift or col + shift > 8) break;
 
-        const step = shift * 7;
-        const targetPos = bishop.position << step;
-        if (targetPos == 0) break;
+        const newpos = bishop.position >> (shift * 9);
+        if (newpos == 0) break;
 
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row + shift;
-        const targetCol = col + shift;
-        if (targetRow > 8 or targetCol > 8) break;
-
-        if ((bitmap & targetPos) == 0) {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            newbishop.position = targetPos;
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+        if (bitmap & newpos == 0) {
+            var newBoard = b.Board{ .position = board.position };
+            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.color == 0) break;
-            newbishop.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
-            possiblemoves += 1;
+            const targetPiece = piecefromlocation(newpos, board);
+            if (targetPiece.color != bishop.color) {
+                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            }
             break;
         }
     }
 
-    //
-    // "Down-Left" in standard chess = shift right by 9 bits
-    //
+    // Down-Left diagonal moves
     for (bishopshifts) |shift| {
-        if (row - shift < 1 or col - shift < 1) break; // Boundary check
+        if (row <= shift or col <= shift) break;
 
-        const step = shift * 9;
-        const targetPos = bishop.position >> step;
-        if (targetPos == 0) break;
+        const newpos = bishop.position >> (shift * 7);
+        if (newpos == 0) break;
 
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row - shift;
-        const targetCol = col - shift;
-        if (targetRow < 1 or targetCol < 1) break;
-
-        if ((bitmap & targetPos) == 0) {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
-            }
-            newbishop.position = targetPos;
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
+        if (bitmap & newpos == 0) {
+            var newBoard = b.Board{ .position = board.position };
+            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.color == 0) break;
-            newbishop.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
-            possiblemoves += 1;
-            break;
-        }
-    }
-
-    //
-    // "Down-Right" in standard chess = shift right by 7 bits
-    //
-    for (bishopshifts) |shift| {
-        if (row <= shift or col + shift > 8) break; // Boundary check
-
-        const step = shift * 7;
-        const targetPos = bishop.position >> step;
-        if (targetPos == 0) break;
-
-        // Additional boundary check to prevent wrapping across rows
-        const targetRow = row - shift;
-        const targetCol = col + shift;
-        if (targetRow < 1 or targetCol > 8) break;
-
-        if ((bitmap & targetPos) == 0) {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.representation != '.' and testpiece.color == 0) {
-                break;
+            const targetPiece = piecefromlocation(newpos, board);
+            if (targetPiece.color != bishop.color) {
+                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
             }
-            newbishop.position = targetPos;
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
-            possiblemoves += 1;
-        } else {
-            testpiece = piecefromlocation(targetPos, board);
-            if (testpiece.color == 0) break;
-            newbishop.position = targetPos;
-            moves[possiblemoves] = captureblackpiece(newbishop.position, b.Board{ .position = board.position });
-            moves[possiblemoves].position.whitepieces.Bishop[index].position = newbishop.position;
-            possiblemoves += 1;
             break;
         }
     }
@@ -1084,37 +1033,89 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     return moves[0..possiblemoves];
 }
 
-test "ValidBishopMoves for empty board with bishop on c1" {
+test "ValidBishopMoves for empty board with bishop on e4" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Bishop[0].position = c.C1;
+    board.position.whitepieces.Bishop[0].position = c.E4;
     _ = board.print();
 
     const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
-
-    // Expected moves: d2, e3, f4, g5, h6, b2, a3
-    const expectedMoves: [7]u64 = .{
-        c.D2,
-        c.E3,
-        c.F4,
-        c.G5,
-        c.H6,
-        c.B2,
-        c.A3,
+    try std.testing.expectEqual(moves.len, 13); // Bishop on e4 can move to 13 squares
+    
+    // Verify specific positions
+    var foundPositions = [_]bool{false} ** 13;
+    const expectedPositions = [_]u64{
+        c.D5, c.C6, c.B7, c.A8,  // Up-Left diagonal
+        c.F5, c.G6, c.H7,        // Up-Right diagonal
+        c.D3, c.C2, c.B1,        // Down-Left diagonal
+        c.F3, c.G2, c.H1,        // Down-Right diagonal
     };
 
-    try std.testing.expect(moves.len == expectedMoves.len);
-
-    // Check each expected move is present
-    for (expectedMoves) |expected| {
-        var found = false;
-        for (moves) |move| {
-            if (move.position.whitepieces.Bishop[0].position == expected) {
-                found = true;
-                break;
+    for (moves) |move| {
+        const pos = move.position.whitepieces.Bishop[0].position;
+        for (expectedPositions, 0..) |expected, i| {
+            if (pos == expected) {
+                foundPositions[i] = true;
             }
         }
+    }
+
+    // Verify all expected positions were found
+    for (foundPositions) |found| {
         try std.testing.expect(found);
     }
+}
+
+test "ValidBishopMoves for bishop on c1 in initial position" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[1], board);
+    try std.testing.expectEqual(moves.len, 0); // Bishop should be blocked by pawns
+}
+
+test "ValidBishopMoves with captures" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.E4;
+    
+    // Place black pieces to capture
+    board.position.blackpieces.Pawn[0].position = c.C6; // Up-Left
+    board.position.blackpieces.Pawn[1].position = c.G6; // Up-Right
+    board.position.blackpieces.Pawn[2].position = c.C2; // Down-Left
+    board.position.blackpieces.Pawn[3].position = c.G2; // Down-Right
+    
+    // Place white piece to block
+    board.position.whitepieces.Pawn[0].position = c.F5; // Blocks further Up-Right movement
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    
+    // Expected moves:
+    // Up-Left: d5, c6(capture)
+    // Up-Right: f5(blocked)
+    // Down-Left: d3, c2(capture)
+    // Down-Right: f3, g2(capture)
+    try std.testing.expectEqual(moves.len, 6);
+
+    // Verify captures result in removed pieces
+    var captureFound = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Bishop[0].position == c.C6) {
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[0].position, 0);
+            captureFound = true;
+        }
+    }
+    try std.testing.expect(captureFound);
+}
+
+test "ValidBishopMoves edge cases" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    
+    // Test from corner
+    board.position.whitepieces.Bishop[0].position = c.A1;
+    var moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    try std.testing.expectEqual(moves.len, 7); // Can only move diagonally up-right
+
+    // Test from edge
+    board.position.whitepieces.Bishop[0].position = c.A4;
+    moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    try std.testing.expectEqual(moves.len, 7); // Can move diagonally up-right and down-right
 }
 
 pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
@@ -1784,3 +1785,4 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
     };
     return boardCopy;
 }
+
