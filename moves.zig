@@ -1040,14 +1040,14 @@ test "ValidBishopMoves for empty board with bishop on e4" {
 
     const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
     try std.testing.expectEqual(moves.len, 13); // Bishop on e4 can move to 13 squares
-    
+
     // Verify specific positions
     var foundPositions = [_]bool{false} ** 13;
     const expectedPositions = [_]u64{
-        c.D5, c.C6, c.B7, c.A8,  // Up-Left diagonal
-        c.F5, c.G6, c.H7,        // Up-Right diagonal
-        c.D3, c.C2, c.B1,        // Down-Left diagonal
-        c.F3, c.G2, c.H1,        // Down-Right diagonal
+        c.D5, c.C6, c.B7, c.A8, // Up-Left diagonal
+        c.F5, c.G6, c.H7, // Up-Right diagonal
+        c.D3, c.C2, c.B1, // Down-Left diagonal
+        c.F3, c.G2, c.H1, // Down-Right diagonal
     };
 
     for (moves) |move| {
@@ -1074,18 +1074,18 @@ test "ValidBishopMoves for bishop on c1 in initial position" {
 test "ValidBishopMoves with captures" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Bishop[0].position = c.E4;
-    
+
     // Place black pieces to capture
     board.position.blackpieces.Pawn[0].position = c.C6; // Up-Left
     board.position.blackpieces.Pawn[1].position = c.G6; // Up-Right
     board.position.blackpieces.Pawn[2].position = c.C2; // Down-Left
     board.position.blackpieces.Pawn[3].position = c.G2; // Down-Right
-    
+
     // Place white piece to block
     board.position.whitepieces.Pawn[0].position = c.F5; // Blocks further Up-Right movement
 
     const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
-    
+
     // Expected moves:
     // Up-Left: d5, c6(capture)
     // Up-Right: f5(blocked)
@@ -1106,7 +1106,7 @@ test "ValidBishopMoves with captures" {
 
 test "ValidBishopMoves edge cases" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // Test from corner
     board.position.whitepieces.Bishop[0].position = c.A1;
     var moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
@@ -1785,4 +1785,3 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
     };
     return boardCopy;
 }
-
