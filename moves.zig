@@ -239,118 +239,151 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    // iterate through all possible moves
-    for (pawnShifts) |shift| switch (shift) {
-        8 => {
-            if (bitmap & (piece.position << 8) == 0) {
-                pawn.position = piece.position << 8;
-                const newRow = rowfrombitmap(pawn.position);
-                if (newRow == 8) {
-                    // Pawn promotion: default promote to Queen
-                    pawn.representation = if (piece.color == 0) 'Q' else 'q';
-                }
-                moves[possiblemoves] = b.Board{ .position = board.position };
-                if (piece.color == 0) {
-                    moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
-                    moves[possiblemoves].position.whitepieces.Pawn[index].representation = pawn.representation;
-                } else {
-                    moves[possiblemoves].position.blackpieces.Pawn[index].position = pawn.position;
-                    moves[possiblemoves].position.blackpieces.Pawn[index].representation = pawn.representation;
-                }
-                _ = moves[possiblemoves].print();
-                possiblemoves += 1;
+    const currentRow = rowfrombitmap(piece.position);
+    const currentCol = colfrombitmap(piece.position);
+
+    // Single square forward move
+    const oneSquareForward = piece.position << 8;
+    if (bitmap & oneSquareForward == 0) {
+        if (currentRow < 7) {
+            // Regular move
+            var newBoard = b.Board{ .position = board.position };
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Pawn[index].position = oneSquareForward;
+            } else {
+                newBoard.position.blackpieces.Pawn[index].position = oneSquareForward;
             }
-        },
-        16 => {
-            // only allowed on second row
-            // not allowed if there is a piece in front
-            if (bitmap & (piece.position << 16) == 0 and (piece.position & 0xFF00) != 0 and (bitmap & piece.position << 8) == 0) {
-                pawn.position = piece.position << 16;
-                // update board
-                moves[possiblemoves] = b.Board{ .position = board.position };
-                if (piece.color == 0) {
-                    moves[possiblemoves].position.whitepieces.Pawn[index].position = pawn.position;
-                } else {
-                    moves[possiblemoves].position.blackpieces.Pawn[index].position = pawn.position;
-                }
-                _ = moves[possiblemoves].print();
-                possiblemoves += 1;
+            moves[possiblemoves] = newBoard;
+            possiblemoves += 1;
+        } else if (currentRow == 7) {
+            // Promotion
+            var newBoard = b.Board{ .position = board.position };
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Pawn[index].position = oneSquareForward;
+                newBoard.position.whitepieces.Pawn[index].representation = 'Q';
+            } else {
+                newBoard.position.blackpieces.Pawn[index].position = oneSquareForward;
+                newBoard.position.blackpieces.Pawn[index].representation = 'q';
             }
-        },
-        7 => {
-            const targetPos = piece.position << 7;
-            if (targetPos == board.position.enPassantSquare) {
-                // En passant capture: captured pawn is one square behind the target
+            moves[possiblemoves] = newBoard;
+            possiblemoves += 1;
+        }
+
+        // Two square forward move from starting position
+        if (currentRow == 2) {
+            const twoSquareForward = piece.position << 16;
+            if (bitmap & twoSquareForward == 0) {
                 var newBoard = b.Board{ .position = board.position };
                 if (piece.color == 0) {
-                    newBoard.position.whitepieces.Pawn[index].position = targetPos;
+                    newBoard.position.whitepieces.Pawn[index].position = twoSquareForward;
+                    // Set en passant square
+                    newBoard.position.enPassantSquare = oneSquareForward;
                 } else {
-                    newBoard.position.blackpieces.Pawn[index].position = targetPos;
+                    newBoard.position.blackpieces.Pawn[index].position = twoSquareForward;
+                    newBoard.position.enPassantSquare = oneSquareForward;
                 }
-                // The captured pawn is on the same file as the target square but one rank below
-                const capturedPawnPos = targetPos >> 8;
-                if (piece.color == 0) {
-                    newBoard = captureblackpiece(capturedPawnPos, newBoard);
-                } else {
-                    newBoard = capturewhitepiece(capturedPawnPos, newBoard);
-                }
-                newBoard.position.enPassantSquare = 0; // Clear en-passant square after capture
-                _ = newBoard.print();
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
-            } else if (bitmap & targetPos != 0) {
-                pawn.position = targetPos;
-                var newBoard = b.Board{ .position = board.position };
-                if (piece.color == 0) {
-                    newBoard = captureblackpiece(targetPos, newBoard);
-                    newBoard.position.whitepieces.Pawn[index].position = pawn.position;
-                } else {
-                    newBoard = capturewhitepiece(targetPos, newBoard);
-                    newBoard.position.blackpieces.Pawn[index].position = pawn.position;
-                }
-                _ = newBoard.print();
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
-        },
-        9 => {
-            const targetPos = piece.position << 9;
-            if (targetPos == board.position.enPassantSquare) {
-                // En passant capture: captured pawn is one square behind the target
-                var newBoard = b.Board{ .position = board.position };
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Pawn[index].position = targetPos;
+        }
+    }
+
+    // Diagonal captures
+    const leftCapture = if (currentCol > 1) piece.position << 7 else 0;
+    const rightCapture = if (currentCol < 8) piece.position << 9 else 0;
+
+    // Check left capture
+    if (leftCapture != 0) {
+        if (bitmap & leftCapture != 0) {
+            const targetPiece = piecefromlocation(leftCapture, board);
+            if (targetPiece.color != piece.color) {
+                var newBoard = if (piece.color == 0) 
+                    captureblackpiece(leftCapture, b.Board{ .position = board.position })
+                else 
+                    capturewhitepiece(leftCapture, b.Board{ .position = board.position });
+
+                if (currentRow == 7) {
+                    // Promotion on capture
+                    if (piece.color == 0) {
+                        newBoard.position.whitepieces.Pawn[index].position = leftCapture;
+                        newBoard.position.whitepieces.Pawn[index].representation = 'Q';
+                    } else {
+                        newBoard.position.blackpieces.Pawn[index].position = leftCapture;
+                        newBoard.position.blackpieces.Pawn[index].representation = 'q';
+                    }
                 } else {
-                    newBoard.position.blackpieces.Pawn[index].position = targetPos;
+                    if (piece.color == 0) {
+                        newBoard.position.whitepieces.Pawn[index].position = leftCapture;
+                    } else {
+                        newBoard.position.blackpieces.Pawn[index].position = leftCapture;
+                    }
                 }
-                // The captured pawn is on the same file as the target square but one rank below
-                const capturedPawnPos = targetPos >> 8;
-                if (piece.color == 0) {
-                    newBoard = captureblackpiece(capturedPawnPos, newBoard);
-                } else {
-                    newBoard = capturewhitepiece(capturedPawnPos, newBoard);
-                }
-                newBoard.position.enPassantSquare = 0; // Clear en-passant square after capture
-                _ = newBoard.print();
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
-            } else if (bitmap & targetPos != 0) {
-                pawn.position = targetPos;
-                var newBoard = b.Board{ .position = board.position };
-                if (piece.color == 0) {
-                    newBoard = captureblackpiece(targetPos, newBoard);
-                    newBoard.position.whitepieces.Pawn[index].position = pawn.position;
-                } else {
-                    newBoard = capturewhitepiece(targetPos, newBoard);
-                    newBoard.position.blackpieces.Pawn[index].position = pawn.position;
-                }
-                _ = newBoard.print();
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
-        },
-        else => {},
-    };
+        } else if (leftCapture == board.position.enPassantSquare) {
+            // En passant capture to the left
+            var newBoard = b.Board{ .position = board.position };
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Pawn[index].position = leftCapture;
+                // Capture the black pawn that just moved
+                newBoard = captureblackpiece(leftCapture >> 8, newBoard);
+            } else {
+                newBoard.position.blackpieces.Pawn[index].position = leftCapture;
+                newBoard = capturewhitepiece(leftCapture >> 8, newBoard);
+            }
+            newBoard.position.enPassantSquare = 0; // Clear en passant square
+            moves[possiblemoves] = newBoard;
+            possiblemoves += 1;
+        }
+    }
+
+    // Check right capture
+    if (rightCapture != 0) {
+        if (bitmap & rightCapture != 0) {
+            const targetPiece = piecefromlocation(rightCapture, board);
+            if (targetPiece.color != piece.color) {
+                var newBoard = if (piece.color == 0)
+                    captureblackpiece(rightCapture, b.Board{ .position = board.position })
+                else
+                    capturewhitepiece(rightCapture, b.Board{ .position = board.position });
+
+                if (currentRow == 7) {
+                    // Promotion on capture
+                    if (piece.color == 0) {
+                        newBoard.position.whitepieces.Pawn[index].position = rightCapture;
+                        newBoard.position.whitepieces.Pawn[index].representation = 'Q';
+                    } else {
+                        newBoard.position.blackpieces.Pawn[index].position = rightCapture;
+                        newBoard.position.blackpieces.Pawn[index].representation = 'q';
+                    }
+                } else {
+                    if (piece.color == 0) {
+                        newBoard.position.whitepieces.Pawn[index].position = rightCapture;
+                    } else {
+                        newBoard.position.blackpieces.Pawn[index].position = rightCapture;
+                    }
+                }
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            }
+        } else if (rightCapture == board.position.enPassantSquare) {
+            // En passant capture to the right
+            var newBoard = b.Board{ .position = board.position };
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Pawn[index].position = rightCapture;
+                // Capture the black pawn that just moved
+                newBoard = captureblackpiece(rightCapture >> 8, newBoard);
+            } else {
+                newBoard.position.blackpieces.Pawn[index].position = rightCapture;
+                newBoard = capturewhitepiece(rightCapture >> 8, newBoard);
+            }
+            newBoard.position.enPassantSquare = 0; // Clear en passant square
+            moves[possiblemoves] = newBoard;
+            possiblemoves += 1;
+        }
+    }
+
     return moves[0..possiblemoves];
 }
 
@@ -1784,4 +1817,69 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
         else => {},
     };
     return boardCopy;
+}
+
+test "ValidPawnMoves promotion on reaching 8th rank" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E7;
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 1);
+    try std.testing.expectEqual(moves[0].position.whitepieces.Pawn[0].representation, 'Q');
+}
+
+test "ValidPawnMoves promotion on capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E7;
+    board.position.blackpieces.Pawn[0].position = c.F8;
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 2); // One forward promotion, one capture promotion
+    var foundCapture = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0) {
+            foundCapture = true;
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[0].representation, 'Q');
+        }
+    }
+    try std.testing.expect(foundCapture);
+}
+
+test "ValidPawnMoves en passant capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E5;
+    board.position.blackpieces.Pawn[0].position = c.F5;
+    board.position.enPassantSquare = c.F6; // Simulate black pawn just moved F7->F5
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 2); // Forward move and en passant capture
+    var foundEnPassant = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0 and 
+            move.position.whitepieces.Pawn[0].position == c.F6) {
+            foundEnPassant = true;
+            try std.testing.expectEqual(move.position.enPassantSquare, 0);
+        }
+    }
+    try std.testing.expect(foundEnPassant);
+}
+
+test "ValidPawnMoves blocked by own piece" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E2;
+    board.position.whitepieces.Pawn[1].position = c.E3;
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 0);
+}
+
+test "ValidPawnMoves two square move sets en passant square" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E2;
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 2);
+    var foundTwoSquare = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Pawn[0].position == c.E4) {
+            foundTwoSquare = true;
+            try std.testing.expectEqual(move.position.enPassantSquare, c.E3);
+        }
+    }
+    try std.testing.expect(foundTwoSquare);
 }
