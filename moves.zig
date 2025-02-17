@@ -438,8 +438,8 @@ test "rowfrombitmap and colfrombitmap for black rook at a8" {
     const col = colfrombitmap(blackRook.position);
     try std.testing.expectEqual(row, 8);
     try std.testing.expectEqual(col, 1);
-    
-    std.debug.print("\nBlack rook at A8: position={x}, row={d}, col={d}\n", .{blackRook.position, row, col});
+
+    std.debug.print("\nBlack rook at A8: position={x}, row={d}, col={d}\n", .{ blackRook.position, row, col });
 }
 
 // Valid rook moves
@@ -470,7 +470,7 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const row: u64 = rowfrombitmap(rook.position);
     const col: u64 = colfrombitmap(rook.position);
 
-    std.debug.print("\nRook at row {d}, col {d}, position {x}\n", .{row, col, rook.position});
+    std.debug.print("\nRook at row {d}, col {d}, position {x}\n", .{ row, col, rook.position });
 
     // Define the four directions a rook can move: up, down, left, right
     const directions = [_]struct { shift: i8, max_steps: u6 }{
@@ -2068,23 +2068,23 @@ test "getValidPawnMoves for black pawn in initial position" {
 // New test to verify that getValidRookMoves for the black rook at A8 in the initial board returns 0 moves
 test "getValidRookMoves for black rook at a8 in initial board" {
     const board = b.Board{ .position = b.Position.init() };
-    
+
     // Debug prints
     std.debug.print("\nOriginal board:\n", .{});
     _ = board.print();
-    
+
     // Get the black rook at A8 and verify its position
     const blackRook = board.position.blackpieces.Rook[1];
     std.debug.print("\nBlack rook position: {x}\n", .{blackRook.position});
-    
+
     // Create flipped board for inspection
     var flippedBoard = board;
     flippedBoard.position = flippedBoard.position.flip();
     std.debug.print("\nFlipped board:\n", .{});
     _ = flippedBoard.print();
-    
+
     const moves = getValidRookMoves(board.position.blackpieces.Rook[1], board);
-    
+
     // Print the moves if any were found
     if (moves.len > 0) {
         std.debug.print("\nFound {d} moves:\n", .{moves.len});
@@ -2092,7 +2092,7 @@ test "getValidRookMoves for black rook at a8 in initial board" {
             _ = move.print();
         }
     }
-    
+
     try std.testing.expectEqual(moves.len, 0);
 }
 
@@ -2100,19 +2100,19 @@ test "ValidRookMoves debug test for black rooks" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     // Place a black rook at e4
     board.position.blackpieces.Rook[0].position = c.E4;
-    
+
     // Debug print the board
     _ = board.print();
-    
+
     // Get moves for the black rook
     const moves = ValidRookMoves(board.position.blackpieces.Rook[0], board);
-    
+
     // Print number of moves found
     std.debug.print("\nFound {d} moves for black rook\n", .{moves.len});
-    
+
     // Verify moves are valid
     try std.testing.expectEqual(moves.len, 14); // Should have 14 possible moves (7 horizontal + 7 vertical)
-    
+
     // Verify the rook's position is properly updated in each move
     for (moves) |move| {
         const newPos = move.position.blackpieces.Rook[0].position;
