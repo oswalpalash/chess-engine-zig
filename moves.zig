@@ -1488,31 +1488,45 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
         return ValidRookMoves(piece, board);
     } else {
         var flippedBoard = board;
+        // First flip all positions
         flippedBoard.position = flippedBoard.position.flip();
+        
+        // Then handle the moving piece
         var flippedPiece = piece;
         flippedPiece.position = b.reverse(piece.position);
-        flippedPiece.color = 0; // Make it a white piece for ValidRookMoves
-
-        // Clear all rooks in the flipped board to avoid interference
+        flippedPiece.color = 0; // Treat this piece as white for move generation
+        
+        // Clear and update rooks
         flippedBoard.position.whitepieces.Rook[0].position = 0;
         flippedBoard.position.whitepieces.Rook[1].position = 0;
-
-        // Find which rook it is and update it in the flipped board
+        
+        // Find which rook this is and place it in the correct position
         for (board.position.blackpieces.Rook, 0..) |item, i| {
             if (item.position == piece.position) {
                 flippedBoard.position.whitepieces.Rook[i] = flippedPiece;
                 break;
             }
         }
-
+        
+        // Manually flip all other pieces to ensure correct positioning
+        // White pieces become black pieces at flipped positions
+        flippedBoard.position.blackpieces.King.position = b.reverse(board.position.whitepieces.King.position);
+        flippedBoard.position.blackpieces.Queen.position = b.reverse(board.position.whitepieces.Queen.position);
+        for (0..2) |i| {
+            flippedBoard.position.blackpieces.Bishop[i].position = b.reverse(board.position.whitepieces.Bishop[i].position);
+            flippedBoard.position.blackpieces.Knight[i].position = b.reverse(board.position.whitepieces.Knight[i].position);
+        }
+        for (0..8) |i| {
+            flippedBoard.position.blackpieces.Pawn[i].position = b.reverse(board.position.whitepieces.Pawn[i].position);
+            flippedBoard.position.whitepieces.Pawn[i].position = b.reverse(board.position.blackpieces.Pawn[i].position);
+        }
+        
         const moves = ValidRookMoves(flippedPiece, flippedBoard);
         var flippedMoves: [256]b.Board = undefined;
-
         for (moves, 0..) |move, i| {
             flippedMoves[i] = move;
             flippedMoves[i].position = flippedMoves[i].position.flip();
         }
-
         return flippedMoves[0..moves.len];
     }
 }
@@ -1981,11 +1995,11 @@ test "allvalidmoves initial position white" {
 test "allvalidmoves initial position black" {
     const board = b.Board{ .position = b.Position.init() };
     const moves = allvalidmoves(board, 1);
-    // In initial position, black has 23 possible moves:
+    // In initial position, black has 20 possible moves:
     // - 8 pawns can each move 1 or 2 squares forward (16 moves)
     // - 2 knights can each move to 2 squares (4 moves)
     // - 3 additional moves from flipping
-    try std.testing.expectEqual(moves.len, 23);
+    try std.testing.expectEqual(moves.len, 20);
 }
 
 test "allvalidmoves empty board with single piece" {
@@ -2103,7 +2117,30 @@ test "getValidPawnMoves for black pawn in initial position" {
 // New test to verify that getValidRookMoves for the black rook at A8 in the initial board returns 0 moves
 test "getValidRookMoves for black rook at a8 in initial board" {
     const board = b.Board{ .position = b.Position.init() };
-    // The black rook at A8 is stored in blackpieces.Rook[1]
+    
+    // Debug prints
+    std.debug.print("\nOriginal board:\n", .{});
+    _ = board.print();
+    
+    // Get the black rook at A8 and verify its position
+    const blackRook = board.position.blackpieces.Rook[1];
+    std.debug.print("\nBlack rook position: {x}\n", .{blackRook.position});
+    
+    // Create flipped board for inspection
+    var flippedBoard = board;
+    flippedBoard.position = flippedBoard.position.flip();
+    std.debug.print("\nFlipped board:\n", .{});
+    _ = flippedBoard.print();
+    
     const moves = getValidRookMoves(board.position.blackpieces.Rook[1], board);
+    
+    // Print the moves if any were found
+    if (moves.len > 0) {
+        std.debug.print("\nFound {d} moves:\n", .{moves.len});
+        for (moves) |move| {
+            _ = move.print();
+        }
+    }
+    
     try std.testing.expectEqual(moves.len, 0);
 }
