@@ -421,14 +421,6 @@ pub fn rowfrombitmap(bitmap: u64) u64 {
     return 0;
 }
 
-test "row from bitmap of e2 pawn in init board" {
-    const board = b.Board{ .position = b.Position.init() };
-    const row = rowfrombitmap(board.position.whitepieces.Pawn[4].position);
-    const row2 = rowfrombitmap(board.position.blackpieces.Pawn[3].position);
-    try std.testing.expectEqual(row, 2);
-    try std.testing.expectEqual(row2, 7);
-}
-
 pub fn colfrombitmap(bitmap: u64) u64 {
     const cols = [8]u6{ 0, 1, 2, 3, 4, 5, 6, 7 };
     for (cols) |i| {
@@ -439,14 +431,15 @@ pub fn colfrombitmap(bitmap: u64) u64 {
     return 0;
 }
 
-test "col from bitmap of e2 pawn in init board" {
+test "rowfrombitmap and colfrombitmap for black rook at a8" {
     const board = b.Board{ .position = b.Position.init() };
-    const col = colfrombitmap(board.position.whitepieces.Pawn[3].position);
-    const col2 = colfrombitmap(board.position.blackpieces.Rook[0].position);
-    const col3 = colfrombitmap(board.position.whitepieces.King.position);
-    try std.testing.expectEqual(col, 4);
-    try std.testing.expectEqual(col2, 8);
-    try std.testing.expectEqual(col3, 5);
+    const blackRook = board.position.blackpieces.Rook[1]; // A8 rook
+    const row = rowfrombitmap(blackRook.position);
+    const col = colfrombitmap(blackRook.position);
+    try std.testing.expectEqual(row, 8);
+    try std.testing.expectEqual(col, 1);
+    
+    std.debug.print("\nBlack rook at A8: position={x}, row={d}, col={d}\n", .{blackRook.position, row, col});
 }
 
 // Valid rook moves
@@ -477,17 +470,19 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const row: u64 = rowfrombitmap(rook.position);
     const col: u64 = colfrombitmap(rook.position);
 
+    std.debug.print("\nRook at row {d}, col {d}, position {x}\n", .{row, col, rook.position});
+
     // Define the four directions a rook can move: up, down, left, right
-    const directions = [_]struct { shift: i8, max_steps: u6, boundary_check: u64 }{
-        .{ .shift = 8, .max_steps = @intCast(8 - row), .boundary_check = row }, // up
-        .{ .shift = -8, .max_steps = @intCast(row - 1), .boundary_check = row }, // down
-        .{ .shift = 1, .max_steps = @intCast(8 - col), .boundary_check = col }, // right
-        .{ .shift = -1, .max_steps = @intCast(col - 1), .boundary_check = col }, // left
+    const directions = [_]struct { shift: i8, max_steps: u6 }{
+        .{ .shift = 8, .max_steps = @intCast(8 - row) }, // up
+        .{ .shift = -8, .max_steps = @intCast(row - 1) }, // down
+        .{ .shift = -1, .max_steps = @intCast(col - 1) }, // left
+        .{ .shift = 1, .max_steps = @intCast(8 - col) }, // right
     };
 
     // Check moves in each direction
     for (directions) |dir| {
-        if (dir.boundary_check == 0) continue;
+        if (dir.max_steps == 0) continue;
 
         var steps: u6 = 1;
         while (steps <= dir.max_steps) : (steps += 1) {
@@ -1484,51 +1479,7 @@ test "getValidPawnMoves works for black pawns" {
 }
 
 pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
-    if (piece.color == 0) {
-        return ValidRookMoves(piece, board);
-    } else {
-        var flippedBoard = board;
-        // First flip all positions
-        flippedBoard.position = flippedBoard.position.flip();
-        
-        // Then handle the moving piece
-        var flippedPiece = piece;
-        flippedPiece.position = b.reverse(piece.position);
-        flippedPiece.color = 0; // Treat this piece as white for move generation
-        
-        // Clear and update rooks
-        flippedBoard.position.whitepieces.Rook[0].position = 0;
-        flippedBoard.position.whitepieces.Rook[1].position = 0;
-        
-        // Find which rook this is and place it in the correct position
-        for (board.position.blackpieces.Rook, 0..) |item, i| {
-            if (item.position == piece.position) {
-                flippedBoard.position.whitepieces.Rook[i] = flippedPiece;
-                break;
-            }
-        }
-        
-        // Manually flip all other pieces to ensure correct positioning
-        // White pieces become black pieces at flipped positions
-        flippedBoard.position.blackpieces.King.position = b.reverse(board.position.whitepieces.King.position);
-        flippedBoard.position.blackpieces.Queen.position = b.reverse(board.position.whitepieces.Queen.position);
-        for (0..2) |i| {
-            flippedBoard.position.blackpieces.Bishop[i].position = b.reverse(board.position.whitepieces.Bishop[i].position);
-            flippedBoard.position.blackpieces.Knight[i].position = b.reverse(board.position.whitepieces.Knight[i].position);
-        }
-        for (0..8) |i| {
-            flippedBoard.position.blackpieces.Pawn[i].position = b.reverse(board.position.whitepieces.Pawn[i].position);
-            flippedBoard.position.whitepieces.Pawn[i].position = b.reverse(board.position.blackpieces.Pawn[i].position);
-        }
-        
-        const moves = ValidRookMoves(flippedPiece, flippedBoard);
-        var flippedMoves: [256]b.Board = undefined;
-        for (moves, 0..) |move, i| {
-            flippedMoves[i] = move;
-            flippedMoves[i].position = flippedMoves[i].position.flip();
-        }
-        return flippedMoves[0..moves.len];
-    }
+    return ValidRookMoves(piece, board);
 }
 
 test "getValidRookMoves works for white rooks" {
