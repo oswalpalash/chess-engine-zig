@@ -75,6 +75,23 @@ pub const UciProtocol = struct {
             .isready => {
                 try self.respond("readyok");
             },
+            .setoption => {
+                // Parse the setoption command format: setoption name <id> [value <x>]
+                var iter = std.mem.splitScalar(u8, line, ' ');
+                _ = iter.next(); // Skip "setoption"
+                const name_token = iter.next();
+                if (name_token != null and std.mem.eql(u8, name_token.?, "name")) {
+                    if (self.debug_mode) {
+                        std.debug.print("Received setoption command. Will be implemented in future.\n", .{});
+                    }
+                }
+            },
+            .ucinewgame => {
+                if (self.debug_mode) {
+                    std.debug.print("Received ucinewgame command. Will be implemented in future.\n", .{});
+                }
+                // TODO: Reset game state and clear any persistent data
+            },
             else => {
                 // For now, just echo other commands back
                 try self.respond(line);
@@ -164,4 +181,30 @@ test "UCI isready command response" {
 
     const output = buf.items;
     try std.testing.expect(std.mem.indexOf(u8, output, "readyok") != null);
+}
+
+test "setoption command handling" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    protocol.debug_mode = true;
+
+    try protocol.processCommand("setoption name Hash value 128");
+    // Currently just verifying it doesn't error
+    try std.testing.expect(true);
+}
+
+test "ucinewgame command handling" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    protocol.debug_mode = true;
+
+    try protocol.processCommand("ucinewgame");
+    // Currently just verifying it doesn't error
+    try std.testing.expect(true);
 }
