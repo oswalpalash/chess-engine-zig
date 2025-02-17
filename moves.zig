@@ -218,7 +218,7 @@ test "ensure self captures are not allowed. add a3 pawn in init board and check 
 pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
-    var possiblemoves: u64 = 0;
+    var possiblemoves: u6 = 0;
     var pawn: b.Piece = undefined;
     var index: u64 = 0;
 
@@ -297,9 +297,9 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         if (bitmap & leftCapture != 0) {
             const targetPiece = piecefromlocation(leftCapture, board);
             if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0) 
+                var newBoard = if (piece.color == 0)
                     captureblackpiece(leftCapture, b.Board{ .position = board.position })
-                else 
+                else
                     capturewhitepiece(leftCapture, b.Board{ .position = board.position });
 
                 if (currentRow == 7) {
@@ -454,218 +454,144 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    var rook: b.Piece = undefined;
-    var index: u64 = 0;
-    //@memset(&moves, 0);
-    // determine which piece is being moved
-    for (board.position.whitepieces.Rook, 0..) |item, loopidx| {
-        if (item.position == piece.position) {
-            rook = item;
-            index = loopidx;
+    const rook = piece;
+    var index: u64 = undefined;
+
+    // Find which rook we're moving
+    if (piece.color == 0) {
+        for (board.position.whitepieces.Rook, 0..) |item, loopidx| {
+            if (item.position == piece.position) {
+                index = loopidx;
+                break;
+            }
+        }
+    } else {
+        for (board.position.blackpieces.Rook, 0..) |item, loopidx| {
+            if (item.position == piece.position) {
+                index = loopidx;
+                break;
+            }
         }
     }
-    const rookshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
+
     const row: u64 = rowfrombitmap(rook.position);
     const col: u64 = colfrombitmap(rook.position);
-    var newrook: b.Piece = rook;
-    var testpiece: b.Piece = undefined;
-    // iterate through all possible forward moves
-    // max forward moves is 8-row
-    for (rookshifts) |shift| {
-        if (row + shift == 9) {
-            break;
-        }
-        // move one row at a time i.e "00" at the end. use newrook
-        // account for captures
-        // only allow moves if there is no piece in the way
-        // if there is a piece in the way, capture it and stop
-        // reset newrook to original position after each move to check for other moves
-        // only allow captures if the piece is of different colour
-        if (bitmap & (newrook.position << (shift * 8)) == 0) {
-            testpiece = piecefromlocation(newrook.position << (shift * 8), board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
+
+    // Define the four directions a rook can move: up, down, left, right
+    const directions = [_]struct { shift: i8, max_steps: u6, boundary_check: u64 }{
+        .{ .shift = 8, .max_steps = @intCast(8 - row), .boundary_check = row }, // up
+        .{ .shift = -8, .max_steps = @intCast(row - 1), .boundary_check = row }, // down
+        .{ .shift = 1, .max_steps = @intCast(8 - col), .boundary_check = col }, // right
+        .{ .shift = -1, .max_steps = @intCast(col - 1), .boundary_check = col }, // left
+    };
+
+    // Check moves in each direction
+    for (directions) |dir| {
+        if (dir.boundary_check == 0) continue;
+
+        var steps: u6 = 1;
+        while (steps <= dir.max_steps) : (steps += 1) {
+            const shift: i8 = dir.shift * @as(i8, @intCast(steps));
+            var newpos: u64 = undefined;
+
+            if (shift > 0) {
+                newpos = rook.position << @as(u6, @intCast(shift));
+            } else {
+                newpos = rook.position >> @as(u6, @intCast(-shift));
             }
-            newrook.position = newrook.position << (shift * 8);
-            // update board
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-            _ = moves[possiblemoves].print();
-            possiblemoves += 1;
-        } else {
-            if (bitmap & (newrook.position << (shift * 8)) != 0) {
-                testpiece = piecefromlocation(newrook.position << (shift * 8), board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
+
+            if (newpos == 0) break;
+
+            // Check if square is empty
+            if (bitmap & newpos == 0) {
+                var newBoard = b.Board{ .position = board.position };
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.Rook[index].position = newpos;
+                } else {
+                    newBoard.position.blackpieces.Rook[index].position = newpos;
                 }
-                newrook.position = newrook.position << (shift * 8);
-                // update board
-                moves[possiblemoves] = captureblackpiece(newrook.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-                _ = moves[possiblemoves].print();
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
-                newrook.position = rook.position;
-                break;
-            }
-        }
-        newrook.position = rook.position;
-    }
-    // iterate through all possible backward moves
-    for (rookshifts) |shift| {
-        if (row - shift == 0) {
-            break;
-        }
-        if (bitmap & (newrook.position >> (shift * 8)) == 0) {
-            testpiece = piecefromlocation(newrook.position >> (shift * 8), board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newrook.position = newrook.position >> (shift * 8);
-            // update board
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-            _ = moves[possiblemoves].print();
-            possiblemoves += 1;
-        } else {
-            if (bitmap & (newrook.position >> (shift * 8)) != 0) {
-                testpiece = piecefromlocation(newrook.position >> (shift * 8), board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
+            } else {
+                // Square is occupied - check if it's an enemy piece
+                const targetPiece = piecefromlocation(newpos, board);
+                if (targetPiece.color != piece.color) {
+                    var newBoard = if (piece.color == 0)
+                        captureblackpiece(newpos, b.Board{ .position = board.position })
+                    else
+                        capturewhitepiece(newpos, b.Board{ .position = board.position });
+
+                    if (piece.color == 0) {
+                        newBoard.position.whitepieces.Rook[index].position = newpos;
+                    } else {
+                        newBoard.position.blackpieces.Rook[index].position = newpos;
                     }
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
                 }
-                newrook.position = newrook.position >> (shift * 8);
-                // update board
-                moves[possiblemoves] = captureblackpiece(newrook.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-                _ = moves[possiblemoves].print();
-                possiblemoves += 1;
-                newrook.position = rook.position;
-                break;
+                break; // Stop checking this direction after hitting any piece
             }
         }
-        newrook.position = rook.position;
     }
-    // iterate through all possible left moves
-    for (rookshifts) |shift| {
-        if (col - shift == 0) {
-            break;
-        }
-        if (bitmap & (newrook.position << shift) == 0) {
-            testpiece = piecefromlocation(newrook.position << shift, board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newrook.position = newrook.position << shift;
-            // update board
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-            _ = moves[possiblemoves].print();
-            possiblemoves += 1;
-        } else {
-            if (bitmap & (newrook.position << shift) != 0) {
-                testpiece = piecefromlocation(newrook.position << shift, board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
-                }
-                newrook.position = newrook.position << shift;
-                // update board
-                moves[possiblemoves] = captureblackpiece(newrook.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-                _ = moves[possiblemoves].print();
-                possiblemoves += 1;
-                newrook.position = rook.position;
-                break;
-            }
-        }
-        newrook.position = rook.position;
-    }
-    // iterate through all possible right moves
-    for (rookshifts) |shift| {
-        if (col + shift == 9) {
-            break;
-        }
-        if (bitmap & (newrook.position >> shift) == 0) {
-            testpiece = piecefromlocation(newrook.position >> shift, board);
-            if (testpiece.representation != '.') {
-                if (testpiece.color == 0) {
-                    break;
-                }
-            }
-            newrook.position = newrook.position >> shift;
-            // update board
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-            _ = moves[possiblemoves].print();
-            possiblemoves += 1;
-        } else {
-            if (bitmap & (newrook.position >> shift) != 0) {
-                testpiece = piecefromlocation(newrook.position >> shift, board);
-                if (testpiece.representation != '.') {
-                    if (testpiece.color == 0) {
-                        break;
-                    }
-                }
-                newrook.position = newrook.position >> shift;
-                // update board
-                moves[possiblemoves] = captureblackpiece(newrook.position, b.Board{ .position = board.position });
-                moves[possiblemoves].position.whitepieces.Rook[index].position = newrook.position;
-                _ = moves[possiblemoves].print();
-                possiblemoves += 1;
-                newrook.position = rook.position;
-                break;
-            }
-        }
-        newrook.position = rook.position;
-    }
+
     return moves[0..possiblemoves];
 }
 
-// test "ValidRookMoves for empty board with rook on e1"
-test "ValidRookMoves for empty board with rook on e1" {
+test "ValidRookMoves for empty board with rook on e4" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Rook[0].position = c.E1;
-    _ = board.print();
-    // verify rook is on e1 by checking row and col
-    const row = rowfrombitmap(board.position.whitepieces.Rook[0].position);
-    const col = colfrombitmap(board.position.whitepieces.Rook[0].position);
-    try std.testing.expectEqual(row, 1);
-    try std.testing.expectEqual(col, 5);
-
+    board.position.whitepieces.Rook[0].position = c.E4;
     const moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
-    try std.testing.expectEqual(moves.len, 14);
+    try std.testing.expectEqual(moves.len, 14); // 7 horizontal + 7 vertical moves
 }
 
-test "ValidRookMoves for empty board with rook on a1 and black piece on a8" {
+test "ValidRookMoves for black rook captures" {
     var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Rook[0].position = c.E4;
+    board.position.whitepieces.Pawn[0].position = c.E6; // Can be captured
+    board.position.whitepieces.Pawn[1].position = c.C4; // Can be captured
+    board.position.blackpieces.Pawn[0].position = c.E3; // Blocks movement
+
+    const moves = ValidRookMoves(board.position.blackpieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 8); // 2 captures + 6 empty squares
+
+    // Verify captures are possible
+    var foundCaptures = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Pawn[0].position == 0 or
+            move.position.whitepieces.Pawn[1].position == 0)
+        {
+            foundCaptures = true;
+            break;
+        }
+    }
+    try std.testing.expect(foundCaptures);
+}
+
+test "ValidRookMoves blocked by own pieces" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.E4;
+    // Place friendly pieces to block in all directions
+    board.position.whitepieces.Pawn[0].position = c.E5;
+    board.position.whitepieces.Pawn[1].position = c.E3;
+    board.position.whitepieces.Pawn[2].position = c.D4;
+    board.position.whitepieces.Pawn[3].position = c.F4;
+
+    const moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 0); // No moves possible
+}
+
+test "ValidRookMoves edge cases" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Test from corner
     board.position.whitepieces.Rook[0].position = c.A1;
-    board.position.blackpieces.Rook[0].position = c.A8;
-    const moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
-    try std.testing.expectEqual(moves.len, 14);
-    try std.testing.expectEqual(moves[6].position.blackpieces.Rook[0].position, 0);
-}
+    var moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // 7 up + 7 right
 
-test "ValidRookMoves has 0 moves for a1 rook in init board" {
-    const board = b.Board{ .position = b.Position.init() };
-    const moves = ValidRookMoves(board.position.whitepieces.Rook[1], board);
-    try std.testing.expectEqual(moves.len, 0);
-}
-
-test "ValidRookMoves has 6 moves for a1 rook in init board with missing a2 pawn" {
-    var board = b.Board{ .position = b.Position.init() };
-    board.position.whitepieces.Pawn[7].position = 0;
-    const moves = ValidRookMoves(board.position.whitepieces.Rook[1], board);
-    try std.testing.expectEqual(moves.len, 6);
+    // Test from edge
+    board.position.whitepieces.Rook[0].position = c.A4;
+    moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // 7 horizontal + 7 vertical
 }
 
 // Valid king moves
@@ -1852,8 +1778,9 @@ test "ValidPawnMoves en passant capture" {
     try std.testing.expectEqual(moves.len, 2); // Forward move and en passant capture
     var foundEnPassant = false;
     for (moves) |move| {
-        if (move.position.blackpieces.Pawn[0].position == 0 and 
-            move.position.whitepieces.Pawn[0].position == c.F6) {
+        if (move.position.blackpieces.Pawn[0].position == 0 and
+            move.position.whitepieces.Pawn[0].position == c.F6)
+        {
             foundEnPassant = true;
             try std.testing.expectEqual(move.position.enPassantSquare, 0);
         }
