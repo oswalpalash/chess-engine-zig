@@ -594,6 +594,14 @@ test "ValidRookMoves edge cases" {
     try std.testing.expectEqual(moves.len, 14); // 7 horizontal + 7 vertical
 }
 
+// New test to verify that the black rook at A8 in the initial board has 0 moves
+test "ValidRookMoves for black rook at a8 in initial board" {
+    const board = b.Board{ .position = b.Position.init() };
+    // Based on our board setup, the black rook at A8 is stored in blackpieces.Rook[1]
+    const moves = ValidRookMoves(board.position.blackpieces.Rook[1], board);
+    try std.testing.expectEqual(moves.len, 0);
+}
+
 // Valid king moves
 pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
@@ -2090,4 +2098,12 @@ test "getValidPawnMoves for black pawn in initial position" {
         const moves = getValidPawnMoves(pawn, board);
         try std.testing.expectEqual(moves.len, 2); // Each pawn should be able to move 1 or 2 squares forward
     }
+}
+
+// New test to verify that getValidRookMoves for the black rook at A8 in the initial board returns 0 moves
+test "getValidRookMoves for black rook at a8 in initial board" {
+    const board = b.Board{ .position = b.Position.init() };
+    // The black rook at A8 is stored in blackpieces.Rook[1]
+    const moves = getValidRookMoves(board.position.blackpieces.Rook[1], board);
+    try std.testing.expectEqual(moves.len, 0);
 }
