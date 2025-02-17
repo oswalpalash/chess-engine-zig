@@ -56,6 +56,7 @@ pub const Position = struct {
     canCastleBlackKingside: bool = false,
     canCastleBlackQueenside: bool = false,
     enPassantSquare: u64 = 0,
+    sidetomove: u8 = 0, // 0 for white, 1 for black
 
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
@@ -102,6 +103,7 @@ pub const Position = struct {
             .canCastleBlackKingside = true,
             .canCastleBlackQueenside = true,
             .enPassantSquare = 0,
+            .sidetomove = 0, // White to move in initial position
         };
     }
 
@@ -116,6 +118,7 @@ pub const Position = struct {
             .canCastleBlackKingside = false,
             .canCastleBlackQueenside = false,
             .enPassantSquare = 0,
+            .sidetomove = 0, // White to move by default
         };
     }
 
@@ -163,6 +166,7 @@ pub const Position = struct {
             .canCastleBlackKingside = self.canCastleBlackKingside,
             .canCastleBlackQueenside = self.canCastleBlackQueenside,
             .enPassantSquare = reverse(self.enPassantSquare),
+            .sidetomove = self.sidetomove,
         };
     }
 
@@ -258,6 +262,7 @@ pub const Position = struct {
 pub const Board = struct {
     position: Position,
     move_count: u32 = 0,
+    sidetomove: u8 = 0, // 0 for white, 1 for black
 
     pub fn print(self: Board) [BoardSize]u8 {
         return self.position.print();
@@ -419,7 +424,14 @@ pub fn parseFen(fen: []const u8) Position {
     if (second_token == null) {
         // Invalid: no side to move
         std.debug.print("FEN string missing side to move\n", .{});
-        //return Position.emptyboard();
+    } else {
+        // Parse side to move
+        const sideToMove = second_token.?;
+        if (sideToMove[0] == 'b') {
+            position.sidetomove = 1;
+        } else {
+            position.sidetomove = 0;
+        }
     }
 
     const third_token = tokens.next();
@@ -562,4 +574,125 @@ test "parse fen with castling rights" {
     try std.testing.expect(pos.canCastleWhiteQueenside);
     try std.testing.expect(pos.canCastleBlackKingside);
     try std.testing.expect(pos.canCastleBlackQueenside);
+}
+
+test "parse complex fen with castling and en passant" {
+    const fenStr = "rnbqk2r/ppp2ppp/3p4/2b1p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq e6";
+    const pos = parseFen(fenStr);
+
+    // Verify castling rights
+    try std.testing.expect(pos.canCastleWhiteKingside);
+    try std.testing.expect(pos.canCastleWhiteQueenside);
+    try std.testing.expect(pos.canCastleBlackKingside);
+    try std.testing.expect(pos.canCastleBlackQueenside);
+
+    // Verify en passant square
+    try std.testing.expect(pos.enPassantSquare != 0);
+
+    // Verify side to move
+    try std.testing.expectEqual(pos.sidetomove, 0);
+}
+
+test "parse fen with no castling rights" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - -";
+    const pos = parseFen(fenStr);
+
+    try std.testing.expect(!pos.canCastleWhiteKingside);
+    try std.testing.expect(!pos.canCastleWhiteQueenside);
+    try std.testing.expect(!pos.canCastleBlackKingside);
+    try std.testing.expect(!pos.canCastleBlackQueenside);
+}
+
+test "parse fen with partial castling rights" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Kk -";
+    const pos = parseFen(fenStr);
+
+    try std.testing.expect(pos.canCastleWhiteKingside);
+    try std.testing.expect(!pos.canCastleWhiteQueenside);
+    try std.testing.expect(pos.canCastleBlackKingside);
+    try std.testing.expect(!pos.canCastleBlackQueenside);
+}
+
+test "parse fen with black to move" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq -";
+    const pos = parseFen(fenStr);
+
+    try std.testing.expectEqual(pos.sidetomove, 1);
+}
+
+test "parse invalid fen handling" {
+    // Test empty FEN
+    const emptyPos = parseFen("");
+    try std.testing.expectEqual(emptyPos.whitepieces.King.position, 0);
+
+    // Test malformed FEN
+    const malformedPos = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP");
+    try std.testing.expectEqual(malformedPos.sidetomove, 0); // Should default to white
+}
+
+test "empty board initialization" {
+    const pos = Position.emptyboard();
+
+    // Verify all pieces are at position 0
+    try std.testing.expectEqual(pos.whitepieces.King.position, 0);
+    try std.testing.expectEqual(pos.whitepieces.Queen.position, 0);
+    try std.testing.expectEqual(pos.blackpieces.King.position, 0);
+    try std.testing.expectEqual(pos.blackpieces.Queen.position, 0);
+
+    // Verify no castling rights
+    try std.testing.expect(!pos.canCastleWhiteKingside);
+    try std.testing.expect(!pos.canCastleWhiteQueenside);
+    try std.testing.expect(!pos.canCastleBlackKingside);
+    try std.testing.expect(!pos.canCastleBlackQueenside);
+}
+
+test "board print with scattered pieces" {
+    var board = Board{ .position = Position.emptyboard() };
+
+    // Place some pieces in scattered positions
+    board.position.whitepieces.King.position = c.E4;
+    board.position.blackpieces.Queen.position = c.B6;
+    board.position.whitepieces.Pawn[0].position = c.A2;
+    board.position.blackpieces.Knight[1].position = c.F5;
+
+    const printout = board.print();
+
+    // The board is stored in a 64-bit integer with bits arranged like this:
+    // 63 62 61 60 59 58 57 56  A8 B8 C8 D8 E8 F8 G8 H8
+    // 55 54 53 52 51 50 49 48  A7 B7 C7 D7 E7 F7 G7 H7
+    // 47 46 45 44 43 42 41 40  A6 B6 C6 D6 E6 F6 G6 H6
+    // 39 38 37 36 35 34 33 32  A5 B5 C5 D5 E5 F5 G5 H5
+    // 31 30 29 28 27 26 25 24  A4 B4 C4 D4 E4 F4 G4 H4
+    // 23 22 21 20 19 18 17 16  A3 B3 C3 D3 E3 F3 G3 H3
+    // 15 14 13 12 11 10  9  8  A2 B2 C2 D2 E2 F2 G2 H2
+    //  7  6  5  4  3  2  1  0  A1 B1 C1 D1 E1 F1 G1 H1
+
+    // E4 is at bit 27 (4th rank, 5th file)
+    try std.testing.expectEqual(printout[27], 'K');
+
+    // B6 is at bit 46 (6th rank, 2nd file)
+    try std.testing.expectEqual(printout[46], 'q');
+
+    // A2 is at bit 15 (2nd rank, 1st file)
+    try std.testing.expectEqual(printout[15], 'P');
+
+    // F5 is at bit 34 (5th rank, 6th file)
+    try std.testing.expectEqual(printout[34], 'n');
+}
+
+test "reverse function symmetry" {
+    const pos1: u64 = c.E4;
+    const pos2 = reverse(pos1);
+    const pos3 = reverse(pos2);
+
+    try std.testing.expectEqual(pos1, pos3);
+}
+
+test "parse fen with multiple spaces" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR  w  KQkq  -  0  1";
+    const pos = parseFen(fenStr);
+
+    // Should handle extra spaces gracefully
+    try std.testing.expectEqual(pos.sidetomove, 0);
+    try std.testing.expect(pos.canCastleWhiteKingside);
 }
