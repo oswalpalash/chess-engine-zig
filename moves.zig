@@ -1783,12 +1783,12 @@ test "ValidPawnMoves two square move sets en passant square" {
     try std.testing.expect(foundTwoSquare);
 }
 
-pub fn allvalidmoves(board: b.Board, color: u8) []b.Board {
+pub fn allvalidmoves(board: b.Board) []b.Board {
     var moves: [1024]b.Board = undefined;
     var movecount: usize = 0;
     const debug = std.debug.print;
 
-    if (color == 0) { // White pieces
+    if (board.position.sidetomove == 0) { // White pieces
         // King moves
         const kingMoves = getValidKingMoves(board.position.whitepieces.King, board);
         debug("White king moves: {d}\n", .{kingMoves.len});
@@ -1932,7 +1932,7 @@ pub fn allvalidmoves(board: b.Board, color: u8) []b.Board {
 
 test "allvalidmoves initial position white" {
     const board = b.Board{ .position = b.Position.init() };
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // In initial position, white has 20 possible moves:
     // - 8 pawns can each move 1 or 2 squares forward (16 moves)
     // - 2 knights can each move to 2 squares (4 moves)
@@ -1940,19 +1940,19 @@ test "allvalidmoves initial position white" {
 }
 
 test "allvalidmoves initial position black" {
-    const board = b.Board{ .position = b.Position.init() };
-    const moves = allvalidmoves(board, 1);
+    var board = b.Board{ .position = b.Position.init() };
+    board.position.sidetomove = 1; // Set black to move
+    const moves = allvalidmoves(board);
     // In initial position, black has 20 possible moves:
     // - 8 pawns can each move 1 or 2 squares forward (16 moves)
     // - 2 knights can each move to 2 squares (4 moves)
-    // - 3 additional moves from flipping
     try std.testing.expectEqual(moves.len, 20);
 }
 
 test "allvalidmoves empty board with single piece" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Queen.position = c.E4;
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // Queen on e4 can move to 27 squares (8 directions)
     try std.testing.expectEqual(moves.len, 27);
 }
@@ -1965,7 +1965,7 @@ test "allvalidmoves with captures" {
     board.position.blackpieces.Pawn[0].position = c.E5;
     board.position.blackpieces.Pawn[1].position = c.F4;
 
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // Queen should be able to capture both pawns
     var captureCount: usize = 0;
     for (moves) |move| {
@@ -1984,7 +1984,7 @@ test "allvalidmoves with multiple pieces" {
     board.position.whitepieces.Queen.position = c.E4;
     board.position.whitepieces.Knight[0].position = c.C3;
 
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // Queen has 27 moves, Knight has 7 moves = 34 total moves
     try std.testing.expectEqual(moves.len, 34);
 }
@@ -1995,7 +1995,7 @@ test "allvalidmoves with blocked pieces" {
     board.position.whitepieces.Queen.position = c.E1;
     board.position.whitepieces.Pawn[0].position = c.E2;
 
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // Queen should be mostly blocked by pawn, pawn can move forward
     try std.testing.expect(moves.len < 27); // Queen's normal move count
 }
@@ -2007,7 +2007,7 @@ test "allvalidmoves with en passant" {
     board.position.blackpieces.Pawn[0].position = c.F5;
     board.position.enPassantSquare = c.F6;
 
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // Should include en passant capture
     var foundEnPassant = false;
     for (moves) |move| {
@@ -2028,7 +2028,7 @@ test "allvalidmoves with castling" {
     board.position.whitepieces.Rook[1].position = c.H1;
     board.position.canCastleWhiteKingside = true;
 
-    const moves = allvalidmoves(board, 0);
+    const moves = allvalidmoves(board);
     // Should include castling move
     var foundCastling = false;
     for (moves) |move| {
