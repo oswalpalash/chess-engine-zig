@@ -1,5 +1,9 @@
 const std = @import("std");
 
+/// Engine identification constants
+pub const ENGINE_NAME = "ZigChess";
+pub const ENGINE_AUTHOR = "Palash";
+
 /// Represents a UCI command
 pub const UciCommand = enum {
     uci,
@@ -42,10 +46,12 @@ pub const UciCommand = enum {
 pub const UciProtocol = struct {
     allocator: std.mem.Allocator,
     debug_mode: bool = false,
+    test_writer: ?std.ArrayList(u8).Writer = null, // Use ArrayList writer for testing
 
     pub fn init(allocator: std.mem.Allocator) UciProtocol {
         return UciProtocol{
             .allocator = allocator,
+            .test_writer = null,
         };
     }
 
@@ -58,8 +64,19 @@ pub const UciProtocol = struct {
             std.debug.print("Received command: {s} (parsed as {any})\n", .{ line, cmd });
         }
 
-        // For now, just echo the command back
-        try self.respond(line);
+        switch (cmd) {
+            .uci => {
+                // Send engine identification
+                try self.respond("id name " ++ ENGINE_NAME);
+                try self.respond("id author " ++ ENGINE_AUTHOR);
+                // TODO: Send options here when we add them
+                try self.respond("uciok");
+            },
+            else => {
+                // For now, just echo other commands back
+                try self.respond(line);
+            },
+        }
     }
 
     /// Main loop to process UCI commands
@@ -84,9 +101,12 @@ pub const UciProtocol = struct {
 
     /// Send a response back to the UCI interface
     fn respond(self: *UciProtocol, msg: []const u8) !void {
-        _ = self;
-        const stdout = std.io.getStdOut().writer();
-        try stdout.print("{s}\n", .{msg});
+        if (self.test_writer) |w| {
+            try w.print("{s}\n", .{msg});
+        } else {
+            const stdout = std.io.getStdOut().writer();
+            try stdout.print("{s}\n", .{msg});
+        }
     }
 };
 
@@ -125,4 +145,121 @@ test "UciProtocol command processing" {
     try protocol.processCommand("debug on");
     try protocol.processCommand("isready");
     try protocol.processCommand("quit");
+}
+
+test "UCI command identification" {
+    // Create a test protocol instance
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+
+    // Process the UCI command
+    try protocol.processCommand("uci");
+
+    // Convert output to string for easier checking
+    const output_str = buf.items;
+
+    // Verify the output contains all required elements in order
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id name " ++ ENGINE_NAME) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id author " ++ ENGINE_AUTHOR) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "uciok") != null);
+
+    // Verify the order of messages
+    const name_pos = std.mem.indexOf(u8, output_str, "id name").?;
+    const author_pos = std.mem.indexOf(u8, output_str, "id author").?;
+    const uciok_pos = std.mem.indexOf(u8, output_str, "uciok").?;
+
+    try std.testing.expect(name_pos < author_pos);
+    try std.testing.expect(author_pos < uciok_pos);
+}
+
+test "UCI command with extra whitespace and comments" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+
+    // Test with extra whitespace and comments
+    try protocol.processCommand("   uci  # this is a comment");
+
+    const output_str = buf.items;
+
+    // Verify the output is correct despite extra whitespace/comments
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id name " ++ ENGINE_NAME) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id author " ++ ENGINE_AUTHOR) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "uciok") != null);
+}
+
+test "UCI command case sensitivity" {
+    // Test various case combinations
+    try std.testing.expectEqual(UciCommand.fromString("UCI"), .unknown);
+    try std.testing.expectEqual(UciCommand.fromString("uCi"), .unknown);
+    try std.testing.expectEqual(UciCommand.fromString("Uci"), .unknown);
+    try std.testing.expectEqual(UciCommand.fromString("uci"), .uci);
+}
+
+test "UCI protocol multiple command sequence" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+
+    // Send a sequence of commands
+    try protocol.processCommand("uci");
+    try protocol.processCommand("debug on");
+    try protocol.processCommand("isready");
+
+    const output_str = buf.items;
+
+    // Verify UCI command output
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id name " ++ ENGINE_NAME) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id author " ++ ENGINE_AUTHOR) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "uciok") != null);
+
+    // Verify other commands were echoed (temporary behavior)
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "debug on") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "isready") != null);
+}
+
+test "UCI protocol error handling" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+
+    // Test empty command
+    try protocol.processCommand("");
+    try protocol.processCommand("   ");
+
+    // Test invalid commands
+    try protocol.processCommand("invalid_command");
+    try protocol.processCommand("uci extra invalid args");
+
+    const output_str = buf.items;
+
+    // Verify empty/invalid commands are handled gracefully
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "invalid_command") != null); // Should echo back
+}
+
+test "UCI command debug mode logging" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.debug_mode = true;
+    protocol.test_writer = buf.writer();
+
+    try protocol.processCommand("uci");
+
+    const output_str = buf.items;
+
+    // In debug mode, should still output correct UCI responses
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id name " ++ ENGINE_NAME) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "id author " ++ ENGINE_AUTHOR) != null);
+    try std.testing.expect(std.mem.indexOf(u8, output_str, "uciok") != null);
 }
