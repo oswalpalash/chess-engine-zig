@@ -438,8 +438,6 @@ test "rowfrombitmap and colfrombitmap for black rook at a8" {
     const col = colfrombitmap(blackRook.position);
     try std.testing.expectEqual(row, 8);
     try std.testing.expectEqual(col, 1);
-
-    std.debug.print("\nBlack rook at A8: position={x}, row={d}, col={d}\n", .{ blackRook.position, row, col });
 }
 
 // Valid rook moves
@@ -469,8 +467,6 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
 
     const row: u64 = rowfrombitmap(rook.position);
     const col: u64 = colfrombitmap(rook.position);
-
-    std.debug.print("\nRook at row {d}, col {d}, position {x}\n", .{ row, col, rook.position });
 
     // Define the four directions a rook can move: up, down, left, right
     const directions = [_]struct { shift: i8, max_steps: u6 }{
@@ -2073,10 +2069,6 @@ test "getValidRookMoves for black rook at a8 in initial board" {
     std.debug.print("\nOriginal board:\n", .{});
     _ = board.print();
 
-    // Get the black rook at A8 and verify its position
-    const blackRook = board.position.blackpieces.Rook[1];
-    std.debug.print("\nBlack rook position: {x}\n", .{blackRook.position});
-
     // Create flipped board for inspection
     var flippedBoard = board;
     flippedBoard.position = flippedBoard.position.flip();
@@ -2106,9 +2098,6 @@ test "ValidRookMoves debug test for black rooks" {
 
     // Get moves for the black rook
     const moves = ValidRookMoves(board.position.blackpieces.Rook[0], board);
-
-    // Print number of moves found
-    std.debug.print("\nFound {d} moves for black rook\n", .{moves.len});
 
     // Verify moves are valid
     try std.testing.expectEqual(moves.len, 14); // Should have 14 possible moves (7 horizontal + 7 vertical)
