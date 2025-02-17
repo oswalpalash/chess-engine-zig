@@ -2109,3 +2109,170 @@ test "ValidRookMoves debug test for black rooks" {
         try std.testing.expect(newPos != c.E4); // Position should be different from starting position
     }
 }
+
+test "en passant capture from both sides" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Place white pawn with black pawns on both sides
+    board.position.whitepieces.Pawn[0].position = c.E5;
+    board.position.blackpieces.Pawn[0].position = c.D5;
+    board.position.blackpieces.Pawn[1].position = c.F5;
+    board.position.enPassantSquare = c.D6; // Simulate black pawn just moved D7->D5
+
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 2); // Forward move and en passant capture
+    var foundEnPassant = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0 and
+            move.position.whitepieces.Pawn[0].position == c.D6)
+        {
+            foundEnPassant = true;
+            try std.testing.expectEqual(move.position.enPassantSquare, 0);
+        }
+    }
+    try std.testing.expect(foundEnPassant);
+}
+
+test "pawn promotion with multiple capture options" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E7;
+    board.position.blackpieces.Pawn[0].position = c.D8;
+    board.position.blackpieces.Pawn[1].position = c.F8;
+
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 3); // Forward promotion and two capture promotions
+    var capturePromotions: u8 = 0;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0 or
+            move.position.blackpieces.Pawn[1].position == 0)
+        {
+            capturePromotions += 1;
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[0].representation, 'Q');
+        }
+    }
+    try std.testing.expectEqual(capturePromotions, 2);
+}
+
+test "knight moves near board edges" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Test from edge positions
+    board.position.whitepieces.Knight[0].position = c.A4;
+    var moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 4); // Can only move to 4 squares from A4
+
+    board.position.whitepieces.Knight[0].position = c.H4;
+    moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
+    try std.testing.expectEqual(moves.len, 4); // Can only move to 4 squares from H4
+}
+
+test "bishop moves with blocked diagonal" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.E4;
+
+    // Block one diagonal with own piece
+    board.position.whitepieces.Pawn[0].position = c.F5;
+
+    // Block another diagonal with enemy piece that can be captured
+    board.position.blackpieces.Pawn[0].position = c.D5;
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    try std.testing.expect(moves.len < 13); // Should have fewer moves than an unblocked bishop
+
+    var foundCapture = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0) {
+            foundCapture = true;
+            break;
+        }
+    }
+    try std.testing.expect(foundCapture);
+}
+
+test "queen moves in crowded position" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.E4;
+
+    // Surround with mix of friendly and enemy pieces
+    board.position.whitepieces.Pawn[0].position = c.E5; // blocks forward
+    board.position.blackpieces.Pawn[0].position = c.F4; // can be captured
+    board.position.blackpieces.Pawn[1].position = c.D4; // can be captured
+    board.position.whitepieces.Pawn[1].position = c.E3; // blocks backward
+
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+    try std.testing.expect(moves.len < 27); // Should have fewer moves than an unblocked queen
+
+    var captureCount: u8 = 0;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0 or
+            move.position.blackpieces.Pawn[1].position == 0)
+        {
+            captureCount += 1;
+        }
+    }
+    try std.testing.expectEqual(captureCount, 2);
+}
+
+test "king castling with blocked path" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.whitepieces.Rook[1].position = c.H1;
+    board.position.canCastleWhiteKingside = true;
+
+    // Block castling path
+    board.position.whitepieces.Bishop[0].position = c.F1;
+
+    const moves = ValidKingMoves(board.position.whitepieces.King, board);
+
+    // Verify no castling move exists
+    var foundCastling = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.King.position == c.G1) {
+            foundCastling = true;
+            break;
+        }
+    }
+    try std.testing.expect(!foundCastling);
+}
+
+test "rook moves with multiple capture opportunities" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.E4;
+
+    // Place multiple capturable pieces
+    board.position.blackpieces.Pawn[0].position = c.E6;
+    board.position.blackpieces.Pawn[1].position = c.E2;
+    board.position.blackpieces.Pawn[2].position = c.G4;
+    board.position.blackpieces.Pawn[3].position = c.C4;
+
+    const moves = ValidRookMoves(board.position.whitepieces.Rook[0], board);
+
+    var captureCount: u8 = 0;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[0].position == 0 or
+            move.position.blackpieces.Pawn[1].position == 0 or
+            move.position.blackpieces.Pawn[2].position == 0 or
+            move.position.blackpieces.Pawn[3].position == 0)
+        {
+            captureCount += 1;
+        }
+    }
+    try std.testing.expectEqual(captureCount, 4);
+}
+
+test "pawn double move blocked by enemy piece" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E2;
+    board.position.blackpieces.Pawn[0].position = c.E3;
+
+    const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    try std.testing.expectEqual(moves.len, 0); // No moves possible
+}
+
+test "bishop trapped in corner" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.A1;
+    board.position.whitepieces.Pawn[0].position = c.B2;
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    try std.testing.expectEqual(moves.len, 0); // No moves possible
+}
