@@ -56,6 +56,7 @@ pub const Position = struct {
     canCastleBlackKingside: bool = false,
     canCastleBlackQueenside: bool = false,
     enPassantSquare: u64 = 0,
+    sidetomove: u8 = 0, // 0 for white, 1 for black
 
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
@@ -102,6 +103,7 @@ pub const Position = struct {
             .canCastleBlackKingside = true,
             .canCastleBlackQueenside = true,
             .enPassantSquare = 0,
+            .sidetomove = 0, // White to move in initial position
         };
     }
 
@@ -116,6 +118,7 @@ pub const Position = struct {
             .canCastleBlackKingside = false,
             .canCastleBlackQueenside = false,
             .enPassantSquare = 0,
+            .sidetomove = 0, // White to move by default
         };
     }
 
@@ -163,6 +166,7 @@ pub const Position = struct {
             .canCastleBlackKingside = self.canCastleBlackKingside,
             .canCastleBlackQueenside = self.canCastleBlackQueenside,
             .enPassantSquare = reverse(self.enPassantSquare),
+            .sidetomove = self.sidetomove,
         };
     }
 
@@ -258,6 +262,7 @@ pub const Position = struct {
 pub const Board = struct {
     position: Position,
     move_count: u32 = 0,
+    sidetomove: u8 = 0, // 0 for white, 1 for black
 
     pub fn print(self: Board) [BoardSize]u8 {
         return self.position.print();
@@ -419,7 +424,14 @@ pub fn parseFen(fen: []const u8) Position {
     if (second_token == null) {
         // Invalid: no side to move
         std.debug.print("FEN string missing side to move\n", .{});
-        //return Position.emptyboard();
+    } else {
+        // Parse side to move
+        const sideToMove = second_token.?;
+        if (sideToMove[0] == 'b') {
+            position.sidetomove = 1;
+        } else {
+            position.sidetomove = 0;
+        }
     }
 
     const third_token = tokens.next();
