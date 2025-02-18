@@ -306,14 +306,15 @@ pub fn parseFen(fen: []const u8) Position {
     // Start with an empty board:
     var position = Position.emptyboard();
 
-    var index: u6 = 0;
+    var index: usize = 0;
     var i: usize = 0;
     while (i < piecePlacement.len) : (i += 1) {
         const ch = piecePlacement[i];
         switch (ch) {
             // Major + minor pieces
             inline 'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
-                const bit: u64 = (@as(u64, 1) << @as(u6, index));
+                if (index >= 64) break;
+                const bit: u64 = (@as(u64, 1) << @as(u6, @intCast(index)));
                 switch (ch) {
                     'K' => position.whitepieces.King.position |= bit,
                     'Q' => position.whitepieces.Queen.position |= bit,
@@ -394,16 +395,14 @@ pub fn parseFen(fen: []const u8) Position {
                     },
                     else => {},
                 }
-                if (index < 63) index += 1;
+                index += 1;
             },
-            '1' => index += 1,
-            '2' => index += 2,
-            '3' => index += 3,
-            '4' => index += 4,
-            '5' => index += 5,
-            '6' => index += 6,
-            '7' => index += 7,
-            '8' => index += 8,
+            '1'...'8' => {
+                const empty_squares = ch - '0';
+                if (index + empty_squares <= 64) {
+                    index += empty_squares;
+                }
+            },
             '/' => {
                 // Just means new rank; nothing special to do besides continue
             },
@@ -411,7 +410,7 @@ pub fn parseFen(fen: []const u8) Position {
                 // For safety, ignore/goto next character
             },
         }
-        if (index > 63) {
+        if (index >= 64) {
             // We read too many squares; the FEN might be malformed, but we just stop.
             break;
         }
@@ -495,7 +494,7 @@ pub fn parseFen(fen: []const u8) Position {
                 else => rankIndex = 0,
             }
             const shift = rankIndex * 8 + fileIndex;
-            position.enPassantSquare = @as(u64, 1) << shift;
+            position.enPassantSquare = @as(u64, 1) << @as(u6, @intCast(shift));
             position.enPassantSquare = reverse(position.enPassantSquare); // Flip since we flip the whole position
         }
     }
