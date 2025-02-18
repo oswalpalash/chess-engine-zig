@@ -49,12 +49,28 @@ pub const UciProtocol = struct {
     allocator: std.mem.Allocator,
     debug_mode: bool = false,
     test_writer: ?std.ArrayList(u8).Writer = null, // Use ArrayList writer for testing
+    current_board: b.Board = b.Board{ .position = b.Position.init() },
 
     pub fn init(allocator: std.mem.Allocator) UciProtocol {
         return UciProtocol{
             .allocator = allocator,
             .test_writer = null,
+            .current_board = b.Board{ .position = b.Position.init() },
         };
+    }
+
+    /// Choose a simple move from the current position
+    fn chooseBestMove(self: *UciProtocol) !?b.Board {
+        const m = @import("moves.zig");
+        // Get all valid moves from the current position
+        const moves = m.allvalidmoves(self.current_board);
+        if (moves.len == 0) {
+            // No legal moves available
+            return null;
+        }
+
+        // For now, just pick the first legal move
+        return moves[0];
     }
 
     /// Parse a position command line and return a board position
@@ -138,16 +154,40 @@ pub const UciProtocol = struct {
                         std.debug.print("Processing position command: {s}\n", .{line});
                     }
                 }
-                const new_board = try parsePositionLine(line, self.allocator);
+                self.current_board = try parsePositionLine(line, self.allocator);
                 if (self.debug_mode) {
-                    _ = new_board.print();
+                    _ = self.current_board.print();
+                }
+            },
+            .go => {
+                // Choose a move from the current position
+                if (try self.chooseBestMove()) |new_board| {
+                    // Convert the move to UCI format
+                    const move = moveToUci(self.current_board, new_board);
+                    var move_str: [10]u8 = undefined;
+                    var move_len: usize = 4;
+                    @memcpy(move_str[0..5], &move);
+                    if (move[4] != 0) {
+                        move_len = 5;
+                    }
+                    // Use string formatting instead of concatenation
+                    if (self.test_writer) |w| {
+                        try w.print("bestmove {s}\n", .{move_str[0..move_len]});
+                    } else {
+                        const stdout = std.io.getStdOut().writer();
+                        try stdout.print("bestmove {s}\n", .{move_str[0..move_len]});
+                    }
+                } else {
+                    // No legal moves available
+                    try self.respond("bestmove 0000");
                 }
             },
             .ucinewgame => {
                 if (self.debug_mode) {
                     try self.respond("Received ucinewgame command. Will be implemented in future.");
                 }
-                // TODO: Reset game state and clear any persistent data
+                // Reset the board to initial position
+                self.current_board = b.Board{ .position = b.Position.init() };
             },
             else => {
                 // For now, just echo other commands back
@@ -504,4 +544,42 @@ test "position command with simple FEN and moves" {
     const output = buf.items;
     try std.testing.expect(std.mem.indexOf(u8, output, "position fen") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "e1e2") != null);
+}
+
+test "go command returns a valid move" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+
+    // Start from initial position
+    try protocol.processCommand("position startpos");
+    try protocol.processCommand("go");
+
+    const output = buf.items;
+    // Verify that we got a bestmove response
+    try std.testing.expect(std.mem.startsWith(u8, output, "bestmove "));
+    // Verify move format (e.g., "e2e4")
+    try std.testing.expect(output.len >= 13); // "bestmove " + 4 chars
+    try std.testing.expect(output[9] >= 'a' and output[9] <= 'h');
+    try std.testing.expect(output[10] >= '1' and output[10] <= '8');
+    try std.testing.expect(output[11] >= 'a' and output[11] <= 'h');
+    try std.testing.expect(output[12] >= '1' and output[12] <= '8');
+}
+
+test "go command with no legal moves" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+
+    // Set up a Scholar's Mate checkmate position (black is checkmated)
+    // White queen on f7, white bishop on c4, black king on e8
+    try protocol.processCommand("position fen r1bqk1nr/pppp1Qpp/2n5/2b1p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4");
+    try protocol.processCommand("go");
+
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "bestmove 0000") != null);
 }
