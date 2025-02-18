@@ -142,37 +142,69 @@ pub const Position = struct {
         var whitepieces: WhitePieces = self.whitepieces;
         var blackpieces: BlackPieces = self.blackpieces;
         whitepieces.King.position = reverse(whitepieces.King.position);
+        whitepieces.King.index = self.whitepieces.King.index;
         whitepieces.Queen.position = reverse(whitepieces.Queen.position);
+        whitepieces.Queen.index = self.whitepieces.Queen.index;
         whitepieces.Rook[0].position = reverse(whitepieces.Rook[0].position);
+        whitepieces.Rook[0].index = self.whitepieces.Rook[0].index;
         whitepieces.Rook[1].position = reverse(whitepieces.Rook[1].position);
+        whitepieces.Rook[1].index = self.whitepieces.Rook[1].index;
         whitepieces.Bishop[0].position = reverse(whitepieces.Bishop[0].position);
+        whitepieces.Bishop[0].index = self.whitepieces.Bishop[0].index;
         whitepieces.Bishop[1].position = reverse(whitepieces.Bishop[1].position);
+        whitepieces.Bishop[1].index = self.whitepieces.Bishop[1].index;
         whitepieces.Knight[0].position = reverse(whitepieces.Knight[0].position);
+        whitepieces.Knight[0].index = self.whitepieces.Knight[0].index;
         whitepieces.Knight[1].position = reverse(whitepieces.Knight[1].position);
+        whitepieces.Knight[1].index = self.whitepieces.Knight[1].index;
         whitepieces.Pawn[0].position = reverse(whitepieces.Pawn[0].position);
+        whitepieces.Pawn[0].index = self.whitepieces.Pawn[0].index;
         whitepieces.Pawn[1].position = reverse(whitepieces.Pawn[1].position);
+        whitepieces.Pawn[1].index = self.whitepieces.Pawn[1].index;
         whitepieces.Pawn[2].position = reverse(whitepieces.Pawn[2].position);
+        whitepieces.Pawn[2].index = self.whitepieces.Pawn[2].index;
         whitepieces.Pawn[3].position = reverse(whitepieces.Pawn[3].position);
+        whitepieces.Pawn[3].index = self.whitepieces.Pawn[3].index;
         whitepieces.Pawn[4].position = reverse(whitepieces.Pawn[4].position);
+        whitepieces.Pawn[4].index = self.whitepieces.Pawn[4].index;
         whitepieces.Pawn[5].position = reverse(whitepieces.Pawn[5].position);
+        whitepieces.Pawn[5].index = self.whitepieces.Pawn[5].index;
         whitepieces.Pawn[6].position = reverse(whitepieces.Pawn[6].position);
+        whitepieces.Pawn[6].index = self.whitepieces.Pawn[6].index;
         whitepieces.Pawn[7].position = reverse(whitepieces.Pawn[7].position);
+        whitepieces.Pawn[7].index = self.whitepieces.Pawn[7].index;
         blackpieces.King.position = reverse(blackpieces.King.position);
+        blackpieces.King.index = self.blackpieces.King.index;
         blackpieces.Queen.position = reverse(blackpieces.Queen.position);
+        blackpieces.Queen.index = self.blackpieces.Queen.index;
         blackpieces.Rook[0].position = reverse(blackpieces.Rook[0].position);
+        blackpieces.Rook[0].index = self.blackpieces.Rook[0].index;
         blackpieces.Rook[1].position = reverse(blackpieces.Rook[1].position);
+        blackpieces.Rook[1].index = self.blackpieces.Rook[1].index;
         blackpieces.Bishop[0].position = reverse(blackpieces.Bishop[0].position);
+        blackpieces.Bishop[0].index = self.blackpieces.Bishop[0].index;
         blackpieces.Bishop[1].position = reverse(blackpieces.Bishop[1].position);
+        blackpieces.Bishop[1].index = self.blackpieces.Bishop[1].index;
         blackpieces.Knight[0].position = reverse(blackpieces.Knight[0].position);
+        blackpieces.Knight[0].index = self.blackpieces.Knight[0].index;
         blackpieces.Knight[1].position = reverse(blackpieces.Knight[1].position);
+        blackpieces.Knight[1].index = self.blackpieces.Knight[1].index;
         blackpieces.Pawn[0].position = reverse(blackpieces.Pawn[0].position);
+        blackpieces.Pawn[0].index = self.blackpieces.Pawn[0].index;
         blackpieces.Pawn[1].position = reverse(blackpieces.Pawn[1].position);
+        blackpieces.Pawn[1].index = self.blackpieces.Pawn[1].index;
         blackpieces.Pawn[2].position = reverse(blackpieces.Pawn[2].position);
+        blackpieces.Pawn[2].index = self.blackpieces.Pawn[2].index;
         blackpieces.Pawn[3].position = reverse(blackpieces.Pawn[3].position);
+        blackpieces.Pawn[3].index = self.blackpieces.Pawn[3].index;
         blackpieces.Pawn[4].position = reverse(blackpieces.Pawn[4].position);
+        blackpieces.Pawn[4].index = self.blackpieces.Pawn[4].index;
         blackpieces.Pawn[5].position = reverse(blackpieces.Pawn[5].position);
+        blackpieces.Pawn[5].index = self.blackpieces.Pawn[5].index;
         blackpieces.Pawn[6].position = reverse(blackpieces.Pawn[6].position);
+        blackpieces.Pawn[6].index = self.blackpieces.Pawn[6].index;
         blackpieces.Pawn[7].position = reverse(blackpieces.Pawn[7].position);
+        blackpieces.Pawn[7].index = self.blackpieces.Pawn[7].index;
 
         return Position{
             .whitepieces = whitepieces,
@@ -322,16 +354,6 @@ pub fn parseFen(fen: []const u8) Position {
     // Start with an empty board:
     var position = Position.emptyboard();
 
-    // Track piece counts for indexing
-    var whiteRookCount: u8 = 0;
-    var whiteBishopCount: u8 = 0;
-    var whiteKnightCount: u8 = 0;
-    var whitePawnCount: u8 = 0;
-    var blackRookCount: u8 = 0;
-    var blackBishopCount: u8 = 0;
-    var blackKnightCount: u8 = 0;
-    var blackPawnCount: u8 = 0;
-
     var index: u6 = 0;
     var i: usize = 0;
     while (i < piecePlacement.len) : (i += 1) {
@@ -351,31 +373,43 @@ pub fn parseFen(fen: []const u8) Position {
                         position.whitepieces.Queen.index = 0;
                     },
                     'R' => {
-                        if (whiteRookCount < position.whitepieces.Rook.len) {
-                            position.whitepieces.Rook[whiteRookCount].position = bit;
-                            position.whitepieces.Rook[whiteRookCount].index = whiteRookCount;
-                            whiteRookCount += 1;
+                        var rookCount: u6 = 0;
+                        while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
+                            if (position.whitepieces.Rook[rookCount].position == 0) {
+                                position.whitepieces.Rook[rookCount].position = bit;
+                                position.whitepieces.Rook[rookCount].index = rookCount;
+                                break;
+                            }
                         }
                     },
                     'B' => {
-                        if (whiteBishopCount < position.whitepieces.Bishop.len) {
-                            position.whitepieces.Bishop[whiteBishopCount].position = bit;
-                            position.whitepieces.Bishop[whiteBishopCount].index = whiteBishopCount;
-                            whiteBishopCount += 1;
+                        var bishopCount: u6 = 0;
+                        while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
+                            if (position.whitepieces.Bishop[bishopCount].position == 0) {
+                                position.whitepieces.Bishop[bishopCount].position = bit;
+                                position.whitepieces.Bishop[bishopCount].index = bishopCount;
+                                break;
+                            }
                         }
                     },
                     'N' => {
-                        if (whiteKnightCount < position.whitepieces.Knight.len) {
-                            position.whitepieces.Knight[whiteKnightCount].position = bit;
-                            position.whitepieces.Knight[whiteKnightCount].index = whiteKnightCount;
-                            whiteKnightCount += 1;
+                        var knightCount: u6 = 0;
+                        while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
+                            if (position.whitepieces.Knight[knightCount].position == 0) {
+                                position.whitepieces.Knight[knightCount].position = bit;
+                                position.whitepieces.Knight[knightCount].index = knightCount;
+                                break;
+                            }
                         }
                     },
                     'P' => {
-                        if (whitePawnCount < position.whitepieces.Pawn.len) {
-                            position.whitepieces.Pawn[whitePawnCount].position = bit;
-                            position.whitepieces.Pawn[whitePawnCount].index = whitePawnCount;
-                            whitePawnCount += 1;
+                        var pawnCount: u6 = 0;
+                        while (pawnCount < position.whitepieces.Pawn.len) : (pawnCount += 1) {
+                            if (position.whitepieces.Pawn[pawnCount].position == 0) {
+                                position.whitepieces.Pawn[pawnCount].position = bit;
+                                position.whitepieces.Pawn[pawnCount].index = pawnCount;
+                                break;
+                            }
                         }
                     },
                     'k' => {
@@ -387,31 +421,43 @@ pub fn parseFen(fen: []const u8) Position {
                         position.blackpieces.Queen.index = 0;
                     },
                     'r' => {
-                        if (blackRookCount < position.blackpieces.Rook.len) {
-                            position.blackpieces.Rook[blackRookCount].position = bit;
-                            position.blackpieces.Rook[blackRookCount].index = blackRookCount;
-                            blackRookCount += 1;
+                        var rookCount: u6 = 0;
+                        while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
+                            if (position.blackpieces.Rook[rookCount].position == 0) {
+                                position.blackpieces.Rook[rookCount].position = bit;
+                                position.blackpieces.Rook[rookCount].index = rookCount;
+                                break;
+                            }
                         }
                     },
                     'b' => {
-                        if (blackBishopCount < position.blackpieces.Bishop.len) {
-                            position.blackpieces.Bishop[blackBishopCount].position = bit;
-                            position.blackpieces.Bishop[blackBishopCount].index = blackBishopCount;
-                            blackBishopCount += 1;
+                        var bishopCount: u6 = 0;
+                        while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
+                            if (position.blackpieces.Bishop[bishopCount].position == 0) {
+                                position.blackpieces.Bishop[bishopCount].position = bit;
+                                position.blackpieces.Bishop[bishopCount].index = bishopCount;
+                                break;
+                            }
                         }
                     },
                     'n' => {
-                        if (blackKnightCount < position.blackpieces.Knight.len) {
-                            position.blackpieces.Knight[blackKnightCount].position = bit;
-                            position.blackpieces.Knight[blackKnightCount].index = blackKnightCount;
-                            blackKnightCount += 1;
+                        var knightCount: u6 = 0;
+                        while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
+                            if (position.blackpieces.Knight[knightCount].position == 0) {
+                                position.blackpieces.Knight[knightCount].position = bit;
+                                position.blackpieces.Knight[knightCount].index = knightCount;
+                                break;
+                            }
                         }
                     },
                     'p' => {
-                        if (blackPawnCount < position.blackpieces.Pawn.len) {
-                            position.blackpieces.Pawn[blackPawnCount].position = bit;
-                            position.blackpieces.Pawn[blackPawnCount].index = blackPawnCount;
-                            blackPawnCount += 1;
+                        var pawnCount: u6 = 0;
+                        while (pawnCount < position.blackpieces.Pawn.len) : (pawnCount += 1) {
+                            if (position.blackpieces.Pawn[pawnCount].position == 0) {
+                                position.blackpieces.Pawn[pawnCount].position = bit;
+                                position.blackpieces.Pawn[pawnCount].index = pawnCount;
+                                break;
+                            }
                         }
                     },
                     else => {},
