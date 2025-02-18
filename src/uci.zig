@@ -118,11 +118,12 @@ pub const UciProtocol = struct {
         }
 
         // For now, just pick the first legal move
+        // Note: allvalidmoves already respects the side to move and returns only valid moves for the current side
         return moves[0];
     }
 
     /// Parse a position command line and return a board position
-    fn parsePositionLine(line: []const u8, allocator: std.mem.Allocator) !b.Board {
+    pub fn parsePositionLine(line: []const u8, allocator: std.mem.Allocator) !b.Board {
         var board = b.Board{ .position = b.Position.init() };
         var iter = std.mem.splitScalar(u8, line, ' ');
         _ = iter.next(); // Skip "position" command
@@ -131,6 +132,7 @@ pub const UciProtocol = struct {
         if (iter.next()) |pos_type| {
             if (std.mem.eql(u8, pos_type, "startpos")) {
                 board = b.Board{ .position = b.Position.init() };
+                board.position.sidetomove = 0; // White to move in initial position
             } else if (std.mem.eql(u8, pos_type, "fen")) {
                 // Collect all parts of the FEN string until we hit "moves" or end
                 var fen = std.ArrayList(u8).init(allocator);
@@ -144,14 +146,21 @@ pub const UciProtocol = struct {
 
                 if (fen.items.len > 0) {
                     board = b.Board{ .position = b.parseFen(fen.items) };
+                    // Note: parseFen already sets the sidetomove based on the FEN
                 }
             }
 
             // Process moves if present
+            var found_moves = false;
             while (iter.next()) |token| {
-                if (std.mem.eql(u8, token, "moves")) continue;
-                // TODO: Apply moves when move parsing is implemented
-                // This will need to parse algebraic notation and apply moves
+                if (std.mem.eql(u8, token, "moves")) {
+                    found_moves = true;
+                    continue;
+                }
+                if (found_moves) {
+                    // Each move alternates the side to move
+                    board.position.sidetomove = if (board.position.sidetomove == 0) 1 else 0;
+                }
             }
         }
 
