@@ -14,21 +14,22 @@ pub const Piece = struct {
     current: u64 = 0,
     stdval: u8 = 0,
     position: u64 = 0,
+    index: u8 = 0, // Track which instance of this piece type this is (0-based)
 };
 
-pub const WhiteKing: Piece = Piece{ .color = 0, .value = 255, .representation = 'K', .stdval = 255, .position = 0x0 };
-pub const WhiteQueen: Piece = Piece{ .color = 0, .value = 9, .representation = 'Q', .stdval = 9, .position = 0x0 };
-pub const WhiteRook: Piece = Piece{ .color = 0, .value = 5, .representation = 'R', .stdval = 5, .position = 0x0 };
-pub const WhiteBishop: Piece = Piece{ .color = 0, .value = 3, .representation = 'B', .stdval = 3, .position = 0x0 };
-pub const WhiteKnight: Piece = Piece{ .color = 0, .value = 3, .representation = 'N', .stdval = 3, .position = 0x0 };
-pub const WhitePawn: Piece = Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0x0 };
-pub const BlackKing: Piece = Piece{ .color = 1, .value = 255, .representation = 'k', .stdval = 255, .position = 0x0 };
-pub const BlackQueen: Piece = Piece{ .color = 1, .value = 9, .representation = 'q', .stdval = 9, .position = 0x0 };
-pub const BlackRook: Piece = Piece{ .color = 1, .value = 5, .representation = 'r', .stdval = 5, .position = 0x0 };
-pub const BlackBishop: Piece = Piece{ .color = 1, .value = 3, .representation = 'b', .stdval = 3, .position = 0x0 };
-pub const BlackKnight: Piece = Piece{ .color = 1, .value = 3, .representation = 'n', .stdval = 3, .position = 0x0 };
-pub const BlackPawn: Piece = Piece{ .color = 1, .value = 1, .representation = 'p', .stdval = 1, .position = 0x0 };
-const Empty: Piece = Piece{ .color = 2, .value = 0, .representation = '.', .stdval = 0, .position = 0x0 };
+pub const WhiteKing: Piece = Piece{ .color = 0, .value = 255, .representation = 'K', .stdval = 255, .position = 0x0, .index = 0 };
+pub const WhiteQueen: Piece = Piece{ .color = 0, .value = 9, .representation = 'Q', .stdval = 9, .position = 0x0, .index = 0 };
+pub const WhiteRook: Piece = Piece{ .color = 0, .value = 5, .representation = 'R', .stdval = 5, .position = 0x0, .index = 0 };
+pub const WhiteBishop: Piece = Piece{ .color = 0, .value = 3, .representation = 'B', .stdval = 3, .position = 0x0, .index = 0 };
+pub const WhiteKnight: Piece = Piece{ .color = 0, .value = 3, .representation = 'N', .stdval = 3, .position = 0x0, .index = 0 };
+pub const WhitePawn: Piece = Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0x0, .index = 0 };
+pub const BlackKing: Piece = Piece{ .color = 1, .value = 255, .representation = 'k', .stdval = 255, .position = 0x0, .index = 0 };
+pub const BlackQueen: Piece = Piece{ .color = 1, .value = 9, .representation = 'q', .stdval = 9, .position = 0x0, .index = 0 };
+pub const BlackRook: Piece = Piece{ .color = 1, .value = 5, .representation = 'r', .stdval = 5, .position = 0x0, .index = 0 };
+pub const BlackBishop: Piece = Piece{ .color = 1, .value = 3, .representation = 'b', .stdval = 3, .position = 0x0, .index = 0 };
+pub const BlackKnight: Piece = Piece{ .color = 1, .value = 3, .representation = 'n', .stdval = 3, .position = 0x0, .index = 0 };
+pub const BlackPawn: Piece = Piece{ .color = 1, .value = 1, .representation = 'p', .stdval = 1, .position = 0x0, .index = 0 };
+const Empty: Piece = Piece{ .color = 2, .value = 0, .representation = '.', .stdval = 0, .position = 0x0, .index = 0 };
 
 const WhitePieces = struct {
     King: Piece = WhiteKing,
@@ -62,37 +63,52 @@ pub const Position = struct {
         var whitepieces: WhitePieces = WhitePieces{};
         var blackpieces: BlackPieces = BlackPieces{};
         whitepieces.King.position = c.E1;
+        whitepieces.King.index = 0;
         whitepieces.Queen.position = c.D1;
+        whitepieces.Queen.index = 0;
         whitepieces.Rook[0].position = c.A1;
+        whitepieces.Rook[0].index = 0;
         whitepieces.Rook[1].position = c.H1;
+        whitepieces.Rook[1].index = 1;
         whitepieces.Bishop[0].position = c.C1;
+        whitepieces.Bishop[0].index = 0;
         whitepieces.Bishop[1].position = c.F1;
+        whitepieces.Bishop[1].index = 1;
         whitepieces.Knight[0].position = c.B1;
+        whitepieces.Knight[0].index = 0;
         whitepieces.Knight[1].position = c.G1;
-        whitepieces.Pawn[0].position = c.A2;
-        whitepieces.Pawn[1].position = c.B2;
-        whitepieces.Pawn[2].position = c.C2;
-        whitepieces.Pawn[3].position = c.D2;
-        whitepieces.Pawn[4].position = c.E2;
-        whitepieces.Pawn[5].position = c.F2;
-        whitepieces.Pawn[6].position = c.G2;
-        whitepieces.Pawn[7].position = c.H2;
+        whitepieces.Knight[1].index = 1;
+
+        // Initialize white pawns using constants
+        const pawnPositions = [_]u64{
+            c.A2, c.B2, c.C2, c.D2,
+            c.E2, c.F2, c.G2, c.H2,
+        };
+        for (0..8) |i| {
+            whitepieces.Pawn[i].position = pawnPositions[i];
+            whitepieces.Pawn[i].index = @intCast(i);
+        }
+
         blackpieces.King.position = c.E8;
+        blackpieces.King.index = 0;
         blackpieces.Queen.position = c.D8;
+        blackpieces.Queen.index = 0;
         blackpieces.Rook[0].position = reverse(whitepieces.Rook[0].position);
+        blackpieces.Rook[0].index = 0;
         blackpieces.Rook[1].position = reverse(whitepieces.Rook[1].position);
+        blackpieces.Rook[1].index = 1;
         blackpieces.Bishop[0].position = reverse(whitepieces.Bishop[0].position);
+        blackpieces.Bishop[0].index = 0;
         blackpieces.Bishop[1].position = reverse(whitepieces.Bishop[1].position);
+        blackpieces.Bishop[1].index = 1;
         blackpieces.Knight[0].position = reverse(whitepieces.Knight[0].position);
+        blackpieces.Knight[0].index = 0;
         blackpieces.Knight[1].position = reverse(whitepieces.Knight[1].position);
-        blackpieces.Pawn[0].position = reverse(whitepieces.Pawn[0].position);
-        blackpieces.Pawn[1].position = reverse(whitepieces.Pawn[1].position);
-        blackpieces.Pawn[2].position = reverse(whitepieces.Pawn[2].position);
-        blackpieces.Pawn[3].position = reverse(whitepieces.Pawn[3].position);
-        blackpieces.Pawn[4].position = reverse(whitepieces.Pawn[4].position);
-        blackpieces.Pawn[5].position = reverse(whitepieces.Pawn[5].position);
-        blackpieces.Pawn[6].position = reverse(whitepieces.Pawn[6].position);
-        blackpieces.Pawn[7].position = reverse(whitepieces.Pawn[7].position);
+        blackpieces.Knight[1].index = 1;
+        for (0..8) |i| {
+            blackpieces.Pawn[i].position = reverse(whitepieces.Pawn[i].position);
+            blackpieces.Pawn[i].index = @intCast(i);
+        }
         return Position{
             .whitepieces = whitepieces,
             .blackpieces = blackpieces,
@@ -306,7 +322,17 @@ pub fn parseFen(fen: []const u8) Position {
     // Start with an empty board:
     var position = Position.emptyboard();
 
-    var index: usize = 0;
+    // Track piece counts for indexing
+    var whiteRookCount: u8 = 0;
+    var whiteBishopCount: u8 = 0;
+    var whiteKnightCount: u8 = 0;
+    var whitePawnCount: u8 = 0;
+    var blackRookCount: u8 = 0;
+    var blackBishopCount: u8 = 0;
+    var blackKnightCount: u8 = 0;
+    var blackPawnCount: u8 = 0;
+
+    var index: u6 = 0;
     var i: usize = 0;
     while (i < piecePlacement.len) : (i += 1) {
         const ch = piecePlacement[i];
@@ -314,93 +340,94 @@ pub fn parseFen(fen: []const u8) Position {
             // Major + minor pieces
             inline 'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p' => {
                 if (index >= 64) break;
-                const bit: u64 = (@as(u64, 1) << @as(u6, @intCast(index)));
+                const bit: u64 = (@as(u64, 1) << @as(u6, index));
                 switch (ch) {
-                    'K' => position.whitepieces.King.position |= bit,
-                    'Q' => position.whitepieces.Queen.position |= bit,
+                    'K' => {
+                        position.whitepieces.King.position |= bit;
+                        position.whitepieces.King.index = 0;
+                    },
+                    'Q' => {
+                        position.whitepieces.Queen.position |= bit;
+                        position.whitepieces.Queen.index = 0;
+                    },
                     'R' => {
-                        // Find first free White Rook slot, etc.
-                        var rookCount: u6 = 0;
-                        while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
-                            if (position.whitepieces.Rook[rookCount].position == 0) {
-                                position.whitepieces.Rook[rookCount].position = bit;
-                                break;
-                            }
+                        if (whiteRookCount < position.whitepieces.Rook.len) {
+                            position.whitepieces.Rook[whiteRookCount].position = bit;
+                            position.whitepieces.Rook[whiteRookCount].index = whiteRookCount;
+                            whiteRookCount += 1;
                         }
                     },
                     'B' => {
-                        var bishopCount: u6 = 0;
-                        while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
-                            if (position.whitepieces.Bishop[bishopCount].position == 0) {
-                                position.whitepieces.Bishop[bishopCount].position = bit;
-                                break;
-                            }
+                        if (whiteBishopCount < position.whitepieces.Bishop.len) {
+                            position.whitepieces.Bishop[whiteBishopCount].position = bit;
+                            position.whitepieces.Bishop[whiteBishopCount].index = whiteBishopCount;
+                            whiteBishopCount += 1;
                         }
                     },
                     'N' => {
-                        var knightCount: u6 = 0;
-                        while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
-                            if (position.whitepieces.Knight[knightCount].position == 0) {
-                                position.whitepieces.Knight[knightCount].position = bit;
-                                break;
-                            }
+                        if (whiteKnightCount < position.whitepieces.Knight.len) {
+                            position.whitepieces.Knight[whiteKnightCount].position = bit;
+                            position.whitepieces.Knight[whiteKnightCount].index = whiteKnightCount;
+                            whiteKnightCount += 1;
                         }
                     },
                     'P' => {
-                        var pawnCount: u6 = 0;
-                        while (pawnCount < position.whitepieces.Pawn.len) : (pawnCount += 1) {
-                            if (position.whitepieces.Pawn[pawnCount].position == 0) {
-                                position.whitepieces.Pawn[pawnCount].position = bit;
-                                break;
-                            }
+                        if (whitePawnCount < position.whitepieces.Pawn.len) {
+                            position.whitepieces.Pawn[whitePawnCount].position = bit;
+                            position.whitepieces.Pawn[whitePawnCount].index = whitePawnCount;
+                            whitePawnCount += 1;
                         }
                     },
-                    'k' => position.blackpieces.King.position |= bit,
-                    'q' => position.blackpieces.Queen.position |= bit,
+                    'k' => {
+                        position.blackpieces.King.position |= bit;
+                        position.blackpieces.King.index = 0;
+                    },
+                    'q' => {
+                        position.blackpieces.Queen.position |= bit;
+                        position.blackpieces.Queen.index = 0;
+                    },
                     'r' => {
-                        var rookCount: u6 = 0;
-                        while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
-                            if (position.blackpieces.Rook[rookCount].position == 0) {
-                                position.blackpieces.Rook[rookCount].position = bit;
-                                break;
-                            }
+                        if (blackRookCount < position.blackpieces.Rook.len) {
+                            position.blackpieces.Rook[blackRookCount].position = bit;
+                            position.blackpieces.Rook[blackRookCount].index = blackRookCount;
+                            blackRookCount += 1;
                         }
                     },
                     'b' => {
-                        var bishopCount: u6 = 0;
-                        while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
-                            if (position.blackpieces.Bishop[bishopCount].position == 0) {
-                                position.blackpieces.Bishop[bishopCount].position = bit;
-                                break;
-                            }
+                        if (blackBishopCount < position.blackpieces.Bishop.len) {
+                            position.blackpieces.Bishop[blackBishopCount].position = bit;
+                            position.blackpieces.Bishop[blackBishopCount].index = blackBishopCount;
+                            blackBishopCount += 1;
                         }
                     },
                     'n' => {
-                        var knightCount: u6 = 0;
-                        while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
-                            if (position.blackpieces.Knight[knightCount].position == 0) {
-                                position.blackpieces.Knight[knightCount].position = bit;
-                                break;
-                            }
+                        if (blackKnightCount < position.blackpieces.Knight.len) {
+                            position.blackpieces.Knight[blackKnightCount].position = bit;
+                            position.blackpieces.Knight[blackKnightCount].index = blackKnightCount;
+                            blackKnightCount += 1;
                         }
                     },
                     'p' => {
-                        var pawnCount: u6 = 0;
-                        while (pawnCount < position.blackpieces.Pawn.len) : (pawnCount += 1) {
-                            if (position.blackpieces.Pawn[pawnCount].position == 0) {
-                                position.blackpieces.Pawn[pawnCount].position = bit;
-                                break;
-                            }
+                        if (blackPawnCount < position.blackpieces.Pawn.len) {
+                            position.blackpieces.Pawn[blackPawnCount].position = bit;
+                            position.blackpieces.Pawn[blackPawnCount].index = blackPawnCount;
+                            blackPawnCount += 1;
                         }
                     },
                     else => {},
                 }
-                index += 1;
+                if (index < 63) {
+                    index += 1;
+                } else {
+                    break;
+                }
             },
             '1'...'8' => {
                 const empty_squares = ch - '0';
-                if (index + empty_squares <= 64) {
-                    index += empty_squares;
+                if (index + empty_squares <= 63) {
+                    index += @intCast(empty_squares);
+                } else {
+                    break;
                 }
             },
             '/' => {
@@ -494,7 +521,7 @@ pub fn parseFen(fen: []const u8) Position {
                 else => rankIndex = 0,
             }
             const shift = rankIndex * 8 + fileIndex;
-            position.enPassantSquare = @as(u64, 1) << @as(u6, @intCast(shift));
+            position.enPassantSquare = @as(u64, 1) << @as(u6, shift);
             position.enPassantSquare = reverse(position.enPassantSquare); // Flip since we flip the whole position
         }
     }
@@ -694,4 +721,90 @@ test "parse fen with multiple spaces" {
     // Should handle extra spaces gracefully
     try std.testing.expectEqual(pos.sidetomove, 0);
     try std.testing.expect(pos.canCastleWhiteKingside);
+}
+
+test "piece indices are set correctly in initial position" {
+    const pos = Position.init();
+
+    // Test white pieces
+    try std.testing.expectEqual(pos.whitepieces.King.index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Queen.index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Rook[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Rook[1].index, 1);
+    try std.testing.expectEqual(pos.whitepieces.Bishop[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Bishop[1].index, 1);
+    try std.testing.expectEqual(pos.whitepieces.Knight[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Knight[1].index, 1);
+    for (0..8) |i| {
+        try std.testing.expectEqual(pos.whitepieces.Pawn[i].index, i);
+    }
+
+    // Test black pieces
+    try std.testing.expectEqual(pos.blackpieces.King.index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Queen.index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Rook[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Rook[1].index, 1);
+    try std.testing.expectEqual(pos.blackpieces.Bishop[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Bishop[1].index, 1);
+    try std.testing.expectEqual(pos.blackpieces.Knight[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Knight[1].index, 1);
+    for (0..8) |i| {
+        try std.testing.expectEqual(pos.blackpieces.Pawn[i].index, i);
+    }
+}
+
+test "piece indices are preserved in FEN parsing" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+    const pos = parseFen(fenStr);
+
+    // Test white pieces
+    try std.testing.expectEqual(pos.whitepieces.King.index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Queen.index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Rook[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Rook[1].index, 1);
+    try std.testing.expectEqual(pos.whitepieces.Bishop[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Bishop[1].index, 1);
+    try std.testing.expectEqual(pos.whitepieces.Knight[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Knight[1].index, 1);
+    for (0..8) |i| {
+        try std.testing.expectEqual(pos.whitepieces.Pawn[i].index, i);
+    }
+
+    // Test black pieces
+    try std.testing.expectEqual(pos.blackpieces.King.index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Queen.index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Rook[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Rook[1].index, 1);
+    try std.testing.expectEqual(pos.blackpieces.Bishop[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Bishop[1].index, 1);
+    try std.testing.expectEqual(pos.blackpieces.Knight[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Knight[1].index, 1);
+    for (0..8) |i| {
+        try std.testing.expectEqual(pos.blackpieces.Pawn[i].index, i);
+    }
+}
+
+test "piece indices are set correctly in custom position" {
+    // Test a position with some pieces removed to ensure indices are still sequential
+    const fenStr = "r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq -";
+    const pos = parseFen(fenStr);
+
+    // Test white pieces
+    try std.testing.expectEqual(pos.whitepieces.King.index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Queen.index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Rook[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Rook[1].index, 1);
+    try std.testing.expectEqual(pos.whitepieces.Bishop[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Knight[0].index, 0);
+    try std.testing.expectEqual(pos.whitepieces.Knight[1].index, 1);
+
+    // Test black pieces
+    try std.testing.expectEqual(pos.blackpieces.King.index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Queen.index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Rook[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Rook[1].index, 1);
+    try std.testing.expectEqual(pos.blackpieces.Bishop[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Bishop[1].index, 1);
+    try std.testing.expectEqual(pos.blackpieces.Knight[0].index, 0);
+    try std.testing.expectEqual(pos.blackpieces.Knight[1].index, 1);
 }
