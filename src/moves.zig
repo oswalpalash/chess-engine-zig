@@ -1929,7 +1929,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             // Only allow moves that don't leave us in check
             if (!s.isCheck(move, true)) {
                 boardCopy = move;
-                boardCopy.position.sidetomove = 1; // Next move is black's
                 moves[movecount] = boardCopy;
                 movecount += 1;
             }
@@ -1943,7 +1942,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             for (queenMoves) |move| {
                 if (!s.isCheck(move, true)) {
                     boardCopy = move;
-                    boardCopy.position.sidetomove = 1;
                     moves[movecount] = boardCopy;
                     movecount += 1;
                 }
@@ -1958,7 +1956,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (rookMoves) |move| {
                     if (!s.isCheck(move, true)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 1;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -1974,7 +1971,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (bishopMoves) |move| {
                     if (!s.isCheck(move, true)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 1;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -1990,7 +1986,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (knightMoves) |move| {
                     if (!s.isCheck(move, true)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 1;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -2006,7 +2001,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (pawnMoves) |move| {
                     if (!s.isCheck(move, true)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 1;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -2020,7 +2014,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             // Only allow moves that don't leave us in check
             if (!s.isCheck(move, false)) {
                 boardCopy = move;
-                boardCopy.position.sidetomove = 0; // Next move is white's
                 moves[movecount] = boardCopy;
                 movecount += 1;
             }
@@ -2033,7 +2026,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             for (queenMoves) |move| {
                 if (!s.isCheck(move, false)) {
                     boardCopy = move;
-                    boardCopy.position.sidetomove = 0;
                     moves[movecount] = boardCopy;
                     movecount += 1;
                 }
@@ -2048,7 +2040,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (rookMoves) |move| {
                     if (!s.isCheck(move, false)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 0;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -2064,7 +2055,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (bishopMoves) |move| {
                     if (!s.isCheck(move, false)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 0;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -2080,7 +2070,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (knightMoves) |move| {
                     if (!s.isCheck(move, false)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 0;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -2096,7 +2085,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 for (pawnMoves) |move| {
                     if (!s.isCheck(move, false)) {
                         boardCopy = move;
-                        boardCopy.position.sidetomove = 0;
                         moves[movecount] = boardCopy;
                         movecount += 1;
                     }
@@ -2212,10 +2200,10 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
         }
 
         // If this valid move matches our input move, return it
+        var result = valid_move;
         if (found_piece_pos == move.to) {
             // Handle promotion if specified
-            if (move.promotion_piece) |promotion| {
-                var result = valid_move;
+            if (move.promotion_piece) |promotion| {                
                 // Find the pawn that was promoted and update its representation
                 if (board.position.sidetomove == 0) {
                     // White pawn promotion
@@ -2234,9 +2222,12 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
                         }
                     }
                 }
+                //  update side to move
+                result.position.sidetomove = 1 - board.position.sidetomove;
                 return result;
             }
-            return valid_move;
+            result.position.sidetomove = 1 - board.position.sidetomove;
+            return result;
         }
     }
 

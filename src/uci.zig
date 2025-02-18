@@ -1,6 +1,7 @@
 const std = @import("std");
 const b = @import("board.zig");
 const c = @import("consts.zig");
+const m = @import("moves.zig");
 
 /// Engine identification constants
 pub const ENGINE_NAME = "ZigChess";
@@ -109,7 +110,6 @@ pub const UciProtocol = struct {
 
     /// Choose a simple move from the current position
     fn chooseBestMove(self: *UciProtocol) !?b.Board {
-        const m = @import("moves.zig");
         // Get all valid moves from the current position
         const moves = m.allvalidmoves(self.current_board);
         if (moves.len == 0) {
@@ -132,7 +132,6 @@ pub const UciProtocol = struct {
         if (iter.next()) |pos_type| {
             if (std.mem.eql(u8, pos_type, "startpos")) {
                 board = b.Board{ .position = b.Position.init() };
-                board.position.sidetomove = 0; // White to move in initial position
             } else if (std.mem.eql(u8, pos_type, "fen")) {
                 // Collect all parts of the FEN string until we hit "moves" or end
                 var fen = std.ArrayList(u8).init(allocator);
@@ -146,7 +145,6 @@ pub const UciProtocol = struct {
 
                 if (fen.items.len > 0) {
                     board = b.Board{ .position = b.parseFen(fen.items) };
-                    // Note: parseFen already sets the sidetomove based on the FEN
                 }
             }
 
@@ -158,8 +156,10 @@ pub const UciProtocol = struct {
                     continue;
                 }
                 if (found_moves) {
-                    // Each move alternates the side to move
-                    board.position.sidetomove = if (board.position.sidetomove == 0) 1 else 0;
+                    // Parse and apply each move
+                    const move = try m.parseUciMove(token);
+                    board = try m.applyMove(board, move);
+                    // Note: applyMove already updates sidetomove
                 }
             }
         }
@@ -932,6 +932,38 @@ test "stop command stops ongoing search" {
     try std.testing.expect(!protocol.search_in_progress);
     const output = buf.items;
     try std.testing.expect(std.mem.indexOf(u8, output, "bestmove") != null);
+}
+
+test "startpos moves e2e4 e7e5 b1c3" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    
+    // Send a single position command with the moves
+    try protocol.processCommand("position startpos moves e2e4 e7e5 b1c3");
+    try protocol.processCommand("go");
+    
+    const output = buf.items;
+    // verify board is in correct position
+    try std.testing.expect(output.len >= 13); // "bestmove " + 4 chars
+    std.debug.print("output: {s}\n", .{output});
+}
+
+test "parsePositionLine correctly tracks side to move" {
+    var protocol = UciProtocol.init(std.testing.allocator);
+    const line1 = "position startpos moves e2e4";
+    try protocol.processCommand(line1);
+    try std.testing.expectEqual(protocol.current_board.position.sidetomove, 1); // Should be Black's turn
+    try protocol.processCommand("ucinewgame");
+    const line2 = "position startpos moves e2e4 e7e5";
+    try protocol.processCommand(line2);
+    try std.testing.expectEqual(protocol.current_board.position.sidetomove, 0); // Should be White's turn
+    try protocol.processCommand("ucinewgame");
+    const line3 = "position startpos moves e2e4 e7e5 b1c3";
+    try protocol.processCommand(line3);
+    try std.testing.expectEqual(protocol.current_board.position.sidetomove, 1); // Should be Black's turn
 }
 
 pub fn main() !void {
