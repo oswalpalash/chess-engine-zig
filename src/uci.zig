@@ -51,6 +51,7 @@ pub const UciProtocol = struct {
     test_writer: ?std.ArrayList(u8).Writer = null, // Use ArrayList writer for testing
     current_board: b.Board = b.Board{ .position = b.Position.init() },
     search_in_progress: bool = false,
+    move_overhead: u32 = 10, // Default move overhead in milliseconds
 
     pub fn init(allocator: std.mem.Allocator) UciProtocol {
         return UciProtocol{
@@ -58,6 +59,7 @@ pub const UciProtocol = struct {
             .test_writer = null,
             .current_board = b.Board{ .position = b.Position.init() },
             .search_in_progress = false,
+            .move_overhead = 10,
         };
     }
 
@@ -121,7 +123,8 @@ pub const UciProtocol = struct {
                 // Send engine identification
                 try self.respond("id name " ++ ENGINE_NAME);
                 try self.respond("id author " ++ ENGINE_AUTHOR);
-                // TODO: Send options here when we add them
+                // Send available options
+                try self.respond("option name Move Overhead type spin default 10 min 0 max 5000");
                 try self.respond("uciok");
             },
             .isready => {
@@ -133,8 +136,27 @@ pub const UciProtocol = struct {
                 _ = iter.next(); // Skip "setoption"
                 const name_token = iter.next();
                 if (name_token != null and std.mem.eql(u8, name_token.?, "name")) {
-                    if (self.debug_mode) {
-                        try self.respond("Received setoption command. Will be implemented in future.");
+                    const option_name = iter.next() orelse return;
+                    if (std.mem.eql(u8, option_name, "Move")) {
+                        const overhead = iter.next() orelse return;
+                        if (std.mem.eql(u8, overhead, "Overhead")) {
+                            // Look for value token
+                            const value_token = iter.next() orelse return;
+                            if (std.mem.eql(u8, value_token, "value")) {
+                                const value_str = iter.next() orelse return;
+                                if (std.fmt.parseInt(u32, value_str, 10)) |value| {
+                                    // Clamp value between 0 and 5000 ms
+                                    self.move_overhead = @min(5000, @max(0, value));
+                                    if (self.debug_mode) {
+                                        try self.respond(try std.fmt.allocPrint(self.allocator, "info string Move Overhead set to {d} ms", .{self.move_overhead}));
+                                    }
+                                } else |_| {
+                                    if (self.debug_mode) {
+                                        try self.respond("info string Invalid Move Overhead value");
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
