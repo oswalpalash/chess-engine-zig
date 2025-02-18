@@ -50,7 +50,10 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (bishop.position == 0) continue;
             const moves = m.ValidBishopMoves(bishop, board);
             for (moves) |move| {
-                if (move.position.blackpieces.Bishop[0].position == kingPosition) {
+                // Check if any of the bishop's valid moves can reach the king's position
+                if (move.position.blackpieces.Bishop[0].position == kingPosition or
+                    move.position.blackpieces.Bishop[1].position == kingPosition)
+                {
                     return true;
                 }
             }
@@ -61,7 +64,10 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (rook.position == 0) continue;
             const moves = m.ValidRookMoves(rook, board);
             for (moves) |move| {
-                if (move.position.blackpieces.Rook[0].position == kingPosition) {
+                // Check if any of the rook's valid moves can reach the king's position
+                if (move.position.blackpieces.Rook[0].position == kingPosition or
+                    move.position.blackpieces.Rook[1].position == kingPosition)
+                {
                     return true;
                 }
             }
@@ -71,6 +77,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
         if (board.position.blackpieces.Queen.position != 0) {
             const moves = m.ValidQueenMoves(board.position.blackpieces.Queen, board);
             for (moves) |move| {
+                // Check if any of the queen's valid moves can reach the king's position
                 if (move.position.blackpieces.Queen.position == kingPosition) {
                     return true;
                 }
@@ -116,6 +123,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (bishop.position == 0) continue;
             const moves = m.ValidBishopMoves(bishop, board);
             for (moves) |move| {
+                // Check if any of the bishop's valid moves can reach the king's position
                 if (move.position.whitepieces.Bishop[0].position == kingPosition or
                     move.position.whitepieces.Bishop[1].position == kingPosition)
                 {
@@ -129,6 +137,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (rook.position == 0) continue;
             const moves = m.ValidRookMoves(rook, board);
             for (moves) |move| {
+                // Check if any of the rook's valid moves can reach the king's position
                 if (move.position.whitepieces.Rook[0].position == kingPosition or
                     move.position.whitepieces.Rook[1].position == kingPosition)
                 {
@@ -141,6 +150,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
         if (board.position.whitepieces.Queen.position != 0) {
             const moves = m.ValidQueenMoves(board.position.whitepieces.Queen, board);
             for (moves) |move| {
+                // Check if any of the queen's valid moves can reach the king's position
                 if (move.position.whitepieces.Queen.position == kingPosition) {
                     return true;
                 }
@@ -344,10 +354,17 @@ test "isCheckmate - fool's mate" {
     // Simulate fool's mate position:
     // 1. f3 e5
     // 2. g4 Qh4#
+
+    // White pieces that moved
     board.position.whitepieces.Pawn[5].position = c.F3; // White f pawn to f3
     board.position.whitepieces.Pawn[6].position = c.G4; // White g pawn to g4
+
+    // Black pieces that moved
     board.position.blackpieces.Pawn[4].position = c.E5; // Black e pawn to e5
     board.position.blackpieces.Queen.position = c.H4; // Black queen to h4
+
+    // Print the board for debugging
+    _ = board.print();
 
     try std.testing.expect(isCheckmate(board, true)); // White king should be in checkmate
 }
