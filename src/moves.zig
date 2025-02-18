@@ -445,7 +445,6 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    const rook = piece;
     var index: u64 = 0; // Initialize with a default value
 
     // Find which rook we're moving
@@ -465,8 +464,8 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    const row: u64 = rowfrombitmap(rook.position);
-    const col: u64 = colfrombitmap(rook.position);
+    const row: u64 = rowfrombitmap(piece.position);
+    const col: u64 = colfrombitmap(piece.position);
 
     // Define the four directions a rook can move: up, down, left, right
     const directions = [_]struct { shift: i8, max_steps: u6 }{
@@ -486,9 +485,9 @@ pub fn ValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
             var newpos: u64 = undefined;
 
             if (shift > 0) {
-                newpos = rook.position << @as(u6, @intCast(shift));
+                newpos = piece.position << @as(u6, @intCast(shift));
             } else {
-                newpos = rook.position >> @as(u6, @intCast(-shift));
+                newpos = piece.position >> @as(u6, @intCast(-shift));
             }
 
             if (newpos == 0) break;
@@ -869,41 +868,59 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
+    var index: u64 = 0; // Initialize with a default value
 
-    // Identify which white bishop in the array we're moving
-    var bishop: b.Piece = piece;
-    var index: u64 = 0;
-    for (board.position.whitepieces.Bishop, 0..) |item, loopidx| {
-        if (item.position == piece.position) {
-            bishop = item;
-            index = loopidx;
-            break;
+    // Find which bishop we're moving
+    if (piece.color == 0) {
+        for (board.position.whitepieces.Bishop, 0..) |item, loopidx| {
+            if (item.position == piece.position) {
+                index = loopidx;
+                break;
+            }
+        }
+    } else {
+        for (board.position.blackpieces.Bishop, 0..) |item, loopidx| {
+            if (item.position == piece.position) {
+                index = loopidx;
+                break;
+            }
         }
     }
 
     const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
-    const row = rowfrombitmap(bishop.position);
-    const col = colfrombitmap(bishop.position);
+    const row = rowfrombitmap(piece.position);
+    const col = colfrombitmap(piece.position);
 
     // Up-Right diagonal moves
     for (bishopshifts) |shift| {
         if (row + shift > 8 or col + shift > 8) break;
 
-        const newpos = bishop.position << (shift * 7);
+        const newpos = piece.position << (shift * 7);
         if (newpos == 0) break;
 
         // Check if target square is empty
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
-            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            } else {
+                newBoard.position.blackpieces.Bishop[index].position = newpos;
+            }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             // Check if enemy piece (possible capture)
             const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != bishop.color) {
-                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (targetPiece.color != piece.color) {
+                var newBoard = if (piece.color == 0)
+                    captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    capturewhitepiece(newpos, b.Board{ .position = board.position });
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.Bishop[index].position = newpos;
+                } else {
+                    newBoard.position.blackpieces.Bishop[index].position = newpos;
+                }
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -915,19 +932,30 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     for (bishopshifts) |shift| {
         if (row + shift > 8 or col <= shift) break;
 
-        const newpos = bishop.position << (shift * 9);
+        const newpos = piece.position << (shift * 9);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
-            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            } else {
+                newBoard.position.blackpieces.Bishop[index].position = newpos;
+            }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != bishop.color) {
-                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (targetPiece.color != piece.color) {
+                var newBoard = if (piece.color == 0)
+                    captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    capturewhitepiece(newpos, b.Board{ .position = board.position });
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.Bishop[index].position = newpos;
+                } else {
+                    newBoard.position.blackpieces.Bishop[index].position = newpos;
+                }
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -939,19 +967,30 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     for (bishopshifts) |shift| {
         if (row <= shift or col + shift > 8) break;
 
-        const newpos = bishop.position >> (shift * 9);
+        const newpos = piece.position >> (shift * 9);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
-            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            } else {
+                newBoard.position.blackpieces.Bishop[index].position = newpos;
+            }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != bishop.color) {
-                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (targetPiece.color != piece.color) {
+                var newBoard = if (piece.color == 0)
+                    captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    capturewhitepiece(newpos, b.Board{ .position = board.position });
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.Bishop[index].position = newpos;
+                } else {
+                    newBoard.position.blackpieces.Bishop[index].position = newpos;
+                }
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -963,19 +1002,30 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     for (bishopshifts) |shift| {
         if (row <= shift or col <= shift) break;
 
-        const newpos = bishop.position >> (shift * 7);
+        const newpos = piece.position >> (shift * 7);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
-            newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            } else {
+                newBoard.position.blackpieces.Bishop[index].position = newpos;
+            }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != bishop.color) {
-                var newBoard = captureblackpiece(newpos, b.Board{ .position = board.position });
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
+            if (targetPiece.color != piece.color) {
+                var newBoard = if (piece.color == 0)
+                    captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    capturewhitepiece(newpos, b.Board{ .position = board.position });
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.Bishop[index].position = newpos;
+                } else {
+                    newBoard.position.blackpieces.Bishop[index].position = newpos;
+                }
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
