@@ -50,12 +50,14 @@ pub const UciProtocol = struct {
     debug_mode: bool = false,
     test_writer: ?std.ArrayList(u8).Writer = null, // Use ArrayList writer for testing
     current_board: b.Board = b.Board{ .position = b.Position.init() },
+    search_in_progress: bool = false,
 
     pub fn init(allocator: std.mem.Allocator) UciProtocol {
         return UciProtocol{
             .allocator = allocator,
             .test_writer = null,
             .current_board = b.Board{ .position = b.Position.init() },
+            .search_in_progress = false,
         };
     }
 
@@ -161,6 +163,7 @@ pub const UciProtocol = struct {
             },
             .go => {
                 // Choose a move from the current position
+                self.search_in_progress = true;
                 if (try self.chooseBestMove()) |new_board| {
                     // Convert the move to UCI format
                     const move = moveToUci(self.current_board, new_board);
@@ -180,6 +183,31 @@ pub const UciProtocol = struct {
                 } else {
                     // No legal moves available
                     try self.respond("bestmove 0000");
+                }
+                self.search_in_progress = false;
+            },
+            .stop => {
+                if (self.search_in_progress) {
+                    // Stop any ongoing search
+                    self.search_in_progress = false;
+                    // Send the best move found so far
+                    if (try self.chooseBestMove()) |new_board| {
+                        const move = moveToUci(self.current_board, new_board);
+                        var move_str: [10]u8 = undefined;
+                        var move_len: usize = 4;
+                        @memcpy(move_str[0..5], &move);
+                        if (move[4] != 0) {
+                            move_len = 5;
+                        }
+                        if (self.test_writer) |w| {
+                            try w.print("bestmove {s}\n", .{move_str[0..move_len]});
+                        } else {
+                            const stdout = std.io.getStdOut().writer();
+                            try stdout.print("bestmove {s}\n", .{move_str[0..move_len]});
+                        }
+                    } else {
+                        try self.respond("bestmove 0000");
+                    }
                 }
             },
             .ucinewgame => {
@@ -582,4 +610,19 @@ test "go command with no legal moves" {
 
     const output = buf.items;
     try std.testing.expect(std.mem.indexOf(u8, output, "bestmove 0000") != null);
+}
+
+test "stop command stops ongoing search" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    protocol.search_in_progress = true; // Simulate ongoing search
+
+    try protocol.processCommand("stop");
+
+    try std.testing.expect(!protocol.search_in_progress);
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "bestmove") != null);
 }
