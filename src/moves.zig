@@ -2203,7 +2203,7 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
         var result = valid_move;
         if (found_piece_pos == move.to) {
             // Handle promotion if specified
-            if (move.promotion_piece) |promotion| {                
+            if (move.promotion_piece) |promotion| {
                 // Find the pawn that was promoted and update its representation
                 if (board.position.sidetomove == 0) {
                     // White pawn promotion

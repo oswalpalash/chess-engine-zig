@@ -940,11 +940,11 @@ test "startpos moves e2e4 e7e5 b1c3" {
 
     var protocol = UciProtocol.init(std.testing.allocator);
     protocol.test_writer = buf.writer();
-    
+
     // Send a single position command with the moves
     try protocol.processCommand("position startpos moves e2e4 e7e5 b1c3");
     try protocol.processCommand("go");
-    
+
     const output = buf.items;
     // verify board is in correct position
     try std.testing.expect(output.len >= 13); // "bestmove " + 4 chars
