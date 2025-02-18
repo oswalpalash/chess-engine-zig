@@ -217,6 +217,13 @@ pub const UciProtocol = struct {
                 // Reset the board to initial position
                 self.current_board = b.Board{ .position = b.Position.init() };
             },
+            .quit => {
+                // Send a goodbye message if in debug mode
+                if (self.debug_mode) {
+                    try self.respond("Goodbye!");
+                }
+                // No need to do anything else, mainLoop will handle the exit
+            },
             else => {
                 // For now, just echo other commands back
                 try self.respond(line);
@@ -231,13 +238,14 @@ pub const UciProtocol = struct {
 
         while (true) {
             if (try stdin.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-                // Process the command
-                try self.processCommand(line);
-
-                // Check for quit command
+                // Check for quit command first
                 if (UciCommand.fromString(line) == .quit) {
+                    // Process the quit command to send any goodbye messages
+                    try self.processCommand(line);
                     break;
                 }
+                // Process other commands
+                try self.processCommand(line);
             } else {
                 break; // EOF reached
             }
@@ -572,6 +580,32 @@ test "position command with simple FEN and moves" {
     const output = buf.items;
     try std.testing.expect(std.mem.indexOf(u8, output, "position fen") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "e1e2") != null);
+}
+
+test "quit command sends goodbye message in debug mode" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    protocol.debug_mode = true;
+
+    try protocol.processCommand("quit");
+    const output = buf.items;
+    try std.testing.expect(std.mem.indexOf(u8, output, "Goodbye!") != null);
+}
+
+test "quit command doesn't send message in non-debug mode" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    protocol.debug_mode = false;
+
+    try protocol.processCommand("quit");
+    const output = buf.items;
+    try std.testing.expect(output.len == 0);
 }
 
 test "go command returns a valid move" {
