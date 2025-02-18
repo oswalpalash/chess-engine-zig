@@ -52,6 +52,7 @@ pub const UciProtocol = struct {
     current_board: b.Board = b.Board{ .position = b.Position.init() },
     search_in_progress: bool = false,
     move_overhead: u32 = 10, // Default move overhead in milliseconds
+    threads: u32 = 1, // Default number of threads
 
     pub fn init(allocator: std.mem.Allocator) UciProtocol {
         return UciProtocol{
@@ -60,6 +61,7 @@ pub const UciProtocol = struct {
             .current_board = b.Board{ .position = b.Position.init() },
             .search_in_progress = false,
             .move_overhead = 10,
+            .threads = 1,
         };
     }
 
@@ -125,6 +127,7 @@ pub const UciProtocol = struct {
                 try self.respond("id author " ++ ENGINE_AUTHOR);
                 // Send available options
                 try self.respond("option name Move Overhead type spin default 10 min 0 max 5000");
+                try self.respond("option name Threads type spin default 1 min 1 max 128");
                 try self.respond("uciok");
             },
             .isready => {
@@ -154,6 +157,23 @@ pub const UciProtocol = struct {
                                     if (self.debug_mode) {
                                         try self.respond("info string Invalid Move Overhead value");
                                     }
+                                }
+                            }
+                        }
+                    } else if (std.mem.eql(u8, option_name, "Threads")) {
+                        // Look for value token
+                        const value_token = iter.next() orelse return;
+                        if (std.mem.eql(u8, value_token, "value")) {
+                            const value_str = iter.next() orelse return;
+                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
+                                // Clamp value between 1 and 128 threads
+                                self.threads = @min(128, @max(1, value));
+                                if (self.debug_mode) {
+                                    try self.respond(try std.fmt.allocPrint(self.allocator, "info string Threads set to {d}", .{self.threads}));
+                                }
+                            } else |_| {
+                                if (self.debug_mode) {
+                                    try self.respond("info string Invalid Threads value");
                                 }
                             }
                         }
