@@ -620,7 +620,6 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             // update board
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.whitepieces.King.position = king.position;
-            _ = moves[possiblemoves].print();
             possiblemoves += 1;
         } else {
             if (bitmap & (piece.position << shift) != 0) {
@@ -631,7 +630,6 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                         // update board
                         moves[possiblemoves] = captureblackpiece(king.position, b.Board{ .position = board.position });
                         moves[possiblemoves].position.whitepieces.King.position = king.position;
-                        _ = moves[possiblemoves].print();
                         possiblemoves += 1;
                     }
                 }
@@ -655,7 +653,6 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             // update board
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.whitepieces.King.position = king.position;
-            _ = moves[possiblemoves].print();
             possiblemoves += 1;
         } else {
             if (bitmap & (piece.position >> shift) != 0) {
@@ -666,7 +663,6 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                         // update board
                         moves[possiblemoves] = captureblackpiece(king.position, b.Board{ .position = board.position });
                         moves[possiblemoves].position.whitepieces.King.position = king.position;
-                        _ = moves[possiblemoves].print();
                         possiblemoves += 1;
                     }
                 }
@@ -687,7 +683,6 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             // Remove castling right
             newBoard.position.canCastleWhiteKingside = false;
             moves[possiblemoves] = newBoard;
-            _ = moves[possiblemoves].print();
             possiblemoves += 1;
         }
     }
@@ -1792,7 +1787,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
     var moves: [1024]b.Board = undefined;
     var movecount: usize = 0;
-    const debug = std.debug.print;
 
     // Copy board and set side to move for each generated move
     var boardCopy = board;
@@ -1803,7 +1797,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
     if (board.position.sidetomove == 0) { // White pieces
         // King moves
         const kingMoves = getValidKingMoves(board.position.whitepieces.King, board);
-        debug("White king moves: {d}\n", .{kingMoves.len});
         for (kingMoves) |move| {
             // Only allow moves that don't leave us in check
             if (!s.isCheck(move, true)) {
@@ -1819,7 +1812,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             // Rest of the piece moves...
             // Queen moves
             const queenMoves = getValidQueenMoves(board.position.whitepieces.Queen, board);
-            debug("White queen moves: {d}\n", .{queenMoves.len});
             for (queenMoves) |move| {
                 if (!s.isCheck(move, true)) {
                     boardCopy = move;
@@ -1844,7 +1836,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("White rook moves: {d}\n", .{rookMoveCount});
 
             // Bishop moves
             var bishopMoveCount: usize = 0;
@@ -1861,7 +1852,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("White bishop moves: {d}\n", .{bishopMoveCount});
 
             // Knight moves
             var knightMoveCount: usize = 0;
@@ -1878,7 +1868,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("White knight moves: {d}\n", .{knightMoveCount});
 
             // Pawn moves
             var pawnMoveCount: usize = 0;
@@ -1895,12 +1884,10 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("White pawn moves: {d}\n", .{pawnMoveCount});
         }
     } else { // Black pieces
         // King moves
         const kingMoves = getValidKingMoves(board.position.blackpieces.King, board);
-        debug("Black king moves: {d}\n", .{kingMoves.len});
         for (kingMoves) |move| {
             // Only allow moves that don't leave us in check
             if (!s.isCheck(move, false)) {
@@ -1915,7 +1902,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
         if (!inCheck) {
             // Queen moves
             const queenMoves = getValidQueenMoves(board.position.blackpieces.Queen, board);
-            debug("Black queen moves: {d}\n", .{queenMoves.len});
             for (queenMoves) |move| {
                 if (!s.isCheck(move, false)) {
                     boardCopy = move;
@@ -1940,7 +1926,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("Black rook moves: {d}\n", .{rookMoveCount});
 
             // Bishop moves
             var bishopMoveCount: usize = 0;
@@ -1957,7 +1942,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("Black bishop moves: {d}\n", .{bishopMoveCount});
 
             // Knight moves
             var knightMoveCount: usize = 0;
@@ -1974,7 +1958,6 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("Black knight moves: {d}\n", .{knightMoveCount});
 
             // Pawn moves
             var pawnMoveCount: usize = 0;
@@ -1991,10 +1974,8 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                     }
                 }
             }
-            debug("Black pawn moves: {d}\n", .{pawnMoveCount});
         }
     }
 
-    debug("Total moves: {d}\n", .{movecount});
     return moves[0..movecount];
 }

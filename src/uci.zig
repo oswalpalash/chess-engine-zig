@@ -106,7 +106,6 @@ pub const UciProtocol = struct {
                 if (std.mem.eql(u8, token, "moves")) continue;
                 // TODO: Apply moves when move parsing is implemented
                 // This will need to parse algebraic notation and apply moves
-                std.debug.print("Move to apply: {s}\n", .{token});
             }
         }
 
@@ -116,15 +115,6 @@ pub const UciProtocol = struct {
     /// Process a single UCI command
     pub fn processCommand(self: *UciProtocol, line: []const u8) !void {
         const cmd = UciCommand.fromString(line);
-
-        // Log the received command if in debug mode
-        if (self.debug_mode) {
-            if (self.test_writer) |w| {
-                try w.print("Received command: {s} (parsed as {any})\n", .{ line, cmd });
-            } else {
-                std.debug.print("Received command: {s} (parsed as {any})\n", .{ line, cmd });
-            }
-        }
 
         switch (cmd) {
             .uci => {
@@ -149,17 +139,7 @@ pub const UciProtocol = struct {
                 }
             },
             .position => {
-                if (self.debug_mode) {
-                    if (self.test_writer) |w| {
-                        try w.print("Processing position command: {s}\n", .{line});
-                    } else {
-                        std.debug.print("Processing position command: {s}\n", .{line});
-                    }
-                }
                 self.current_board = try parsePositionLine(line, self.allocator);
-                if (self.debug_mode) {
-                    _ = self.current_board.print();
-                }
             },
             .go => {
                 // Choose a move from the current position

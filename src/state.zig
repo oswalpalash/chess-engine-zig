@@ -164,9 +164,6 @@ test "isCheck - white king in check by black queen" {
     // Place black queen on e8
     board.position.blackpieces.Queen.position = c.E8;
 
-    // Print board state
-    _ = board.print();
-
     // Create temp board for queen moves
     var tempBoard = b.Board{ .position = b.Position.emptyboard() };
     tempBoard.position.blackpieces.Queen = board.position.blackpieces.Queen;
@@ -174,9 +171,10 @@ test "isCheck - white king in check by black queen" {
 
     // Print queen moves
     const moves = m.ValidQueenMoves(board.position.blackpieces.Queen, tempBoard);
-    for (moves) |move| {
-        _ = move.print();
-    }
+    _ = moves;
+    // for (moves) |move| {
+    //     // _ = move.print();
+    // }
 
     try std.testing.expect(isCheck(board, true));
 }
@@ -351,7 +349,6 @@ test "isCheckmate - fool's mate" {
     board.position.blackpieces.Pawn[4].position = c.E5; // Black e pawn to e5
     board.position.blackpieces.Queen.position = c.H4; // Black queen to h4
 
-    _ = board.print(); // Print the board for visual verification
     try std.testing.expect(isCheckmate(board, true)); // White king should be in checkmate
 }
 
@@ -414,6 +411,5 @@ test "isCheckmate - scholar's mate" {
     board.position.blackpieces.Pawn[6].position = c.G7;
     board.position.blackpieces.Pawn[7].position = c.H7;
 
-    _ = board.print(); // Print the board for visual verification
     try std.testing.expect(isCheckmate(board, false)); // Black king should be in checkmate
 }
