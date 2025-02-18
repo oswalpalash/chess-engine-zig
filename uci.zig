@@ -1,5 +1,6 @@
 const std = @import("std");
 const b = @import("board.zig");
+const c = @import("consts.zig");
 
 /// Engine identification constants
 pub const ENGINE_NAME = "ZigChess";
@@ -185,6 +186,190 @@ pub const UciProtocol = struct {
         }
     }
 };
+
+/// Convert a bitboard position to algebraic notation square (e.g., "e4")
+fn bitboardToSquare(position: u64) [2]u8 {
+    var result: [2]u8 = undefined;
+
+    // Find the set bit position
+    var temp = position;
+    var square: u6 = 0;
+    while (temp > 1) : (temp >>= 1) {
+        square += 1;
+    }
+
+    // In our board representation:
+    // - Files go from right to left (H=0 to A=7)
+    // - Ranks go from bottom to top (1=0 to 8=7)
+    const file = @as(u8, 'a') + (7 - @as(u8, @intCast(square % 8)));
+    const rank = @as(u8, '1') + @as(u8, @intCast(square / 8));
+
+    result[0] = file;
+    result[1] = rank;
+    return result;
+}
+
+/// Convert a board move to UCI format (e.g., "e2e4" or "e7e8q" for promotion)
+pub fn moveToUci(old_board: b.Board, new_board: b.Board) [5]u8 {
+    var result: [5]u8 = undefined;
+
+    // Find which piece moved by comparing the two boards
+    var from_pos: u64 = 0;
+    var to_pos: u64 = 0;
+    var is_promotion = false;
+
+    // Check white pieces
+    inline for (std.meta.fields(@TypeOf(old_board.position.whitepieces))) |field| {
+        const old_piece = @field(old_board.position.whitepieces, field.name);
+        const new_piece = @field(new_board.position.whitepieces, field.name);
+
+        if (@TypeOf(old_piece) == b.Piece) {
+            if (old_piece.position != new_piece.position) {
+                if (old_piece.position != 0) from_pos = old_piece.position;
+                if (new_piece.position != 0) {
+                    to_pos = new_piece.position;
+                    // Check for pawn promotion
+                    if (field.name[0] == 'P' and new_piece.representation == 'Q') {
+                        is_promotion = true;
+                    }
+                }
+            }
+        } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
+            for (old_piece, 0..) |piece, i| {
+                if (piece.position != new_piece[i].position) {
+                    if (piece.position != 0) from_pos = piece.position;
+                    if (new_piece[i].position != 0) {
+                        to_pos = new_piece[i].position;
+                        // Check for pawn promotion
+                        if (field.name[0] == 'P' and new_piece[i].representation == 'Q') {
+                            is_promotion = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check black pieces if we haven't found the move
+    if (from_pos == 0) {
+        inline for (std.meta.fields(@TypeOf(old_board.position.blackpieces))) |field| {
+            const old_piece = @field(old_board.position.blackpieces, field.name);
+            const new_piece = @field(new_board.position.blackpieces, field.name);
+
+            if (@TypeOf(old_piece) == b.Piece) {
+                if (old_piece.position != new_piece.position) {
+                    if (old_piece.position != 0) from_pos = old_piece.position;
+                    if (new_piece.position != 0) {
+                        to_pos = new_piece.position;
+                        // Check for pawn promotion
+                        if (field.name[0] == 'P' and new_piece.representation == 'q') {
+                            is_promotion = true;
+                        }
+                    }
+                }
+            } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
+                for (old_piece, 0..) |piece, i| {
+                    if (piece.position != new_piece[i].position) {
+                        if (piece.position != 0) from_pos = piece.position;
+                        if (new_piece[i].position != 0) {
+                            to_pos = new_piece[i].position;
+                            // Check for pawn promotion
+                            if (field.name[0] == 'P' and new_piece[i].representation == 'q') {
+                                is_promotion = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Convert positions to algebraic notation
+    const from_square = bitboardToSquare(from_pos);
+    const to_square = bitboardToSquare(to_pos);
+
+    // Build the move string
+    result[0] = from_square[0];
+    result[1] = from_square[1];
+    result[2] = to_square[0];
+    result[3] = to_square[1];
+
+    // Add promotion piece if necessary
+    if (is_promotion) {
+        result[4] = 'q';
+    } else {
+        result[4] = 0;
+    }
+
+    return result;
+}
+
+test "bitboardToSquare conversion" {
+    const e2_square = bitboardToSquare(c.E2);
+    try std.testing.expectEqual(e2_square[0], 'e');
+    try std.testing.expectEqual(e2_square[1], '2');
+
+    const a1_square = bitboardToSquare(c.A1);
+    try std.testing.expectEqual(a1_square[0], 'a');
+    try std.testing.expectEqual(a1_square[1], '1');
+
+    const h8_square = bitboardToSquare(c.H8);
+    try std.testing.expectEqual(h8_square[0], 'h');
+    try std.testing.expectEqual(h8_square[1], '8');
+}
+
+test "moveToUci basic pawn move" {
+    const old_board = b.Board{ .position = b.Position.init() };
+    var new_board = b.Board{ .position = b.Position.init() };
+
+    // Move white e2 pawn to e4
+    new_board.position.whitepieces.Pawn[4].position = c.E4;
+
+    const move = moveToUci(old_board, new_board);
+    try std.testing.expectEqual(move[0], 'e');
+    try std.testing.expectEqual(move[1], '2');
+    try std.testing.expectEqual(move[2], 'e');
+    try std.testing.expectEqual(move[3], '4');
+    try std.testing.expectEqual(move[4], 0);
+}
+
+test "moveToUci pawn promotion" {
+    var old_board = b.Board{ .position = b.Position.emptyboard() };
+    var new_board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Set up a pawn about to promote
+    old_board.position.whitepieces.Pawn[0].position = c.E7;
+
+    // Promote to queen
+    new_board.position.whitepieces.Pawn[0].position = c.E8;
+    new_board.position.whitepieces.Pawn[0].representation = 'Q';
+
+    const move = moveToUci(old_board, new_board);
+    try std.testing.expectEqual(move[0], 'e');
+    try std.testing.expectEqual(move[1], '7');
+    try std.testing.expectEqual(move[2], 'e');
+    try std.testing.expectEqual(move[3], '8');
+    try std.testing.expectEqual(move[4], 'q');
+}
+
+test "moveToUci capture move" {
+    var old_board = b.Board{ .position = b.Position.emptyboard() };
+    var new_board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Set up a capture position
+    old_board.position.whitepieces.Knight[0].position = c.E4;
+    old_board.position.blackpieces.Pawn[0].position = c.F6;
+
+    // Make the capture
+    new_board.position.whitepieces.Knight[0].position = c.F6;
+
+    const move = moveToUci(old_board, new_board);
+    try std.testing.expectEqual(move[0], 'e');
+    try std.testing.expectEqual(move[1], '4');
+    try std.testing.expectEqual(move[2], 'f');
+    try std.testing.expectEqual(move[3], '6');
+    try std.testing.expectEqual(move[4], 0);
+}
 
 test "UciCommand parsing" {
     try std.testing.expectEqual(UciCommand.fromString("uci"), .uci);
