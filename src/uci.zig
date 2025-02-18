@@ -139,6 +139,9 @@ pub const UciProtocol = struct {
                 }
             },
             .position => {
+                if (self.debug_mode) {
+                    try self.respond(line);
+                }
                 self.current_board = try parsePositionLine(line, self.allocator);
             },
             .go => {
