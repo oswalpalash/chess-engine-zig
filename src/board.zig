@@ -575,6 +575,28 @@ pub fn parseFen(fen: []const u8) Position {
     return position;
 }
 
+/// Convert a bitboard position to algebraic notation square (e.g., "e4")
+pub fn bitboardToSquare(position: u64) [2]u8 {
+    var result: [2]u8 = undefined;
+
+    // Find the set bit position
+    var temp = position;
+    var square: u6 = 0;
+    while (temp > 1) : (temp >>= 1) {
+        square += 1;
+    }
+
+    // In our board representation:
+    // - Files go from right to left (H=0 to A=7)
+    // - Ranks go from bottom to top (1=0 to 8=7)
+    const file = @as(u8, 'a') + (7 - @as(u8, @intCast(square % 8)));
+    const rank = @as(u8, '1') + @as(u8, @intCast(square / 8));
+
+    result[0] = file;
+    result[1] = rank;
+    return result;
+}
+
 test "print board" {
     var board: Board = Board{ .position = Position.init() };
     try std.testing.expectEqualStrings(&board.print(), "RNBKQBNRPPPPPPPP................................pppppppprnbkqbnr"[0..BoardSize]);
@@ -853,4 +875,11 @@ test "piece indices are set correctly in custom position" {
     try std.testing.expectEqual(pos.blackpieces.Bishop[1].index, 1);
     try std.testing.expectEqual(pos.blackpieces.Knight[0].index, 0);
     try std.testing.expectEqual(pos.blackpieces.Knight[1].index, 1);
+}
+
+test "bitboardToSquare converts positions correctly" {
+    try std.testing.expectEqualStrings("e2", &bitboardToSquare(c.E2));
+    try std.testing.expectEqualStrings("e4", &bitboardToSquare(c.E4));
+    try std.testing.expectEqualStrings("a1", &bitboardToSquare(c.A1));
+    try std.testing.expectEqualStrings("h8", &bitboardToSquare(c.H8));
 }

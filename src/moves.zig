@@ -1,9 +1,87 @@
+const std = @import("std");
 const b = @import("board.zig");
 const c = @import("consts.zig");
-const std = @import("std");
 
 // Import the reverse function from board.zig
 const reverse = b.reverse;
+
+/// Represents a chess move from one square to another
+pub const Move = struct {
+    from: u64, // Bitboard position of source square
+    to: u64, // Bitboard position of target square
+    promotion_piece: ?u8 = null, // Optional promotion piece (e.g., 'q' for queen)
+
+    /// Convert a move to UCI string format (e.g., "e2e4" or "e7e8q")
+    pub fn toUciString(self: Move) ![5]u8 {
+        var result: [5]u8 = undefined;
+
+        // Convert source square
+        const from_square = b.bitboardToSquare(self.from);
+        result[0] = from_square[0];
+        result[1] = from_square[1];
+
+        // Convert target square
+        const to_square = b.bitboardToSquare(self.to);
+        result[2] = to_square[0];
+        result[3] = to_square[1];
+
+        // Add promotion piece if present
+        if (self.promotion_piece) |piece| {
+            result[4] = piece;
+        } else {
+            result[4] = 0;
+        }
+
+        return result;
+    }
+};
+
+/// Parse a UCI move string (e.g., "e2e4" or "e7e8q") into a Move structure
+pub fn parseUciMove(token: []const u8) !Move {
+    if (token.len < 4 or token.len > 5) {
+        return error.InvalidMoveFormat;
+    }
+
+    // Parse source square
+    const from_file = token[0];
+    const from_rank = token[1];
+    if (from_file < 'a' or from_file > 'h' or from_rank < '1' or from_rank > '8') {
+        return error.InvalidSquare;
+    }
+
+    // Parse target square
+    const to_file = token[2];
+    const to_rank = token[3];
+    if (to_file < 'a' or to_file > 'h' or to_rank < '1' or to_rank > '8') {
+        return error.InvalidSquare;
+    }
+
+    // Convert algebraic notation to bitboard positions
+    const from_file_idx = from_file - 'a';
+    const from_rank_idx = from_rank - '1';
+    const to_file_idx = to_file - 'a';
+    const to_rank_idx = to_rank - '1';
+
+    // Calculate bitboard positions
+    const from_pos = @as(u64, 1) << @intCast(from_rank_idx * 8 + (7 - from_file_idx));
+    const to_pos = @as(u64, 1) << @intCast(to_rank_idx * 8 + (7 - to_file_idx));
+
+    // Check for promotion
+    var promotion_piece: ?u8 = null;
+    if (token.len == 5) {
+        const piece = token[4];
+        switch (piece) {
+            'q', 'r', 'b', 'n' => promotion_piece = piece,
+            else => return error.InvalidPromotionPiece,
+        }
+    }
+
+    return Move{
+        .from = from_pos,
+        .to = to_pos,
+        .promotion_piece = promotion_piece,
+    };
+}
 
 test "import works" {
     const board = b.Board{ .position = b.Position.init() };
@@ -2028,4 +2106,47 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
     }
 
     return moves[0..movecount];
+}
+
+test "parseUciMove basic move" {
+    const move = try parseUciMove("e2e4");
+    try std.testing.expectEqual(move.from, c.E2);
+    try std.testing.expectEqual(move.to, c.E4);
+    try std.testing.expectEqual(move.promotion_piece, null);
+}
+
+test "parseUciMove promotion move" {
+    const move = try parseUciMove("e7e8q");
+    try std.testing.expectEqual(move.from, c.E7);
+    try std.testing.expectEqual(move.to, c.E8);
+    try std.testing.expectEqual(move.promotion_piece.?, 'q');
+}
+
+test "parseUciMove invalid format" {
+    try std.testing.expectError(error.InvalidMoveFormat, parseUciMove("e2"));
+    try std.testing.expectError(error.InvalidMoveFormat, parseUciMove("e2e4e5"));
+}
+
+test "parseUciMove invalid squares" {
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("i2e4"));
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("e9e4"));
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("e2i4"));
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("e2e9"));
+}
+
+test "parseUciMove invalid promotion" {
+    try std.testing.expectError(error.InvalidPromotionPiece, parseUciMove("e7e8k"));
+}
+
+test "Move toUciString basic move" {
+    const move = Move{ .from = c.E2, .to = c.E4, .promotion_piece = null };
+    const uci = try move.toUciString();
+    try std.testing.expectEqualStrings(uci[0..4], "e2e4");
+    try std.testing.expectEqual(uci[4], 0);
+}
+
+test "Move toUciString promotion move" {
+    const move = Move{ .from = c.E7, .to = c.E8, .promotion_piece = 'q' };
+    const uci = try move.toUciString();
+    try std.testing.expectEqualStrings(uci[0..5], "e7e8q");
 }
