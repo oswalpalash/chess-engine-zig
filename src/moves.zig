@@ -2150,3 +2150,168 @@ test "Move toUciString promotion move" {
     const uci = try move.toUciString();
     try std.testing.expectEqualStrings(uci[0..5], "e7e8q");
 }
+
+/// Apply a move to a board position and return the new board state
+pub fn applyMove(board: b.Board, move: Move) !b.Board {
+    // First find which piece is at the 'from' position
+    const piece = piecefromlocation(move.from, board);
+    if (piece.position == 0) return error.InvalidMove;
+
+    // Get valid moves for just this piece
+    const valid_moves = switch (piece.representation) {
+        'P', 'p' => getValidPawnMoves(piece, board),
+        'R', 'r' => getValidRookMoves(piece, board),
+        'N', 'n' => getValidKnightMoves(piece, board),
+        'B', 'b' => getValidBishopMoves(piece, board),
+        'Q', 'q' => getValidQueenMoves(piece, board),
+        'K', 'k' => getValidKingMoves(piece, board),
+        else => return error.InvalidMove,
+    };
+
+    // Find the matching move in valid moves
+    for (valid_moves) |valid_move| {
+        // Find the piece that moved by comparing board states
+        var found_piece_pos: u64 = 0;
+
+        // Check white pieces
+        inline for (std.meta.fields(@TypeOf(valid_move.position.whitepieces))) |field| {
+            const old_piece = @field(board.position.whitepieces, field.name);
+            const new_piece = @field(valid_move.position.whitepieces, field.name);
+
+            if (@TypeOf(old_piece) == b.Piece) {
+                if (old_piece.position == move.from) {
+                    found_piece_pos = new_piece.position;
+                }
+            } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
+                for (old_piece, 0..) |p, i| {
+                    if (p.position == move.from) {
+                        found_piece_pos = new_piece[i].position;
+                    }
+                }
+            }
+        }
+
+        // Check black pieces if we haven't found the move
+        if (found_piece_pos == 0) {
+            inline for (std.meta.fields(@TypeOf(valid_move.position.blackpieces))) |field| {
+                const old_piece = @field(board.position.blackpieces, field.name);
+                const new_piece = @field(valid_move.position.blackpieces, field.name);
+
+                if (@TypeOf(old_piece) == b.Piece) {
+                    if (old_piece.position == move.from) {
+                        found_piece_pos = new_piece.position;
+                    }
+                } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
+                    for (old_piece, 0..) |p, i| {
+                        if (p.position == move.from) {
+                            found_piece_pos = new_piece[i].position;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If this valid move matches our input move, return it
+        if (found_piece_pos == move.to) {
+            // Handle promotion if specified
+            if (move.promotion_piece) |promotion| {
+                var result = valid_move;
+                // Find the pawn that was promoted and update its representation
+                if (board.position.sidetomove == 0) {
+                    // White pawn promotion
+                    for (&result.position.whitepieces.Pawn) |*pawn| {
+                        if (pawn.position == move.to) {
+                            pawn.representation = std.ascii.toUpper(promotion);
+                            break;
+                        }
+                    }
+                } else {
+                    // Black pawn promotion
+                    for (&result.position.blackpieces.Pawn) |*pawn| {
+                        if (pawn.position == move.to) {
+                            pawn.representation = promotion;
+                            break;
+                        }
+                    }
+                }
+                return result;
+            }
+            return valid_move;
+        }
+    }
+
+    return error.InvalidMove;
+}
+
+test "applyMove basic pawn move" {
+    const board = b.Board{ .position = b.Position.init() };
+    const move = Move{
+        .from = c.E2,
+        .to = c.E4,
+        .promotion_piece = null,
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[4].position, c.E4);
+}
+
+test "applyMove pawn capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Set up a capture position
+    board.position.whitepieces.Pawn[0].position = c.E4;
+    board.position.blackpieces.Pawn[0].position = c.F5;
+
+    const move = Move{
+        .from = c.E4,
+        .to = c.F5,
+        .promotion_piece = null,
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.F5);
+    try std.testing.expectEqual(new_board.position.blackpieces.Pawn[0].position, 0);
+}
+
+test "applyMove pawn promotion" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Set up a promotion position
+    board.position.whitepieces.Pawn[0].position = c.E7;
+
+    const move = Move{
+        .from = c.E7,
+        .to = c.E8,
+        .promotion_piece = 'q',
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.E8);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].representation, 'Q');
+}
+
+test "applyMove invalid move" {
+    const board = b.Board{ .position = b.Position.init() };
+    const move = Move{
+        .from = c.E2,
+        .to = c.E5, // Invalid - pawn can't move 3 squares
+        .promotion_piece = null,
+    };
+
+    try std.testing.expectError(error.InvalidMove, applyMove(board, move));
+}
+
+test "applyMove castling" {
+    var board = b.Board{ .position = b.Position.init() };
+    // Clear pieces between king and rook
+    board.position.whitepieces.Knight[1].position = 0;
+    board.position.whitepieces.Bishop[1].position = 0;
+
+    const move = Move{
+        .from = c.E1,
+        .to = c.G1,
+        .promotion_piece = null,
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.King.position, c.G1);
+    try std.testing.expectEqual(new_board.position.whitepieces.Rook[1].position, c.F1);
+}
