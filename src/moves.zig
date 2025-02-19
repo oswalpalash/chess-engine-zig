@@ -798,11 +798,21 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     var index: u64 = 0;
 
     // Find which knight we're moving
-    for (board.position.whitepieces.Knight, 0..) |item, loopidx| {
-        if (item.position == piece.position) {
-            knight = item;
-            index = loopidx;
-            break;
+    if (piece.color == 0) {
+        for (board.position.whitepieces.Knight, 0..) |item, loopidx| {
+            if (item.position == piece.position) {
+                knight = item;
+                index = loopidx;
+                break;
+            }
+        }
+    } else {
+        for (board.position.blackpieces.Knight, 0..) |item, loopidx| {
+            if (item.position == piece.position) {
+                knight = item;
+                index = loopidx;
+                break;
+            }
         }
     }
 
@@ -851,15 +861,27 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
         if (bitmap & newPos == 0) {
             // Empty square
             var newBoard = b.Board{ .position = board.position };
-            newBoard.position.whitepieces.Knight[index].position = newPos;
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.Knight[index].position = newPos;
+            } else {
+                newBoard.position.blackpieces.Knight[index].position = newPos;
+            }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             // Check if enemy piece
             const targetPiece = piecefromlocation(newPos, board);
             if (targetPiece.color != knight.color) {
-                var newBoard = captureblackpiece(newPos, b.Board{ .position = board.position });
-                newBoard.position.whitepieces.Knight[index].position = newPos;
+                var newBoard = if (piece.color == 0)
+                    captureblackpiece(newPos, b.Board{ .position = board.position })
+                else
+                    capturewhitepiece(newPos, b.Board{ .position = board.position });
+
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.Knight[index].position = newPos;
+                } else {
+                    newBoard.position.blackpieces.Knight[index].position = newPos;
+                }
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -2381,4 +2403,32 @@ test "ValidQueenMoves captures in all directions" {
     }
 
     try std.testing.expectEqual(captureCount, 8);
+}
+
+test "debug knight move sequence" {
+    var board = b.Board{ .position = b.Position.init() };
+
+    // Move sequence with verification
+    const moves = [_]Move{
+        Move{ .from = c.B1, .to = c.C3, .promotion_piece = null }, // white knight
+        Move{ .from = c.C7, .to = c.C6, .promotion_piece = null }, // black pawn
+        Move{ .from = c.C3, .to = c.D5, .promotion_piece = null }, // white knight
+        Move{ .from = c.C6, .to = c.D5, .promotion_piece = null }, // black pawn captures
+        Move{ .from = c.G1, .to = c.H3, .promotion_piece = null }, // white knight
+        Move{ .from = c.F7, .to = c.F6, .promotion_piece = null }, // black pawn
+        Move{ .from = c.H3, .to = c.G5, .promotion_piece = null }, // white knight
+        Move{ .from = c.F6, .to = c.G5, .promotion_piece = null }, // black pawn captures
+        Move{ .from = c.A2, .to = c.A3, .promotion_piece = null }, // white pawn
+        Move{ .from = c.G8, .to = c.F6, .promotion_piece = null }, // black knight
+    };
+
+    std.debug.print("\nInitial position:\n", .{});
+    _ = board.print();
+
+    for (moves, 0..) |move, i| {
+        board = try applyMove(board, move);
+        std.debug.print("\nAfter move {d}:\n", .{i + 1});
+        _ = board.print();
+        std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
+    }
 }

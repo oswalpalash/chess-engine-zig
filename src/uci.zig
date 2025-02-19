@@ -128,6 +128,9 @@ pub const UciProtocol = struct {
         var iter = std.mem.splitScalar(u8, line, ' ');
         _ = iter.next(); // Skip "position" command
 
+        std.debug.print("\nInitial position:\n", .{});
+        _ = board.print();
+
         // Check for position type
         if (iter.next()) |pos_type| {
             if (std.mem.eql(u8, pos_type, "startpos")) {
@@ -150,16 +153,21 @@ pub const UciProtocol = struct {
 
             // Process moves if present
             var found_moves = false;
+            var move_count: usize = 0;
             while (iter.next()) |token| {
                 if (std.mem.eql(u8, token, "moves")) {
                     found_moves = true;
                     continue;
                 }
                 if (found_moves) {
+                    move_count += 1;
+                    std.debug.print("\nProcessing move {d}: {s}\n", .{ move_count, token });
                     // Parse and apply each move
                     const move = try m.parseUciMove(token);
                     board = try m.applyMove(board, move);
-                    // Note: applyMove already updates sidetomove
+                    std.debug.print("After move {d}:\n", .{move_count});
+                    _ = board.print();
+                    std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
                 }
             }
         }
@@ -964,6 +972,29 @@ test "parsePositionLine correctly tracks side to move" {
     const line3 = "position startpos moves e2e4 e7e5 b1c3";
     try protocol.processCommand(line3);
     try std.testing.expectEqual(protocol.current_board.position.sidetomove, 1); // Should be Black's turn
+}
+
+test "complex position with multiple captures - incremental" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    protocol.test_writer = buf.writer();
+    protocol.debug_mode = true;
+
+    // Process the final position with all moves
+    const final_position = "position startpos moves b1c3 c7c6 c3d5 c6d5 g1h3 f7f6 h3g5 f6g5 a2a3 g8f6";
+    try protocol.processCommand(final_position);
+
+    // Clear the output buffer before requesting a move
+    buf.clearRetainingCapacity();
+
+    // Request a move from the engine
+    try protocol.processCommand("go");
+
+    const output = buf.items;
+    try std.testing.expect(std.mem.startsWith(u8, output, "bestmove "));
+    std.debug.print("\nFinal engine response: {s}\n", .{output});
 }
 
 pub fn main() !void {
