@@ -1237,8 +1237,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1272,8 +1271,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1307,8 +1305,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1342,8 +1339,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1378,8 +1374,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1413,8 +1408,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1448,8 +1442,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -1483,8 +1476,7 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
-                    // TODO: Implement capturewhitepiece
-                    moves[possiblemoves] = b.Board{ .position = board.position };
+                    moves[possiblemoves] = capturewhitepiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
                 possiblemoves += 1;
@@ -2305,4 +2297,88 @@ test "applyMove castling" {
     const new_board = try applyMove(board, move);
     try std.testing.expectEqual(new_board.position.whitepieces.King.position, c.G1);
     try std.testing.expectEqual(new_board.position.whitepieces.Rook[1].position, c.F1);
+}
+
+test "ValidQueenMoves captures for black queen" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+
+    // Place white pieces to capture
+    board.position.whitepieces.Pawn[0].position = c.E6; // Vertical capture
+    board.position.whitepieces.Pawn[1].position = c.G4; // Horizontal capture
+    board.position.whitepieces.Pawn[2].position = c.G6; // Diagonal capture
+
+    const moves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Verify captures are possible
+    var verticalCapture = false;
+    var horizontalCapture = false;
+    var diagonalCapture = false;
+
+    for (moves) |move| {
+        if (move.position.blackpieces.Queen.position == c.E6) {
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+            verticalCapture = true;
+        }
+        if (move.position.blackpieces.Queen.position == c.G4) {
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[1].position, 0);
+            horizontalCapture = true;
+        }
+        if (move.position.blackpieces.Queen.position == c.G6) {
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[2].position, 0);
+            diagonalCapture = true;
+        }
+    }
+
+    try std.testing.expect(verticalCapture);
+    try std.testing.expect(horizontalCapture);
+    try std.testing.expect(diagonalCapture);
+}
+
+test "ValidQueenMoves blocked by own pieces for black queen" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+
+    // Place friendly pieces to block
+    board.position.blackpieces.Pawn[0].position = c.E5; // Block vertical
+    board.position.blackpieces.Pawn[1].position = c.F4; // Block horizontal
+    board.position.blackpieces.Pawn[2].position = c.F5; // Block diagonal
+
+    const moves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Verify blocked squares are not in valid moves
+    for (moves) |move| {
+        try std.testing.expect(move.position.blackpieces.Queen.position != c.E5);
+        try std.testing.expect(move.position.blackpieces.Queen.position != c.F4);
+        try std.testing.expect(move.position.blackpieces.Queen.position != c.F5);
+    }
+}
+
+test "ValidQueenMoves captures in all directions" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+
+    // Place white pieces in all 8 directions
+    board.position.whitepieces.Pawn[0].position = c.E5; // North
+    board.position.whitepieces.Pawn[1].position = c.F5; // Northeast
+    board.position.whitepieces.Pawn[2].position = c.F4; // East
+    board.position.whitepieces.Pawn[3].position = c.F3; // Southeast
+    board.position.whitepieces.Pawn[4].position = c.E3; // South
+    board.position.whitepieces.Pawn[5].position = c.D3; // Southwest
+    board.position.whitepieces.Pawn[6].position = c.D4; // West
+    board.position.whitepieces.Pawn[7].position = c.D5; // Northwest
+
+    const moves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Should have exactly 8 capture moves
+    var captureCount: usize = 0;
+    for (moves) |move| {
+        for (board.position.whitepieces.Pawn) |pawn| {
+            if (move.position.blackpieces.Queen.position == pawn.position) {
+                captureCount += 1;
+            }
+        }
+    }
+
+    try std.testing.expectEqual(captureCount, 8);
 }
