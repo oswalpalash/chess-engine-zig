@@ -896,93 +896,63 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    var knight: b.Piece = piece;
-    var index: u64 = 0;
+    
+    // Use the piece's index directly instead of searching for it
+    const index = piece.index;
 
-    // Find which knight we're moving
-    if (piece.color == 0) {
-        for (board.position.whitepieces.Knight, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                knight = item;
-                index = loopidx;
-                break;
-            }
-        }
-    } else {
-        for (board.position.blackpieces.Knight, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                knight = item;
-                index = loopidx;
-                break;
-            }
-        }
-    }
-
-    // All possible knight moves relative to current position
-    const knightMoves = [8]struct { row: i8, col: i8 }{
-        .{ .row = 2, .col = 1 }, // Up 2, right 1
-        .{ .row = 2, .col = -1 }, // Up 2, left 1
-        .{ .row = -2, .col = 1 }, // Down 2, right 1
-        .{ .row = -2, .col = -1 }, // Down 2, left 1
-        .{ .row = 1, .col = 2 }, // Up 1, right 2
-        .{ .row = 1, .col = -2 }, // Up 1, left 2
-        .{ .row = -1, .col = 2 }, // Down 1, right 2
-        .{ .row = -1, .col = -2 }, // Down 1, left 2
+    // Define all possible knight move shifts
+    // These represent the 8 possible L-shaped moves a knight can make
+    const knightShifts = [_]struct { shift: i8, mask: u64 }{
+        .{ .shift = 6, .mask = 0xFCFCFCFCFCFCFCFC }, // Up 1, Left 2 (not from a,b files)
+        .{ .shift = 10, .mask = 0x3F3F3F3F3F3F3F3F }, // Up 1, Right 2 (not from g,h files)
+        .{ .shift = 15, .mask = 0xFEFEFEFEFEFEFEFE }, // Up 2, Left 1 (not from a file)
+        .{ .shift = 17, .mask = 0x7F7F7F7F7F7F7F7F }, // Up 2, Right 1 (not from h file)
+        .{ .shift = -6, .mask = 0x3F3F3F3F3F3F3F3F }, // Down 1, Right 2 (not from g,h files)
+        .{ .shift = -10, .mask = 0xFCFCFCFCFCFCFCFC }, // Down 1, Left 2 (not from a,b files)
+        .{ .shift = -15, .mask = 0x7F7F7F7F7F7F7F7F }, // Down 2, Right 1 (not from h file)
+        .{ .shift = -17, .mask = 0xFEFEFEFEFEFEFEFE }, // Down 2, Left 1 (not from a file)
     };
 
-    const currentRow: i8 = @intCast(rowfrombitmap(knight.position));
-    const currentCol: i8 = @intCast(colfrombitmap(knight.position));
-
-    for (knightMoves) |move| {
-        const newRow = currentRow + move.row;
-        const newCol = currentCol + move.col;
-
-        // Check if new position is within board boundaries
-        if (newRow < 1 or newRow > 8 or newCol < 1 or newCol > 8) {
-            continue;
-        }
-
-        // Calculate new position
-        var newPos: u64 = knight.position;
-        const rowDiff: i8 = newRow - currentRow;
-        const colDiff: i8 = newCol - currentCol;
-
-        if (rowDiff > 0) {
-            newPos = newPos << @as(u6, @intCast(@as(u8, @intCast(rowDiff)) * 8));
+    // Check each possible knight move
+    for (knightShifts) |move| {
+        // Apply the mask to ensure we don't wrap around the board
+        if ((piece.position & move.mask) == 0) continue;
+        
+        var newpos: u64 = undefined;
+        if (move.shift > 0) {
+            newpos = piece.position << @as(u6, @intCast(move.shift));
         } else {
-            newPos = newPos >> @as(u6, @intCast(@as(u8, @intCast(-rowDiff)) * 8));
+            newpos = piece.position >> @as(u6, @intCast(-move.shift));
         }
+        
+        // Skip if the position is invalid (should not happen with proper masks)
+        if (newpos == 0) continue;
 
-        if (colDiff > 0) {
-            newPos = newPos >> @as(u6, @intCast(@as(u8, @intCast(colDiff))));
-        } else {
-            newPos = newPos << @as(u6, @intCast(@as(u8, @intCast(-colDiff))));
-        }
-
-        // Check if target square is empty or has enemy piece
-        if (bitmap & newPos == 0) {
-            // Empty square
+        // Check if target square is empty
+        if (bitmap & newpos == 0) {
+            // Empty square - add move
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
-                newBoard.position.whitepieces.Knight[index].position = newPos;
+                newBoard.position.whitepieces.Knight[index].position = newpos;
             } else {
-                newBoard.position.blackpieces.Knight[index].position = newPos;
+                newBoard.position.blackpieces.Knight[index].position = newpos;
             }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
-            // Check if enemy piece
-            const targetPiece = piecefromlocation(newPos, board);
-            if (targetPiece.color != knight.color) {
+            // Square is occupied - check if it's an enemy piece
+            const targetPiece = piecefromlocation(newpos, board);
+            if (targetPiece.color != piece.color) {
+                // Capture enemy piece
                 var newBoard = if (piece.color == 0)
-                    captureblackpiece(newPos, b.Board{ .position = board.position })
+                    captureblackpiece(newpos, b.Board{ .position = board.position })
                 else
-                    capturewhitepiece(newPos, b.Board{ .position = board.position });
+                    capturewhitepiece(newpos, b.Board{ .position = board.position });
 
                 if (piece.color == 0) {
-                    newBoard.position.whitepieces.Knight[index].position = newPos;
+                    newBoard.position.whitepieces.Knight[index].position = newpos;
                 } else {
-                    newBoard.position.blackpieces.Knight[index].position = newPos;
+                    newBoard.position.blackpieces.Knight[index].position = newpos;
                 }
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
