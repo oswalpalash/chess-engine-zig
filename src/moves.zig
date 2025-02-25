@@ -985,8 +985,29 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
 
-    // Use the piece's index directly instead of searching for it
-    const index = piece.index;
+    // Find the correct index for the knight
+    var index: u8 = 0;
+    if (piece.color == 0) {
+        // White knight
+        if (board.position.whitepieces.Knight[0].position == piece.position) {
+            index = 0;
+        } else if (board.position.whitepieces.Knight[1].position == piece.position) {
+            index = 1;
+        } else {
+            // Knight not found, return empty array
+            return moves[0..0];
+        }
+    } else {
+        // Black knight
+        if (board.position.blackpieces.Knight[0].position == piece.position) {
+            index = 0;
+        } else if (board.position.blackpieces.Knight[1].position == piece.position) {
+            index = 1;
+        } else {
+            // Knight not found, return empty array
+            return moves[0..0];
+        }
+    }
 
     // Define all possible knight move shifts
     // These represent the 8 possible L-shaped moves a knight can make
