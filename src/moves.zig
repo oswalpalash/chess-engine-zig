@@ -321,10 +321,10 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
 
     // Direction modifiers based on piece color
     const forwardShift: i8 = if (piece.color == 0) 8 else -8;
-    
+
     // Starting row and promotion row based on color
     const startingRow: u64 = if (piece.color == 0) 2 else 7;
-    
+
     // Single square forward move
     var oneSquareForward: u64 = 0;
     if (forwardShift > 0) {
@@ -332,7 +332,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     } else {
         oneSquareForward = piece.position >> @as(u6, @intCast(-forwardShift));
     }
-    
+
     if (bitmap & oneSquareForward == 0) {
         if ((piece.color == 0 and currentRow < 7) or (piece.color == 1 and currentRow > 2)) {
             // Regular move
@@ -366,7 +366,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 twoSquareForward = piece.position >> @as(u6, @intCast(-forwardShift * 2));
             }
-            
+
             if (bitmap & twoSquareForward == 0) {
                 var newBoard = b.Board{ .position = board.position };
                 if (piece.color == 0) {
@@ -386,7 +386,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Diagonal captures
     var leftCapture: u64 = 0;
     var rightCapture: u64 = 0;
-    
+
     // Calculate capture positions based on color and column constraints
     if (piece.color == 0) {
         leftCapture = if (currentCol > 1) piece.position << 7 else 0;
@@ -429,7 +429,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             // En passant capture to the left
             var newBoard = b.Board{ .position = board.position };
             var capturedPawnPos: u64 = 0;
-            
+
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = leftCapture;
                 // Capture the black pawn that just moved (one square behind the en passant square)
@@ -480,7 +480,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             // En passant capture to the right
             var newBoard = b.Board{ .position = board.position };
             var capturedPawnPos: u64 = 0;
-            
+
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = rightCapture;
                 // Capture the black pawn that just moved
@@ -534,7 +534,7 @@ test "ValidPawnMoves for black pawn capture" {
     board.position.whitepieces.Pawn[2].position = c.D5;
     const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 2); // Can move to e5 or capture on d5
-    
+
     var foundCapture = false;
     for (moves) |move| {
         if (move.position.blackpieces.Pawn[3].position == c.D5) {
@@ -551,7 +551,7 @@ test "ValidPawnMoves for black pawn en passant capture" {
     board.position.whitepieces.Pawn[2].position = c.D4;
     board.position.enPassantSquare = c.D3; // Simulate white pawn just moved D2->D4
     const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
-    
+
     var foundEnPassant = false;
     for (moves) |move| {
         if (move.position.blackpieces.Pawn[3].position == c.D3) {
@@ -568,7 +568,7 @@ test "ValidPawnMoves for black pawn promotion on capture" {
     board.position.blackpieces.Pawn[3].position = c.E2;
     board.position.whitepieces.Pawn[2].position = c.D1;
     const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
-    
+
     var foundPromotionCapture = false;
     for (moves) |move| {
         if (move.position.blackpieces.Pawn[3].position == c.D1) {
@@ -783,7 +783,7 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     // forward moves
     for (directional_kingshifts) |shift| {
         if (piece.position << shift == 0) {
-            break;
+            continue;
         }
         // if there is no piece, allow shifting
         // if there is a piece, check if it is of different colour, if so, capture it
@@ -792,13 +792,18 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             dummypiece = piecefromlocation(piece.position << shift, board);
             if (dummypiece.representation != '.') {
                 if (dummypiece.color == piece.color) {
-                    break;
+                    continue;
                 }
             }
             king.position = piece.position << shift;
             // update board
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.King.position = king.position;
+            var newBoard = b.Board{ .position = board.position };
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.King.position = king.position;
+            } else {
+                newBoard.position.blackpieces.King.position = king.position;
+            }
+            moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             if (bitmap & (piece.position << shift) != 0) {
@@ -806,9 +811,18 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                 if (dummypiece.representation != '.') {
                     if (dummypiece.color != piece.color) {
                         king.position = piece.position << shift;
-                        // update board
-                        moves[possiblemoves] = captureblackpiece(king.position, b.Board{ .position = board.position });
-                        moves[possiblemoves].position.whitepieces.King.position = king.position;
+                        // update board with appropriate capture
+                        var newBoard = if (piece.color == 0)
+                            captureblackpiece(king.position, b.Board{ .position = board.position })
+                        else
+                            capturewhitepiece(king.position, b.Board{ .position = board.position });
+
+                        if (piece.color == 0) {
+                            newBoard.position.whitepieces.King.position = king.position;
+                        } else {
+                            newBoard.position.blackpieces.King.position = king.position;
+                        }
+                        moves[possiblemoves] = newBoard;
                         possiblemoves += 1;
                     }
                 }
@@ -819,19 +833,24 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     // reverse moves
     for (directional_kingshifts) |shift| {
         if (king.position >> shift == 0) {
-            break;
+            continue;
         }
         if (bitmap & (king.position >> shift) == 0) {
             dummypiece = piecefromlocation(piece.position >> shift, board);
             if (dummypiece.representation != '.') {
                 if (dummypiece.color == piece.color) {
-                    break;
+                    continue;
                 }
             }
             king.position = piece.position >> shift;
             // update board
-            moves[possiblemoves] = b.Board{ .position = board.position };
-            moves[possiblemoves].position.whitepieces.King.position = king.position;
+            var newBoard = b.Board{ .position = board.position };
+            if (piece.color == 0) {
+                newBoard.position.whitepieces.King.position = king.position;
+            } else {
+                newBoard.position.blackpieces.King.position = king.position;
+            }
+            moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
             if (bitmap & (piece.position >> shift) != 0) {
@@ -839,9 +858,18 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                 if (dummypiece.representation != '.') {
                     if (dummypiece.color != piece.color) {
                         king.position = piece.position >> shift;
-                        // update board
-                        moves[possiblemoves] = captureblackpiece(king.position, b.Board{ .position = board.position });
-                        moves[possiblemoves].position.whitepieces.King.position = king.position;
+                        // update board with appropriate capture
+                        var newBoard = if (piece.color == 0)
+                            captureblackpiece(king.position, b.Board{ .position = board.position })
+                        else
+                            capturewhitepiece(king.position, b.Board{ .position = board.position });
+
+                        if (piece.color == 0) {
+                            newBoard.position.whitepieces.King.position = king.position;
+                        } else {
+                            newBoard.position.blackpieces.King.position = king.position;
+                        }
+                        moves[possiblemoves] = newBoard;
                         possiblemoves += 1;
                     }
                 }
@@ -861,6 +889,23 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             newBoard.position.whitepieces.Rook[1].position = c.F1;
             // Remove castling right
             newBoard.position.canCastleWhiteKingside = false;
+            moves[possiblemoves] = newBoard;
+            possiblemoves += 1;
+        }
+    }
+
+    // Add castling moves for black king (kingside) if available
+    if (piece.color == 1 and board.position.canCastleBlackKingside and piece.position == c.E8) {
+        // Check if squares F8 and G8 are empty
+        if ((bitmap & c.F8) == 0 and (bitmap & c.G8) == 0) {
+            var castledKing = piece;
+            castledKing.position = c.G8; // king moves two squares towards rook
+            var newBoard = board;
+            newBoard.position.blackpieces.King = castledKing;
+            // Update kingside rook: from H8 to F8
+            newBoard.position.blackpieces.Rook[1].position = c.F8;
+            // Remove castling right
+            newBoard.position.canCastleBlackKingside = false;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         }
@@ -891,12 +936,55 @@ test "ValidKingMoves for empty board with king on e1 and black piece on e2" {
     try std.testing.expectEqual(moves.len, 5);
 }
 
+test "ValidKingMoves for black king on empty board" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E4;
+    const moves = ValidKingMoves(board.position.blackpieces.King, board);
+    try std.testing.expectEqual(moves.len, 8); // Should have 8 moves in all directions
+
+    // Verify the king's position is updated correctly in the resulting boards
+    for (moves) |move| {
+        try std.testing.expectEqual(move.position.blackpieces.King.position != c.E4, true);
+        try std.testing.expectEqual(move.position.whitepieces.King.position, 0);
+    }
+}
+
+test "ValidKingMoves for black king with captures" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E4;
+    // Place white pieces to capture
+    board.position.whitepieces.Pawn[0].position = c.E5;
+    board.position.whitepieces.Pawn[1].position = c.F4;
+    // Place black piece to block
+    board.position.blackpieces.Pawn[0].position = c.D4;
+
+    const moves = ValidKingMoves(board.position.blackpieces.King, board);
+    try std.testing.expectEqual(moves.len, 7); // 8 directions - 1 blocked
+
+    // Verify captures work correctly
+    var captureFound = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.King.position == c.E5 or
+            move.position.blackpieces.King.position == c.F4)
+        {
+            captureFound = true;
+            // Check that the captured piece is removed
+            if (move.position.blackpieces.King.position == c.E5) {
+                try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+            } else {
+                try std.testing.expectEqual(move.position.whitepieces.Pawn[1].position, 0);
+            }
+        }
+    }
+    try std.testing.expect(captureFound);
+}
+
 // Valid knight moves
 pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    
+
     // Use the piece's index directly instead of searching for it
     const index = piece.index;
 
@@ -917,14 +1005,14 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     for (knightShifts) |move| {
         // Apply the mask to ensure we don't wrap around the board
         if ((piece.position & move.mask) == 0) continue;
-        
+
         var newpos: u64 = undefined;
         if (move.shift > 0) {
             newpos = piece.position << @as(u6, @intCast(move.shift));
         } else {
             newpos = piece.position >> @as(u6, @intCast(-move.shift));
         }
-        
+
         // Skip if the position is invalid (should not happen with proper masks)
         if (newpos == 0) continue;
 
@@ -2410,4 +2498,25 @@ test "debug knight move sequence" {
         _ = board.print();
         std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
     }
+}
+
+test "ValidKingMoves for black king with castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E8;
+    board.position.blackpieces.Rook[1].position = c.H8;
+    board.position.canCastleBlackKingside = true;
+
+    const moves = ValidKingMoves(board.position.blackpieces.King, board);
+
+    // Verify castling is included in the moves
+    var castlingFound = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.King.position == c.G8 and
+            move.position.blackpieces.Rook[1].position == c.F8)
+        {
+            castlingFound = true;
+            try std.testing.expectEqual(move.position.canCastleBlackKingside, false);
+        }
+    }
+    try std.testing.expect(castlingFound);
 }
