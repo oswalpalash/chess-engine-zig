@@ -110,6 +110,11 @@ pub const UciProtocol = struct {
 
     /// Choose a simple move from the current position
     fn chooseBestMove(self: *UciProtocol) !?b.Board {
+        return chooseRandomMove(self);
+    }
+
+    /// Choose a simple move from the current position
+    fn chooseRandomMove(self: *UciProtocol) !?b.Board {
         // Get all valid moves from the current position
         const moves = m.allvalidmoves(self.current_board);
         if (moves.len == 0) {
@@ -117,9 +122,8 @@ pub const UciProtocol = struct {
             return null;
         }
 
-        // For now, just pick the first legal move
-        // Note: allvalidmoves already respects the side to move and returns only valid moves for the current side
-        return moves[0];
+        // choose a random move
+        return moves[std.crypto.random.int(u32) % moves.len];
     }
 
     /// Parse a position command line and return a board position
