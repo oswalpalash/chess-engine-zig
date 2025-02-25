@@ -67,3 +67,34 @@ pub const H8 = 0x100000000000000;
 pub const PAWN_POSITION_TABLE = [64]i32{ 0, 0, 0, 0, 0, 0, 0, 0, 50, 50, 50, 50, 50, 50, 50, 50, 10, 10, 20, 30, 30, 20, 10, 10, 5, 5, 10, 25, 25, 10, 5, 5, 0, 0, 0, 20, 20, 0, 0, 0, 5, -5, -10, 0, 0, -10, -5, 5, 5, 10, 10, -20, -20, 10, 10, 5, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 pub const KNIGHT_POSITION_TABLE = [64]i32{ -50, -40, -30, -30, -30, -30, -40, -50, -40, -20, 0, 0, 0, 0, -20, -40, -30, 0, 10, 15, 15, 10, 0, -30, -30, 5, 15, 20, 20, 15, 5, -30, -30, 0, 15, 20, 20, 15, 0, -30, -30, 5, 10, 15, 15, 10, 5, -30, -40, -20, 0, 5, 5, 0, -20, -40, -50, -40, -30, -30, -30, -30, -40, -50 };
+
+// New piece-square tables for other pieces
+pub const BISHOP_POSITION_TABLE = [64]i32{ -20, -10, -10, -10, -10, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 10, 10, 10, 10, 0, -10, -10, 5, 5, 10, 10, 5, 5, -10, -10, 0, 5, 10, 10, 5, 0, -10, -10, 5, 5, 5, 5, 5, 5, -10, -10, 0, 5, 0, 0, 5, 0, -10, -20, -10, -10, -10, -10, -10, -10, -20 };
+
+pub const ROOK_POSITION_TABLE = [64]i32{ 0, 0, 0, 0, 0, 0, 0, 0, 5, 10, 10, 10, 10, 10, 10, 5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, -5, 0, 0, 0, 0, 0, 0, -5, 0, 0, 0, 5, 5, 0, 0, 0 };
+
+pub const QUEEN_POSITION_TABLE = [64]i32{ -20, -10, -10, -5, -5, -10, -10, -20, -10, 0, 0, 0, 0, 0, 0, -10, -10, 0, 5, 5, 5, 5, 0, -10, -5, 0, 5, 5, 5, 5, 0, -5, 0, 0, 5, 5, 5, 5, 0, -5, -10, 5, 5, 5, 5, 5, 0, -10, -10, 0, 5, 0, 0, 0, 0, -10, -20, -10, -10, -5, -5, -10, -10, -20 };
+
+// King position tables - one for middlegame and one for endgame
+pub const KING_MIDDLEGAME_TABLE = [64]i32{ -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -30, -40, -40, -50, -50, -40, -40, -30, -20, -30, -30, -40, -40, -30, -30, -20, -10, -20, -20, -20, -20, -20, -20, -10, 20, 20, 0, 0, 0, 0, 20, 20, 20, 30, 10, 0, 0, 10, 30, 20 };
+
+pub const KING_ENDGAME_TABLE = [64]i32{ -50, -40, -30, -20, -20, -30, -40, -50, -30, -20, -10, 0, 0, -10, -20, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -10, 30, 40, 40, 30, -10, -30, -30, -10, 30, 40, 40, 30, -10, -30, -30, -10, 20, 30, 30, 20, -10, -30, -30, -30, 0, 0, 0, 0, -30, -30, -50, -30, -30, -30, -30, -30, -30, -50 };
+
+// Central squares for control evaluation
+pub const CENTER_SQUARES = D4 | E4 | D5 | E5;
+pub const EXTENDED_CENTER = C3 | D3 | E3 | F3 | C4 | D4 | E4 | F4 | C5 | D5 | E5 | F5 | C6 | D6 | E6 | F6;
+
+// Constants for evaluation
+pub const DOUBLED_PAWN_PENALTY = -10;
+pub const ISOLATED_PAWN_PENALTY = -20;
+pub const PASSED_PAWN_BONUS = 20;
+pub const BISHOP_PAIR_BONUS = 50;
+pub const KNIGHT_OUTPOST_BONUS = 15;
+pub const ROOK_ON_OPEN_FILE_BONUS = 15;
+pub const ROOK_ON_SEMI_OPEN_FILE_BONUS = 10;
+pub const QUEEN_ON_OPEN_FILE_BONUS = 5;
+pub const MOBILITY_FACTOR = 2;
+pub const CENTER_CONTROL_BONUS = 5;
+pub const KING_PAWN_SHIELD_BONUS = 10;
+pub const KING_SAFETY_ATTACK_ZONE = 3;
+pub const ENDGAME_MATERIAL_THRESHOLD = 3000; // Total material value below which we consider it an endgame
