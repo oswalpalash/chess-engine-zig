@@ -291,28 +291,27 @@ test "ensure self captures are not allowed. add a3 pawn in init board and check 
     try std.testing.expectEqual(moves.len, 0);
 }
 
-// valid pawn moves. only moves for white
-// return board array with all possible moves
+// Valid pawn moves for both white and black pawns
+// Returns an array of boards representing all possible moves for the given pawn
 pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u6 = 0;
-    var pawn: b.Piece = undefined;
     var index: u64 = 0;
 
-    // determine which piece is being moved
+    // Find which pawn we're moving
     if (piece.color == 0) {
         for (board.position.whitepieces.Pawn, 0..) |item, loopidx| {
             if (item.position == piece.position) {
-                pawn = item;
                 index = loopidx;
+                break;
             }
         }
     } else {
         for (board.position.blackpieces.Pawn, 0..) |item, loopidx| {
             if (item.position == piece.position) {
-                pawn = item;
                 index = loopidx;
+                break;
             }
         }
     }
@@ -320,10 +319,22 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     const currentRow = rowfrombitmap(piece.position);
     const currentCol = colfrombitmap(piece.position);
 
+    // Direction modifiers based on piece color
+    const forwardShift: i8 = if (piece.color == 0) 8 else -8;
+    
+    // Starting row and promotion row based on color
+    const startingRow: u64 = if (piece.color == 0) 2 else 7;
+    
     // Single square forward move
-    const oneSquareForward = piece.position << 8;
+    var oneSquareForward: u64 = 0;
+    if (forwardShift > 0) {
+        oneSquareForward = piece.position << @as(u6, @intCast(forwardShift));
+    } else {
+        oneSquareForward = piece.position >> @as(u6, @intCast(-forwardShift));
+    }
+    
     if (bitmap & oneSquareForward == 0) {
-        if (currentRow < 7) {
+        if ((piece.color == 0 and currentRow < 7) or (piece.color == 1 and currentRow > 2)) {
             // Regular move
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
@@ -333,7 +344,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
-        } else if (currentRow == 7) {
+        } else if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
             // Promotion
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
@@ -348,8 +359,14 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
 
         // Two square forward move from starting position
-        if (currentRow == 2) {
-            const twoSquareForward = piece.position << 16;
+        if (currentRow == startingRow) {
+            var twoSquareForward: u64 = 0;
+            if (forwardShift > 0) {
+                twoSquareForward = piece.position << @as(u6, @intCast(forwardShift * 2));
+            } else {
+                twoSquareForward = piece.position >> @as(u6, @intCast(-forwardShift * 2));
+            }
+            
             if (bitmap & twoSquareForward == 0) {
                 var newBoard = b.Board{ .position = board.position };
                 if (piece.color == 0) {
@@ -367,8 +384,17 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     // Diagonal captures
-    const leftCapture = if (currentCol > 1) piece.position << 7 else 0;
-    const rightCapture = if (currentCol < 8) piece.position << 9 else 0;
+    var leftCapture: u64 = 0;
+    var rightCapture: u64 = 0;
+    
+    // Calculate capture positions based on color and column constraints
+    if (piece.color == 0) {
+        leftCapture = if (currentCol > 1) piece.position << 7 else 0;
+        rightCapture = if (currentCol < 8) piece.position << 9 else 0;
+    } else {
+        leftCapture = if (currentCol < 8) piece.position >> 7 else 0;
+        rightCapture = if (currentCol > 1) piece.position >> 9 else 0;
+    }
 
     // Check left capture
     if (leftCapture != 0) {
@@ -380,7 +406,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                 else
                     capturewhitepiece(leftCapture, b.Board{ .position = board.position });
 
-                if (currentRow == 7) {
+                if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
                     // Promotion on capture
                     if (piece.color == 0) {
                         newBoard.position.whitepieces.Pawn[index].position = leftCapture;
@@ -402,13 +428,18 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else if (leftCapture == board.position.enPassantSquare) {
             // En passant capture to the left
             var newBoard = b.Board{ .position = board.position };
+            var capturedPawnPos: u64 = 0;
+            
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = leftCapture;
-                // Capture the black pawn that just moved
-                newBoard = captureblackpiece(leftCapture >> 8, newBoard);
+                // Capture the black pawn that just moved (one square behind the en passant square)
+                capturedPawnPos = leftCapture >> 8;
+                newBoard = captureblackpiece(capturedPawnPos, newBoard);
             } else {
                 newBoard.position.blackpieces.Pawn[index].position = leftCapture;
-                newBoard = capturewhitepiece(leftCapture >> 8, newBoard);
+                // Capture the white pawn that just moved (one square ahead of the en passant square)
+                capturedPawnPos = leftCapture << 8;
+                newBoard = capturewhitepiece(capturedPawnPos, newBoard);
             }
             newBoard.position.enPassantSquare = 0; // Clear en passant square
             moves[possiblemoves] = newBoard;
@@ -426,7 +457,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                 else
                     capturewhitepiece(rightCapture, b.Board{ .position = board.position });
 
-                if (currentRow == 7) {
+                if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
                     // Promotion on capture
                     if (piece.color == 0) {
                         newBoard.position.whitepieces.Pawn[index].position = rightCapture;
@@ -448,13 +479,18 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else if (rightCapture == board.position.enPassantSquare) {
             // En passant capture to the right
             var newBoard = b.Board{ .position = board.position };
+            var capturedPawnPos: u64 = 0;
+            
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = rightCapture;
                 // Capture the black pawn that just moved
-                newBoard = captureblackpiece(rightCapture >> 8, newBoard);
+                capturedPawnPos = rightCapture >> 8;
+                newBoard = captureblackpiece(capturedPawnPos, newBoard);
             } else {
                 newBoard.position.blackpieces.Pawn[index].position = rightCapture;
-                newBoard = capturewhitepiece(rightCapture >> 8, newBoard);
+                // Capture the white pawn that just moved
+                capturedPawnPos = rightCapture << 8;
+                newBoard = capturewhitepiece(capturedPawnPos, newBoard);
             }
             newBoard.position.enPassantSquare = 0; // Clear en passant square
             moves[possiblemoves] = newBoard;
@@ -476,6 +512,72 @@ test "ValidPawnMoves from e7 in empty board" {
     board.position.whitepieces.Pawn[3].position = c.E7;
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 1);
+}
+
+test "ValidPawnMoves for black pawn from e7 in start position" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = ValidPawnMoves(board.position.blackpieces.Pawn[4], board);
+    try std.testing.expectEqual(moves.len, 2); // e7 pawn can move to e6 and e5
+}
+
+test "ValidPawnMoves for black pawn from e2 in empty board" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Pawn[3].position = c.E2;
+    const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
+    try std.testing.expectEqual(moves.len, 1); // One move to e1 with promotion
+    try std.testing.expectEqual(moves[0].position.blackpieces.Pawn[3].representation, 'q');
+}
+
+test "ValidPawnMoves for black pawn capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Pawn[3].position = c.E6;
+    board.position.whitepieces.Pawn[2].position = c.D5;
+    const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
+    try std.testing.expectEqual(moves.len, 2); // Can move to e5 or capture on d5
+    
+    var foundCapture = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[3].position == c.D5) {
+            foundCapture = true;
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[2].position, 0);
+        }
+    }
+    try std.testing.expect(foundCapture);
+}
+
+test "ValidPawnMoves for black pawn en passant capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Pawn[3].position = c.E4;
+    board.position.whitepieces.Pawn[2].position = c.D4;
+    board.position.enPassantSquare = c.D3; // Simulate white pawn just moved D2->D4
+    const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
+    
+    var foundEnPassant = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[3].position == c.D3) {
+            foundEnPassant = true;
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[2].position, 0);
+            try std.testing.expectEqual(move.position.enPassantSquare, 0);
+        }
+    }
+    try std.testing.expect(foundEnPassant);
+}
+
+test "ValidPawnMoves for black pawn promotion on capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Pawn[3].position = c.E2;
+    board.position.whitepieces.Pawn[2].position = c.D1;
+    const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
+    
+    var foundPromotionCapture = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Pawn[3].position == c.D1) {
+            foundPromotionCapture = true;
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[2].position, 0);
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[3].representation, 'q');
+        }
+    }
+    try std.testing.expect(foundPromotionCapture);
 }
 
 test "pawn capture e3 f4 or go to e4" {
@@ -987,11 +1089,13 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
     const row = rowfrombitmap(piece.position);
     const col = colfrombitmap(piece.position);
 
-    // Up-Right diagonal moves
+    // Bishop moves along diagonals
+    const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
+
+    // Up-Right diagonal moves (NE)
     for (bishopshifts) |shift| {
         if (row + shift > 8 or col + shift > 8) break;
 
@@ -1028,7 +1132,7 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    // Up-Left diagonal moves
+    // Up-Left diagonal moves (NW)
     for (bishopshifts) |shift| {
         if (row + shift > 8 or col <= shift) break;
 
@@ -1063,7 +1167,7 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    // Down-Right diagonal moves
+    // Down-Right diagonal moves (SE)
     for (bishopshifts) |shift| {
         if (row <= shift or col + shift > 8) break;
 
@@ -1098,7 +1202,7 @@ pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    // Down-Left diagonal moves
+    // Down-Left diagonal moves (SW)
     for (bishopshifts) |shift| {
         if (row <= shift or col <= shift) break;
 
@@ -1569,34 +1673,7 @@ test "ValidQueenMoves with obstacles" {
 
 // Color-specific move functions
 pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
-    if (piece.color == 0) {
-        return ValidPawnMoves(piece, board);
-    } else {
-        var flippedBoard = board;
-        flippedBoard.position = flippedBoard.position.flip();
-        var flippedPiece = piece;
-        flippedPiece.position = b.reverse(piece.position);
-
-        // Save the original en-passant square and flip it
-        const originalEnPassant = board.position.enPassantSquare;
-        if (originalEnPassant != 0) {
-            flippedBoard.position.enPassantSquare = b.reverse(originalEnPassant);
-        }
-
-        const moves = ValidPawnMoves(flippedPiece, flippedBoard);
-        var flippedMoves: [256]b.Board = undefined;
-
-        for (moves, 0..) |move, i| {
-            flippedMoves[i] = move;
-            flippedMoves[i].position = flippedMoves[i].position.flip();
-            // Restore the original en-passant square if it wasn't cleared by the move
-            if (flippedMoves[i].position.enPassantSquare != 0) {
-                flippedMoves[i].position.enPassantSquare = originalEnPassant;
-            }
-        }
-
-        return flippedMoves[0..moves.len];
-    }
+    return ValidPawnMoves(piece, board);
 }
 
 test "getValidPawnMoves works for white pawns" {
@@ -1630,24 +1707,7 @@ test "getValidRookMoves works for black rooks" {
 }
 
 pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
-    if (piece.color == 0) {
-        return ValidKnightMoves(piece, board);
-    } else {
-        var flippedBoard = board;
-        flippedBoard.position = flippedBoard.position.flip();
-        var flippedPiece = piece;
-        flippedPiece.position = b.reverse(piece.position);
-
-        const moves = ValidKnightMoves(flippedPiece, flippedBoard);
-        var flippedMoves: [256]b.Board = undefined;
-
-        for (moves, 0..) |move, i| {
-            flippedMoves[i] = move;
-            flippedMoves[i].position = flippedMoves[i].position.flip();
-        }
-
-        return flippedMoves[0..moves.len];
-    }
+    return ValidKnightMoves(piece, board);
 }
 
 test "getValidKnightMoves works for white knights" {
@@ -1663,24 +1723,7 @@ test "getValidKnightMoves works for black knights" {
 }
 
 pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
-    if (piece.color == 0) {
-        return ValidBishopMoves(piece, board);
-    } else {
-        var flippedBoard = board;
-        flippedBoard.position = flippedBoard.position.flip();
-        var flippedPiece = piece;
-        flippedPiece.position = b.reverse(piece.position);
-
-        const moves = ValidBishopMoves(flippedPiece, flippedBoard);
-        var flippedMoves: [256]b.Board = undefined;
-
-        for (moves, 0..) |move, i| {
-            flippedMoves[i] = move;
-            flippedMoves[i].position = flippedMoves[i].position.flip();
-        }
-
-        return flippedMoves[0..moves.len];
-    }
+    return ValidBishopMoves(piece, board);
 }
 
 test "getValidBishopMoves works for white bishops" {
@@ -1698,24 +1741,7 @@ test "getValidBishopMoves works for black bishops" {
 }
 
 pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
-    if (piece.color == 0) {
-        return ValidQueenMoves(piece, board);
-    } else {
-        var flippedBoard = board;
-        flippedBoard.position = flippedBoard.position.flip();
-        var flippedPiece = piece;
-        flippedPiece.position = b.reverse(piece.position);
-
-        const moves = ValidQueenMoves(flippedPiece, flippedBoard);
-        var flippedMoves: [256]b.Board = undefined;
-
-        for (moves, 0..) |move, i| {
-            flippedMoves[i] = move;
-            flippedMoves[i].position = flippedMoves[i].position.flip();
-        }
-
-        return flippedMoves[0..moves.len];
-    }
+    return ValidQueenMoves(piece, board);
 }
 
 test "getValidQueenMoves works for white queen" {
@@ -1733,24 +1759,7 @@ test "getValidQueenMoves works for black queen" {
 }
 
 pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
-    if (piece.color == 0) {
-        return ValidKingMoves(piece, board);
-    } else {
-        var flippedBoard = board;
-        flippedBoard.position = flippedBoard.position.flip();
-        var flippedPiece = piece;
-        flippedPiece.position = b.reverse(piece.position);
-
-        const moves = ValidKingMoves(flippedPiece, flippedBoard);
-        var flippedMoves: [256]b.Board = undefined;
-
-        for (moves, 0..) |move, i| {
-            flippedMoves[i] = move;
-            flippedMoves[i].position = flippedMoves[i].position.flip();
-        }
-
-        return flippedMoves[0..moves.len];
-    }
+    return ValidKingMoves(piece, board);
 }
 
 test "getValidKingMoves works for white king" {
