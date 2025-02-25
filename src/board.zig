@@ -492,6 +492,9 @@ pub fn parseFen(fen: []const u8) Position {
     // Because of the existing code convention, we flip at the end:
     position = position.flip();
 
+    // Default to white's turn if not specified
+    position.sidetomove = 0;
+
     const second_token = tokens.next();
     if (second_token == null) {
         // Invalid: no side to move
