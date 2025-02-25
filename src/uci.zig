@@ -141,6 +141,35 @@ pub const UciProtocol = struct {
         }
     }
 
+    /// Choose a best move with time constraints
+    fn chooseBestMoveWithTime(self: *UciProtocol, max_time_ms: i64) !?b.Board {
+        // Use the minimax algorithm with iterative deepening to find the best move
+        // The maximum search depth is determined by the skill level (1-20)
+        var max_depth: u8 = 1;
+        if (self.skill_level > 5 and self.skill_level <= 10) {
+            max_depth = 3;
+        } else if (self.skill_level > 10 and self.skill_level <= 15) {
+            max_depth = 4;
+        } else if (self.skill_level > 15) {
+            max_depth = 5;
+        }
+
+        // If in debug mode, log the search parameters
+        if (self.debug_mode) {
+            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with max depth {d} and time {d}ms", .{ max_depth, max_time_ms });
+            try self.allocated_strings.append(debug_msg);
+            try self.respond(debug_msg);
+        }
+
+        // Find the best move using iterative deepening
+        if (e.findBestMoveWithTime(self.current_board, max_depth, max_time_ms)) |best_move| {
+            return best_move;
+        } else {
+            // If no best move found, fall back to random move
+            return chooseRandomMove(self);
+        }
+    }
+
     /// Choose a simple move from the current position
     fn chooseRandomMove(self: *UciProtocol) !?b.Board {
         // Get all valid moves from the current position
@@ -480,6 +509,7 @@ pub const UciProtocol = struct {
 
                 // Parse go command parameters
                 var max_depth: u8 = 3; // Default depth
+                var max_time_ms: i64 = e.DEFAULT_MOVE_TIME; // Default time
                 var iter = std.mem.splitScalar(u8, line, ' ');
                 _ = iter.next(); // Skip "go"
 
@@ -488,6 +518,28 @@ pub const UciProtocol = struct {
                         if (iter.next()) |depth_str| {
                             if (std.fmt.parseInt(u8, depth_str, 10)) |depth| {
                                 max_depth = @min(depth, 5); // Limit max depth to 5
+                            } else |_| {}
+                        }
+                    } else if (std.mem.eql(u8, param, "movetime")) {
+                        if (iter.next()) |time_str| {
+                            if (std.fmt.parseInt(i64, time_str, 10)) |time| {
+                                max_time_ms = @max(time, e.MIN_MOVE_TIME);
+                            } else |_| {}
+                        }
+                    } else if (std.mem.eql(u8, param, "wtime") and self.current_board.position.sidetomove == 0) {
+                        // White's time remaining (if we're white)
+                        if (iter.next()) |time_str| {
+                            if (std.fmt.parseInt(i64, time_str, 10)) |time| {
+                                // Allocate ~1/30 of remaining time for this move
+                                max_time_ms = @max(@divTrunc(time, 30), e.MIN_MOVE_TIME);
+                            } else |_| {}
+                        }
+                    } else if (std.mem.eql(u8, param, "btime") and self.current_board.position.sidetomove == 1) {
+                        // Black's time remaining (if we're black)
+                        if (iter.next()) |time_str| {
+                            if (std.fmt.parseInt(i64, time_str, 10)) |time| {
+                                // Allocate ~1/30 of remaining time for this move
+                                max_time_ms = @max(@divTrunc(time, 30), e.MIN_MOVE_TIME);
                             } else |_| {}
                         }
                     }
@@ -500,7 +552,7 @@ pub const UciProtocol = struct {
                 const start_time = std.time.milliTimestamp();
 
                 // Choose the best move
-                if (try self.chooseBestMove()) |new_board| {
+                if (try self.chooseBestMoveWithTime(max_time_ms)) |new_board| {
                     // Calculate search time
                     const end_time = std.time.milliTimestamp();
                     const search_time = end_time - start_time;
@@ -538,8 +590,8 @@ pub const UciProtocol = struct {
                 if (self.search_in_progress) {
                     // Stop any ongoing search
                     self.search_in_progress = false;
-                    // Send the best move found so far
-                    if (try self.chooseBestMove()) |new_board| {
+                    // Send the best move found so far - use a very short time limit
+                    if (try self.chooseBestMoveWithTime(e.MIN_MOVE_TIME)) |new_board| {
                         const move = moveToUci(self.current_board, new_board);
                         var move_str: [10]u8 = undefined;
                         var move_len: usize = 4;

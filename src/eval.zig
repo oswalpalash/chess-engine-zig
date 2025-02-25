@@ -7,9 +7,25 @@ const Board = b.Board;
 const Piece = b.Piece;
 
 // Constants for minimax algorithm
-pub const MAX_DEPTH = 3;
+pub const MAX_DEPTH = 6; // Increased from 3 to 6
 pub const INFINITY_SCORE: i32 = 1000000;
 pub const CHECKMATE_SCORE: i32 = 900000;
+
+// Time management constants
+pub const DEFAULT_MOVE_TIME: i64 = 1000; // Default time per move in milliseconds
+pub const MIN_MOVE_TIME: i64 = 100; // Minimum time per move in milliseconds
+pub const SAFETY_MARGIN: i64 = 50; // Time safety margin in milliseconds
+
+// Search statistics
+pub const SearchStats = struct {
+    nodes_searched: u64 = 0,
+    start_time: i64 = 0,
+    max_time: i64 = DEFAULT_MOVE_TIME,
+    depth_reached: u8 = 0,
+    best_move: ?Board = null,
+    best_score: i32 = -INFINITY_SCORE,
+    should_stop: bool = false,
+};
 
 pub fn evaluate(board: Board) i32 {
     var score: i32 = 0;
@@ -114,9 +130,33 @@ fn getPiecePositionValue(position: u64, table: [64]i32, is_white: bool) i32 {
     return table[table_index];
 }
 
+/// Check if we should stop the search based on time constraints
+fn shouldStopSearch(stats: *SearchStats) bool {
+    if (stats.should_stop) return true;
+
+    const current_time = std.time.milliTimestamp();
+    const elapsed_time = current_time - stats.start_time;
+
+    // Stop if we've used up our allocated time minus safety margin
+    if (elapsed_time >= stats.max_time - SAFETY_MARGIN) {
+        stats.should_stop = true;
+        return true;
+    }
+
+    return false;
+}
+
 /// Minimax algorithm with alpha-beta pruning
 /// Returns the best score for the current position
-pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer: bool) i32 {
+pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer: bool, stats: *SearchStats) i32 {
+    // Increment node count
+    stats.nodes_searched += 1;
+
+    // Check if we should stop the search due to time constraints
+    if (stats.nodes_searched % 1000 == 0 and shouldStopSearch(stats)) {
+        return if (maximizingPlayer) -INFINITY_SCORE else INFINITY_SCORE;
+    }
+
     // Base case: if we've reached the maximum depth or the game is over
     if (depth == 0) {
         return evaluate(board);
@@ -137,37 +177,84 @@ pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer:
 
     if (maximizingPlayer) {
         var value: i32 = -INFINITY_SCORE;
+        var alpha_local = alpha;
+
         for (moves) |move| {
             // Recursively evaluate the position
-            const eval_score = minimax(move, depth - 1, alpha, beta, false);
+            const eval_score = minimax(move, depth - 1, alpha_local, beta, false, stats);
             value = @max(value, eval_score);
 
             // Alpha-beta pruning
-            const new_alpha = @max(alpha, value);
-            if (beta <= new_alpha) {
+            alpha_local = @max(alpha_local, value);
+            if (beta <= alpha_local) {
                 break; // Beta cutoff
+            }
+
+            // Check for time constraints
+            if (shouldStopSearch(stats)) {
+                break;
             }
         }
         return value;
     } else {
         var value: i32 = INFINITY_SCORE;
+        var beta_local = beta;
+
         for (moves) |move| {
             // Recursively evaluate the position
-            const eval_score = minimax(move, depth - 1, alpha, beta, true);
+            const eval_score = minimax(move, depth - 1, alpha, beta_local, true, stats);
             value = @min(value, eval_score);
 
             // Alpha-beta pruning
-            const new_beta = @min(beta, value);
-            if (new_beta <= alpha) {
+            beta_local = @min(beta_local, value);
+            if (beta_local <= alpha) {
                 break; // Alpha cutoff
+            }
+
+            // Check for time constraints
+            if (shouldStopSearch(stats)) {
+                break;
             }
         }
         return value;
     }
 }
 
-/// Find the best move using the minimax algorithm
-pub fn findBestMove(board: Board, depth: u8) ?Board {
+/// Find the best move using iterative deepening
+pub fn findBestMoveWithTime(board: Board, max_depth: u8, max_time_ms: i64) ?Board {
+    var stats = SearchStats{
+        .nodes_searched = 0,
+        .start_time = std.time.milliTimestamp(),
+        .max_time = max_time_ms,
+        .depth_reached = 0,
+        .best_move = null,
+        .best_score = -INFINITY_SCORE,
+        .should_stop = false,
+    };
+
+    // Iterative deepening - start from depth 1 and increase until max_depth or time runs out
+    var current_depth: u8 = 1;
+    while (current_depth <= max_depth and !shouldStopSearch(&stats)) {
+        const best_move = findBestMoveAtDepth(board, current_depth, &stats);
+
+        // If we found a valid move and didn't run out of time during the search,
+        // update our best move
+        if (best_move != null and !stats.should_stop) {
+            stats.best_move = best_move;
+            stats.depth_reached = current_depth;
+        } else if (stats.should_stop) {
+            // If we ran out of time, stop the iterative deepening
+            break;
+        }
+
+        current_depth += 1;
+    }
+
+    return stats.best_move;
+}
+
+/// Find the best move at a specific depth
+pub fn findBestMoveAtDepth(board: Board, depth: u8, stats: *SearchStats) ?Board {
     const moves = m.allvalidmoves(board);
     if (moves.len == 0) {
         return null; // No legal moves
@@ -232,23 +319,34 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
 
     for (move_scores.items, 0..) |move_data, i| {
         // For each move, evaluate the resulting position
-        const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer);
+        const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer, stats);
 
         // Update best move if we found a better one
         if (score > bestScore) {
             bestScore = score;
             bestMoveIndex = i;
+            stats.best_score = score;
+        }
+
+        // Check if we should stop due to time constraints
+        if (shouldStopSearch(stats)) {
+            break;
         }
     }
 
-    if (move_scores.items.len > 0) {
+    if (move_scores.items.len > 0 and !stats.should_stop) {
         return move_scores.items[bestMoveIndex].move;
-    } else if (moves.len > 0) {
-        // Fallback if move scoring failed
+    } else if (moves.len > 0 and stats.best_move == null) {
+        // Fallback if move scoring failed or we ran out of time on first depth
         return moves[0];
     } else {
         return null;
     }
+}
+
+/// Find the best move using the minimax algorithm (legacy function for compatibility)
+pub fn findBestMove(board: Board, depth: u8) ?Board {
+    return findBestMoveWithTime(board, depth, DEFAULT_MOVE_TIME);
 }
 
 /// Count the number of pieces for a side
@@ -522,4 +620,14 @@ test "evaluate considers piece position" {
 
     // The knight in the center should be valued higher
     try std.testing.expect(score1 > score2);
+}
+
+test "findBestMoveWithTime returns a valid move" {
+    const board = Board{ .position = b.Position.init() };
+
+    // Find best move with a reasonable time limit
+    const move = findBestMoveWithTime(board, 2, 500);
+
+    // Should return a valid move
+    try std.testing.expect(move != null);
 }
