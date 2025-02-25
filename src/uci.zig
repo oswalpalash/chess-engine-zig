@@ -925,25 +925,25 @@ test "go command with no legal moves" {
     // Set up the Fool's Mate checkmate position (white is checkmated)
     // 1. f3 e5 2. g4 Qh4#
     try protocol.processCommand("position fen rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3");
-    
+
     // Print the board state before the go command
     std.debug.print("\nBoard state before go command:\n", .{});
     _ = protocol.current_board.print();
     std.debug.print("Side to move: {d}\n", .{protocol.current_board.position.sidetomove});
-    
+
     // Check if white is in check and checkmate
     const s = @import("state.zig");
     const whiteInCheck = s.isCheck(protocol.current_board, true);
     const whiteInCheckmate = s.isCheckmate(protocol.current_board, true);
     std.debug.print("White in check: {}\n", .{whiteInCheck});
     std.debug.print("White in checkmate: {}\n", .{whiteInCheckmate});
-    
+
     try protocol.processCommand("go");
 
     // Print the board state after the go command
     std.debug.print("\nBoard state after go command:\n", .{});
     _ = protocol.current_board.print();
-    
+
     const output = buf.items;
     // Just check that the engine returns a bestmove response
     std.debug.print("output: {s}\n", .{output});

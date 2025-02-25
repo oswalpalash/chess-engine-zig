@@ -436,20 +436,20 @@ test "isCheckmate - Scholar's Mate position" {
     // White queen on f7, white bishop on c4, black king on e8
     const fen = "r1bqk1nr/pppp1Qpp/2n5/2b1p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4";
     const board = b.Board{ .position = b.parseFen(fen) };
-    
+
     // Print the board state
     std.debug.print("\nScholar's Mate position:\n", .{});
     _ = board.print();
     std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
-    
+
     // Check if black is in check
     const blackInCheck = isCheck(board, false);
     std.debug.print("Black in check: {}\n", .{blackInCheck});
-    
+
     // Check if black is in checkmate
     const blackInCheckmate = isCheckmate(board, false);
     std.debug.print("Black in checkmate: {}\n", .{blackInCheckmate});
-    
+
     try std.testing.expect(blackInCheck);
     // This position is not actually a checkmate, so we don't expect blackInCheckmate to be true
     // try std.testing.expect(blackInCheckmate);

@@ -2513,74 +2513,76 @@ test "ValidKingMoves for black king with castling" {
 
 test "allvalidmoves when in check only returns moves that get out of check" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // Set up a check position: white king on e1, black queen on e8 (checking the king)
     board.position.whitepieces.King.position = c.E1;
     board.position.blackpieces.Queen.position = c.E8;
-    
+
     // Add a white piece that can block the check
     board.position.whitepieces.Rook[0].position = c.D1;
-    
+
     // Set white to move
     board.position.sidetomove = 0;
-    
+
     // Get all valid moves
     const moves = allvalidmoves(board);
-    
+
     // Verify that we have at least one valid move
     try std.testing.expect(moves.len > 0);
-    
+
     // Verify that all returned moves get out of check
     const s = @import("state.zig");
     for (moves) |move| {
         try std.testing.expect(!s.isCheck(move, true));
     }
-    
+
     // Verify that at least one move is the king moving or the rook blocking
     var foundValidMove = false;
-    
+
     for (moves) |move| {
-        if (move.position.whitepieces.King.position != c.E1 or 
-            move.position.whitepieces.Rook[0].position == c.E1) {
+        if (move.position.whitepieces.King.position != c.E1 or
+            move.position.whitepieces.Rook[0].position == c.E1)
+        {
             foundValidMove = true;
             break;
         }
     }
-    
+
     try std.testing.expect(foundValidMove);
 }
 
 test "allvalidmoves allows capturing the checking piece" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // Set up a check position: white king on e4, black knight on f6 (checking the king)
     board.position.whitepieces.King.position = c.E4;
     board.position.blackpieces.Knight[0].position = c.F6;
-    
+
     // Add a white piece that can capture the knight
     board.position.whitepieces.Bishop[0].position = c.G5;
-    
+
     // Set white to move
     board.position.sidetomove = 0;
-    
+
     // Get all valid moves
     const moves = allvalidmoves(board);
-    
+
     // Verify that all returned moves get out of check
     const s = @import("state.zig");
     for (moves) |move| {
         try std.testing.expect(!s.isCheck(move, true));
     }
-    
+
     // Verify that one of the moves is the bishop capturing the knight
     var foundCapture = false;
     for (moves) |move| {
-        if (move.position.whitepieces.Bishop[0].position == c.F6 and 
-            move.position.blackpieces.Knight[0].position == 0) {
+        if (move.position.whitepieces.Bishop[0].position == c.F6 and
+            move.position.blackpieces.Knight[0].position == 0)
+        {
             foundCapture = true;
             break;
         }
     }
-    
+
     try std.testing.expect(foundCapture);
 }
