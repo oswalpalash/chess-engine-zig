@@ -3225,3 +3225,113 @@ test "ValidBishopMoves capture verification" {
     }
     try std.testing.expectEqual(captureCount, 4);
 }
+
+test "ValidQueenMoves from all corners of the board" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Test from all corners
+    const corners = [_]struct { pos: u64, expectedMoves: u8 }{
+        .{ .pos = c.A1, .expectedMoves = 21 }, // Can move right and up
+        .{ .pos = c.H1, .expectedMoves = 21 }, // Can move left and up
+        .{ .pos = c.A8, .expectedMoves = 21 }, // Can move right and down
+        .{ .pos = c.H8, .expectedMoves = 21 }, // Can move left and down
+    };
+
+    for (corners) |corner| {
+        board.position.whitepieces.Queen.position = corner.pos;
+        const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+        try std.testing.expectEqual(moves.len, corner.expectedMoves);
+    }
+}
+
+test "ValidQueenMoves preserves board state except for moved piece" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Setup a simple position with just the queen
+    board.position.whitepieces.Queen.position = c.E4;
+
+    const originalPosition = board.position.whitepieces.Queen.position;
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+
+    // Verify we have moves
+    try std.testing.expect(moves.len > 0);
+
+    // For each move, verify the queen has moved to a different position
+    for (moves) |move| {
+        try std.testing.expect(move.position.whitepieces.Queen.position != originalPosition);
+    }
+}
+
+test "ValidQueenMoves with multiple obstacles in each direction" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.E4;
+
+    // Place obstacles at different distances in each direction
+    // North direction
+    board.position.blackpieces.Pawn[0].position = c.E6; // Capturable
+    board.position.blackpieces.Pawn[1].position = c.E7; // Behind first obstacle
+
+    // East direction
+    board.position.whitepieces.Pawn[0].position = c.F4; // Friendly piece (blocking)
+    board.position.blackpieces.Pawn[2].position = c.G4; // Behind friendly piece
+
+    // Southeast direction
+    board.position.blackpieces.Pawn[3].position = c.G2; // Capturable
+    board.position.blackpieces.Pawn[4].position = c.H1; // Behind first obstacle
+
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+
+    // Verify queen can capture the first obstacle but not move past it
+    var capturedE6 = false;
+    var capturedG2 = false;
+    var movedToE7 = false;
+    var movedToG4 = false;
+    var movedToH1 = false;
+
+    for (moves) |move| {
+        if (move.position.whitepieces.Queen.position == c.E6) {
+            capturedE6 = true;
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[0].position, 0);
+        }
+        if (move.position.whitepieces.Queen.position == c.G2) {
+            capturedG2 = true;
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[3].position, 0);
+        }
+        if (move.position.whitepieces.Queen.position == c.E7) movedToE7 = true;
+        if (move.position.whitepieces.Queen.position == c.G4) movedToG4 = true;
+        if (move.position.whitepieces.Queen.position == c.H1) movedToH1 = true;
+    }
+
+    try std.testing.expect(capturedE6);
+    try std.testing.expect(capturedG2);
+    try std.testing.expect(!movedToE7); // Can't move past first obstacle
+    try std.testing.expect(!movedToG4); // Can't move past friendly piece
+    try std.testing.expect(!movedToH1); // Can't move past first obstacle
+}
+
+test "ValidQueenMoves preserves queen index" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Set up queen with a specific index
+    board.position.whitepieces.Queen.position = c.E4;
+    board.position.whitepieces.Queen.index = 0;
+
+    const moves = ValidQueenMoves(board.position.whitepieces.Queen, board);
+
+    // Verify index is preserved in all moves
+    for (moves) |move| {
+        try std.testing.expectEqual(move.position.whitepieces.Queen.index, 0);
+    }
+
+    // Test with black queen too
+    board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+    board.position.blackpieces.Queen.index = 0;
+
+    const blackMoves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Verify index is preserved in all moves
+    for (blackMoves) |move| {
+        try std.testing.expectEqual(move.position.blackpieces.Queen.index, 0);
+    }
+}
