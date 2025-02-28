@@ -2973,10 +2973,8 @@ test "ValidKnightMoves captures in all directions" {
     board.position.whitepieces.Knight[0].position = c.E4;
 
     // Place black pieces in all possible knight-move positions
-    const targetSquares = [_]u64{
-        c.F6, c.G5, c.G3, c.F2, c.D2, c.C3, c.C5, c.D6
-    };
-    
+    const targetSquares = [_]u64{ c.F6, c.G5, c.G3, c.F2, c.D2, c.C3, c.C5, c.D6 };
+
     for (targetSquares, 0..) |square, i| {
         if (i < 8) {
             board.position.blackpieces.Pawn[i].position = square;
@@ -3033,7 +3031,7 @@ test "ValidKnightMoves blocked by own pieces" {
 
 test "ValidKnightMoves multiple knights interaction" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // Place two knights near each other
     board.position.whitepieces.Knight[0].position = c.E4;
     board.position.whitepieces.Knight[0].index = 0;
@@ -3064,7 +3062,7 @@ test "ValidKnightMoves multiple knights interaction" {
 
 test "ValidKnightMoves preserves board state except for moved piece" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // Setup a complex position
     board.position.whitepieces.Knight[0].position = c.E4;
     board.position.whitepieces.King.position = c.E1;
@@ -3080,7 +3078,7 @@ test "ValidKnightMoves preserves board state except for moved piece" {
         try std.testing.expectEqual(move.position.whitepieces.King.position, c.E1);
         try std.testing.expectEqual(move.position.blackpieces.King.position, c.E8);
         try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, c.E2);
-        
+
         // If knight moved to F6, verify black pawn was captured
         if (move.position.whitepieces.Knight[0].position == c.F6) {
             try std.testing.expectEqual(move.position.blackpieces.Pawn[0].position, 0);
