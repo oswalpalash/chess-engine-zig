@@ -3087,3 +3087,141 @@ test "ValidKnightMoves preserves board state except for moved piece" {
         }
     }
 }
+
+test "ValidBishopMoves comprehensive diagonal movement" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.E4;
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+
+    // Expected diagonal moves from e4:
+    // NE: f5, g6, h7
+    // NW: d5, c6, b7, a8
+    // SE: f3, g2, h1
+    // SW: d3, c2, b1
+    const expectedPositions = [_]u64{
+        c.F5, c.G6, c.H7, // NE
+        c.D5, c.C6, c.B7, c.A8, // NW
+        c.F3, c.G2, c.H1, // SE
+        c.D3, c.C2, c.B1, // SW
+    };
+
+    try std.testing.expectEqual(moves.len, expectedPositions.len);
+
+    // Verify each expected position is found
+    for (expectedPositions) |expected| {
+        var found = false;
+        for (moves) |move| {
+            if (move.position.whitepieces.Bishop[0].position == expected) {
+                found = true;
+                break;
+            }
+        }
+        try std.testing.expect(found);
+    }
+}
+
+test "ValidBishopMoves blocked by multiple pieces" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.E4;
+
+    // Place blocking pieces in all directions
+    board.position.whitepieces.Pawn[0].position = c.F5; // NE block
+    board.position.blackpieces.Pawn[0].position = c.D5; // NW block
+    board.position.whitepieces.Pawn[1].position = c.F3; // SE block
+    board.position.blackpieces.Pawn[1].position = c.D3; // SW block
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+
+    // Should only be able to capture the two black pawns
+    try std.testing.expectEqual(moves.len, 2);
+
+    var foundD5Capture = false;
+    var foundD3Capture = false;
+
+    for (moves) |move| {
+        if (move.position.whitepieces.Bishop[0].position == c.D5) {
+            foundD5Capture = true;
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[0].position, 0);
+        }
+        if (move.position.whitepieces.Bishop[0].position == c.D3) {
+            foundD3Capture = true;
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[1].position, 0);
+        }
+    }
+
+    try std.testing.expect(foundD5Capture);
+    try std.testing.expect(foundD3Capture);
+}
+
+test "ValidBishopMoves from corner positions" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Test from all corners
+    const corners = [_]struct { pos: u64, expectedMoves: u8 }{
+        .{ .pos = c.A1, .expectedMoves = 7 }, // Can move only NE
+        .{ .pos = c.H1, .expectedMoves = 7 }, // Can move only NW
+        .{ .pos = c.A8, .expectedMoves = 7 }, // Can move only SE
+        .{ .pos = c.H8, .expectedMoves = 7 }, // Can move only SW
+    };
+
+    for (corners) |corner| {
+        board.position.whitepieces.Bishop[0].position = corner.pos;
+        const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+        try std.testing.expectEqual(moves.len, corner.expectedMoves);
+    }
+}
+
+test "ValidBishopMoves index preservation" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Set up bishops with different indices
+    board.position.whitepieces.Bishop[0].position = c.C1;
+    board.position.whitepieces.Bishop[0].index = 0;
+    board.position.whitepieces.Bishop[1].position = c.F1;
+    board.position.whitepieces.Bishop[1].index = 1;
+
+    // Test moves for both bishops
+    const moves0 = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    const moves1 = ValidBishopMoves(board.position.whitepieces.Bishop[1], board);
+
+    // Verify indices are preserved in all moves
+    for (moves0) |move| {
+        try std.testing.expectEqual(move.position.whitepieces.Bishop[0].index, 0);
+    }
+    for (moves1) |move| {
+        try std.testing.expectEqual(move.position.whitepieces.Bishop[1].index, 1);
+    }
+}
+
+test "ValidBishopMoves capture verification" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Bishop[0].position = c.E4;
+
+    // Place capturable pieces in all diagonal directions
+    board.position.blackpieces.Pawn[0].position = c.G6; // NE
+    board.position.blackpieces.Pawn[1].position = c.C6; // NW
+    board.position.blackpieces.Pawn[2].position = c.G2; // SE
+    board.position.blackpieces.Pawn[3].position = c.C2; // SW
+
+    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+
+    // Count captures and verify captured pieces are removed
+    var captureCount: u32 = 0;
+    for (moves) |move| {
+        if (move.position.whitepieces.Bishop[0].position == c.G6) {
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[0].position, 0);
+            captureCount += 1;
+        } else if (move.position.whitepieces.Bishop[0].position == c.C6) {
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[1].position, 0);
+            captureCount += 1;
+        } else if (move.position.whitepieces.Bishop[0].position == c.G2) {
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[2].position, 0);
+            captureCount += 1;
+        } else if (move.position.whitepieces.Bishop[0].position == c.C2) {
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[3].position, 0);
+            captureCount += 1;
+        }
+    }
+    try std.testing.expectEqual(captureCount, 4);
+}
