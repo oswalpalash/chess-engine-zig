@@ -2361,3 +2361,603 @@ fn findNextAvailableIndex(pieces: []const b.Piece) u8 {
     // If no empty slots found, return length (though this shouldn't happen in valid chess)
     return @intCast(pieces.len);
 }
+
+pub fn allvalidmoves(board: b.Board) []b.Board {
+    // Check for checkmate first
+    const s = @import("state.zig");
+    if (s.isCheckmate(board, board.position.sidetomove == 0)) {
+        return &[_]b.Board{};
+    }
+
+    var moves: [1024]b.Board = undefined;
+    var movecount: usize = 0;
+
+    // Copy board and set side to move for each generated move
+    var boardCopy = board;
+
+    if (board.position.sidetomove == 0) { // White pieces
+        // King moves
+        const kingMoves = getValidKingMoves(board.position.whitepieces.King, board);
+        for (kingMoves) |move| {
+            // Only allow moves that don't leave us in check
+            if (!s.isCheck(move, true)) {
+                boardCopy = move;
+                moves[movecount] = boardCopy;
+                movecount += 1;
+            }
+        }
+
+        // Queen moves
+        const queenMoves = getValidQueenMoves(board.position.whitepieces.Queen, board);
+        for (queenMoves) |move| {
+            if (!s.isCheck(move, true)) {
+                boardCopy = move;
+                moves[movecount] = boardCopy;
+                movecount += 1;
+            }
+        }
+
+        // Rook moves
+        var rookMoveCount: usize = 0;
+        for (board.position.whitepieces.Rook) |rook| {
+            if (rook.position == 0) continue;
+            const rookMoves = getValidRookMoves(rook, board);
+            rookMoveCount += rookMoves.len;
+            for (rookMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+
+        // Bishop moves
+        var bishopMoveCount: usize = 0;
+        for (board.position.whitepieces.Bishop) |bishop| {
+            if (bishop.position == 0) continue;
+            const bishopMoves = getValidBishopMoves(bishop, board);
+            bishopMoveCount += bishopMoves.len;
+            for (bishopMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+
+        // Knight moves
+        var knightMoveCount: usize = 0;
+        for (board.position.whitepieces.Knight) |knight| {
+            if (knight.position == 0) continue;
+            const knightMoves = getValidKnightMoves(knight, board);
+            knightMoveCount += knightMoves.len;
+            for (knightMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+
+        // Pawn moves
+        var pawnMoveCount: usize = 0;
+        for (board.position.whitepieces.Pawn) |pawn| {
+            if (pawn.position == 0) continue;
+            const pawnMoves = getValidPawnMoves(pawn, board);
+            pawnMoveCount += pawnMoves.len;
+            for (pawnMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+    } else { // Black pieces
+        // King moves
+        const kingMoves = getValidKingMoves(board.position.blackpieces.King, board);
+        for (kingMoves) |move| {
+            // Only allow moves that don't leave us in check
+            if (!s.isCheck(move, false)) {
+                boardCopy = move;
+                moves[movecount] = boardCopy;
+                movecount += 1;
+            }
+        }
+
+        // Queen moves
+        const queenMoves = getValidQueenMoves(board.position.blackpieces.Queen, board);
+        for (queenMoves) |move| {
+            if (!s.isCheck(move, false)) {
+                boardCopy = move;
+                moves[movecount] = boardCopy;
+                movecount += 1;
+            }
+        }
+
+        // Rook moves
+        var rookMoveCount: usize = 0;
+        for (board.position.blackpieces.Rook) |rook| {
+            if (rook.position == 0) continue;
+            const rookMoves = getValidRookMoves(rook, board);
+            rookMoveCount += rookMoves.len;
+            for (rookMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+
+        // Bishop moves
+        var bishopMoveCount: usize = 0;
+        for (board.position.blackpieces.Bishop) |bishop| {
+            if (bishop.position == 0) continue;
+            const bishopMoves = getValidBishopMoves(bishop, board);
+            bishopMoveCount += bishopMoves.len;
+            for (bishopMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+
+        // Knight moves
+        var knightMoveCount: usize = 0;
+        for (board.position.blackpieces.Knight) |knight| {
+            if (knight.position == 0) continue;
+            const knightMoves = getValidKnightMoves(knight, board);
+            knightMoveCount += knightMoves.len;
+            for (knightMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+
+        // Pawn moves
+        var pawnMoveCount: usize = 0;
+        for (board.position.blackpieces.Pawn) |pawn| {
+            if (pawn.position == 0) continue;
+            const pawnMoves = getValidPawnMoves(pawn, board);
+            pawnMoveCount += pawnMoves.len;
+            for (pawnMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+    }
+
+    return moves[0..movecount];
+}
+
+test "parseUciMove basic move" {
+    const move = try parseUciMove("e2e4");
+    try std.testing.expectEqual(move.from, c.E2);
+    try std.testing.expectEqual(move.to, c.E4);
+    try std.testing.expectEqual(move.promotion_piece, null);
+}
+
+test "parseUciMove promotion move" {
+    const move = try parseUciMove("e7e8q");
+    try std.testing.expectEqual(move.from, c.E7);
+    try std.testing.expectEqual(move.to, c.E8);
+    try std.testing.expectEqual(move.promotion_piece.?, 'q');
+}
+
+test "parseUciMove invalid format" {
+    try std.testing.expectError(error.InvalidMoveFormat, parseUciMove("e2"));
+    try std.testing.expectError(error.InvalidMoveFormat, parseUciMove("e2e4e5"));
+}
+
+test "parseUciMove invalid squares" {
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("i2e4"));
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("e9e4"));
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("e2i4"));
+    try std.testing.expectError(error.InvalidSquare, parseUciMove("e2e9"));
+}
+
+test "parseUciMove invalid promotion" {
+    try std.testing.expectError(error.InvalidPromotionPiece, parseUciMove("e7e8k"));
+}
+
+test "Move toUciString basic move" {
+    const move = Move{ .from = c.E2, .to = c.E4, .promotion_piece = null };
+    const uci = try move.toUciString();
+    try std.testing.expectEqualStrings(uci[0..4], "e2e4");
+    try std.testing.expectEqual(uci[4], 0);
+}
+
+test "Move toUciString promotion move" {
+    const move = Move{ .from = c.E7, .to = c.E8, .promotion_piece = 'q' };
+    const uci = try move.toUciString();
+    try std.testing.expectEqualStrings(uci[0..5], "e7e8q");
+}
+
+/// Apply a move to a board position and return the new board state
+pub fn applyMove(board: b.Board, move: Move) !b.Board {
+    // First find which piece is at the 'from' position
+    const piece = piecefromlocation(move.from, board);
+    if (piece.position == 0) return error.InvalidMove;
+
+    // Get valid moves for just this piece
+    const valid_moves = switch (piece.representation) {
+        'P', 'p' => getValidPawnMoves(piece, board),
+        'R', 'r' => getValidRookMoves(piece, board),
+        'N', 'n' => getValidKnightMoves(piece, board),
+        'B', 'b' => getValidBishopMoves(piece, board),
+        'Q', 'q' => getValidQueenMoves(piece, board),
+        'K', 'k' => getValidKingMoves(piece, board),
+        else => return error.InvalidMove,
+    };
+
+    // Find the matching move in valid moves
+    for (valid_moves) |valid_move| {
+        // Find the piece that moved by comparing board states
+        var found_piece_pos: u64 = 0;
+
+        // Check white pieces
+        inline for (std.meta.fields(@TypeOf(valid_move.position.whitepieces))) |field| {
+            const old_piece = @field(board.position.whitepieces, field.name);
+            const new_piece = @field(valid_move.position.whitepieces, field.name);
+
+            if (@TypeOf(old_piece) == b.Piece) {
+                if (old_piece.position == move.from) {
+                    found_piece_pos = new_piece.position;
+                }
+            } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
+                for (old_piece, 0..) |p, i| {
+                    if (p.position == move.from) {
+                        found_piece_pos = new_piece[i].position;
+                    }
+                }
+            }
+        }
+
+        // Check black pieces if we haven't found the move
+        if (found_piece_pos == 0) {
+            inline for (std.meta.fields(@TypeOf(valid_move.position.blackpieces))) |field| {
+                const old_piece = @field(board.position.blackpieces, field.name);
+                const new_piece = @field(valid_move.position.blackpieces, field.name);
+
+                if (@TypeOf(old_piece) == b.Piece) {
+                    if (old_piece.position == move.from) {
+                        found_piece_pos = new_piece.position;
+                    }
+                } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
+                    for (old_piece, 0..) |p, i| {
+                        if (p.position == move.from) {
+                            found_piece_pos = new_piece[i].position;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If this valid move matches our input move, return it
+        var result = valid_move;
+        if (found_piece_pos == move.to) {
+            // Handle promotion if specified
+            if (move.promotion_piece) |promotion| {
+                // Find the pawn that was promoted and update its representation
+                if (board.position.sidetomove == 0) {
+                    // White pawn promotion
+                    for (&result.position.whitepieces.Pawn) |*pawn| {
+                        if (pawn.position == move.to) {
+                            pawn.representation = std.ascii.toUpper(promotion);
+                            break;
+                        }
+                    }
+                } else {
+                    // Black pawn promotion
+                    for (&result.position.blackpieces.Pawn) |*pawn| {
+                        if (pawn.position == move.to) {
+                            pawn.representation = promotion;
+                            break;
+                        }
+                    }
+                }
+                //  update side to move
+                result.position.sidetomove = 1 - board.position.sidetomove;
+                return result;
+            }
+            result.position.sidetomove = 1 - board.position.sidetomove;
+            return result;
+        }
+    }
+
+    return error.InvalidMove;
+}
+
+test "applyMove basic pawn move" {
+    const board = b.Board{ .position = b.Position.init() };
+    const move = Move{
+        .from = c.E2,
+        .to = c.E4,
+        .promotion_piece = null,
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[4].position, c.E4);
+}
+
+test "applyMove pawn capture" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Set up a capture position
+    board.position.whitepieces.Pawn[0].position = c.E4;
+    board.position.blackpieces.Pawn[0].position = c.F5;
+
+    const move = Move{
+        .from = c.E4,
+        .to = c.F5,
+        .promotion_piece = null,
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.F5);
+    try std.testing.expectEqual(new_board.position.blackpieces.Pawn[0].position, 0);
+}
+
+test "applyMove pawn promotion" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    // Set up a promotion position
+    board.position.whitepieces.Pawn[0].position = c.E7;
+
+    const move = Move{
+        .from = c.E7,
+        .to = c.E8,
+        .promotion_piece = 'q',
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.E8);
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].representation, 'Q');
+}
+
+test "applyMove invalid move" {
+    const board = b.Board{ .position = b.Position.init() };
+    const move = Move{
+        .from = c.E2,
+        .to = c.E5, // Invalid - pawn can't move 3 squares
+        .promotion_piece = null,
+    };
+
+    try std.testing.expectError(error.InvalidMove, applyMove(board, move));
+}
+
+test "applyMove castling" {
+    var board = b.Board{ .position = b.Position.init() };
+    // Clear pieces between king and rook
+    board.position.whitepieces.Knight[1].position = 0;
+    board.position.whitepieces.Bishop[1].position = 0;
+
+    const move = Move{
+        .from = c.E1,
+        .to = c.G1,
+        .promotion_piece = null,
+    };
+
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.whitepieces.King.position, c.G1);
+    try std.testing.expectEqual(new_board.position.whitepieces.Rook[1].position, c.F1);
+}
+
+test "ValidQueenMoves captures for black queen" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+
+    // Place white pieces to capture
+    board.position.whitepieces.Pawn[0].position = c.E6; // Vertical capture
+    board.position.whitepieces.Pawn[1].position = c.G4; // Horizontal capture
+    board.position.whitepieces.Pawn[2].position = c.G6; // Diagonal capture
+
+    const moves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Verify captures are possible
+    var verticalCapture = false;
+    var horizontalCapture = false;
+    var diagonalCapture = false;
+
+    for (moves) |move| {
+        if (move.position.blackpieces.Queen.position == c.E6) {
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+            verticalCapture = true;
+        }
+        if (move.position.blackpieces.Queen.position == c.G4) {
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[1].position, 0);
+            horizontalCapture = true;
+        }
+        if (move.position.blackpieces.Queen.position == c.G6) {
+            try std.testing.expectEqual(move.position.whitepieces.Pawn[2].position, 0);
+            diagonalCapture = true;
+        }
+    }
+
+    try std.testing.expect(verticalCapture);
+    try std.testing.expect(horizontalCapture);
+    try std.testing.expect(diagonalCapture);
+}
+
+test "ValidQueenMoves blocked by own pieces for black queen" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+
+    // Place friendly pieces to block
+    board.position.blackpieces.Pawn[0].position = c.E5; // Block vertical
+    board.position.blackpieces.Pawn[1].position = c.F4; // Block horizontal
+    board.position.blackpieces.Pawn[2].position = c.F5; // Block diagonal
+
+    const moves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Verify blocked squares are not in valid moves
+    for (moves) |move| {
+        try std.testing.expect(move.position.blackpieces.Queen.position != c.E5);
+        try std.testing.expect(move.position.blackpieces.Queen.position != c.F4);
+        try std.testing.expect(move.position.blackpieces.Queen.position != c.F5);
+    }
+}
+
+test "ValidQueenMoves captures in all directions" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Queen.position = c.E4;
+
+    // Place white pieces in all 8 directions
+    board.position.whitepieces.Pawn[0].position = c.E5; // North
+    board.position.whitepieces.Pawn[1].position = c.F5; // Northeast
+    board.position.whitepieces.Pawn[2].position = c.F4; // East
+    board.position.whitepieces.Pawn[3].position = c.F3; // Southeast
+    board.position.whitepieces.Pawn[4].position = c.E3; // South
+    board.position.whitepieces.Pawn[5].position = c.D3; // Southwest
+    board.position.whitepieces.Pawn[6].position = c.D4; // West
+    board.position.whitepieces.Pawn[7].position = c.D5; // Northwest
+
+    const moves = ValidQueenMoves(board.position.blackpieces.Queen, board);
+
+    // Should have exactly 8 capture moves
+    var captureCount: usize = 0;
+    for (moves) |move| {
+        for (board.position.whitepieces.Pawn) |pawn| {
+            if (move.position.blackpieces.Queen.position == pawn.position) {
+                captureCount += 1;
+            }
+        }
+    }
+
+    try std.testing.expectEqual(captureCount, 8);
+}
+
+test "debug knight move sequence" {
+    var board = b.Board{ .position = b.Position.init() };
+
+    // Move sequence with verification
+    const moves = [_]Move{
+        Move{ .from = c.B1, .to = c.C3, .promotion_piece = null }, // white knight
+        Move{ .from = c.C7, .to = c.C6, .promotion_piece = null }, // black pawn
+        Move{ .from = c.C3, .to = c.D5, .promotion_piece = null }, // white knight
+        Move{ .from = c.C6, .to = c.D5, .promotion_piece = null }, // black pawn captures
+        Move{ .from = c.G1, .to = c.H3, .promotion_piece = null }, // white knight
+        Move{ .from = c.F7, .to = c.F6, .promotion_piece = null }, // black pawn
+        Move{ .from = c.H3, .to = c.G5, .promotion_piece = null }, // white knight
+        Move{ .from = c.F6, .to = c.G5, .promotion_piece = null }, // black pawn captures
+        Move{ .from = c.A2, .to = c.A3, .promotion_piece = null }, // white pawn
+        Move{ .from = c.G8, .to = c.F6, .promotion_piece = null }, // black knight
+    };
+
+    std.debug.print("\nInitial position:\n", .{});
+    _ = board.print();
+
+    for (moves, 0..) |move, i| {
+        board = try applyMove(board, move);
+        std.debug.print("\nAfter move {d}:\n", .{i + 1});
+        _ = board.print();
+        std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
+    }
+}
+
+test "ValidKingMoves for black king with castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E8;
+    board.position.blackpieces.Rook[1].position = c.H8;
+    board.position.canCastleBlackKingside = true;
+
+    const moves = ValidKingMoves(board.position.blackpieces.King, board);
+
+    // Verify castling is included in the moves
+    var castlingFound = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.King.position == c.G8 and
+            move.position.blackpieces.Rook[1].position == c.F8)
+        {
+            castlingFound = true;
+            try std.testing.expectEqual(move.position.canCastleBlackKingside, false);
+        }
+    }
+    try std.testing.expect(castlingFound);
+}
+
+test "allvalidmoves when in check only returns moves that get out of check" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Set up a check position: white king on e1, black queen on e8 (checking the king)
+    board.position.whitepieces.King.position = c.E1;
+    board.position.blackpieces.Queen.position = c.E8;
+
+    // Add a white piece that can block the check
+    board.position.whitepieces.Rook[0].position = c.D1;
+
+    // Set white to move
+    board.position.sidetomove = 0;
+
+    // Get all valid moves
+    const moves = allvalidmoves(board);
+
+    // Verify that we have at least one valid move
+    try std.testing.expect(moves.len > 0);
+
+    // Verify that all returned moves get out of check
+    const s = @import("state.zig");
+    for (moves) |move| {
+        try std.testing.expect(!s.isCheck(move, true));
+    }
+
+    // Verify that at least one move is the king moving or the rook blocking
+    var foundValidMove = false;
+
+    for (moves) |move| {
+        if (move.position.whitepieces.King.position != c.E1 or
+            move.position.whitepieces.Rook[0].position == c.E1)
+        {
+            foundValidMove = true;
+            break;
+        }
+    }
+
+    try std.testing.expect(foundValidMove);
+}
+
+test "allvalidmoves allows capturing the checking piece" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Set up a check position: white king on e4, black knight on f6 (checking the king)
+    board.position.whitepieces.King.position = c.E4;
+    board.position.blackpieces.Knight[0].position = c.F6;
+
+    // Add a white piece that can capture the knight
+    board.position.whitepieces.Bishop[0].position = c.G5;
+
+    // Set white to move
+    board.position.sidetomove = 0;
+
+    // Get all valid moves
+    const moves = allvalidmoves(board);
+
+    // Verify that all returned moves get out of check
+    const s = @import("state.zig");
+    for (moves) |move| {
+        try std.testing.expect(!s.isCheck(move, true));
+    }
+
+    // Verify that one of the moves is the bishop capturing the knight
+    var foundCapture = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Bishop[0].position == c.F6 and
+            move.position.blackpieces.Knight[0].position == 0)
+        {
+            foundCapture = true;
+            break;
+        }
+    }
+
+    try std.testing.expect(foundCapture);
+}
