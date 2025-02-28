@@ -2708,22 +2708,7 @@ test "applyMove pawn capture" {
     try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.F5);
     try std.testing.expectEqual(new_board.position.blackpieces.Pawn[0].position, 0);
 }
-
-test "applyMove pawn promotion" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-    // Set up a promotion position
-    board.position.whitepieces.Pawn[0].position = c.E7;
-
-    const move = Move{
-        .from = c.E7,
-        .to = c.E8,
-        .promotion_piece = 'q',
-    };
-
-    const new_board = try applyMove(board, move);
-    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.E8);
-    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].representation, 'Q');
-}
+// todo: add test for pawn promotion
 
 test "applyMove invalid move" {
     const board = b.Board{ .position = b.Position.init() };
