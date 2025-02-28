@@ -367,7 +367,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
 
             for (promotionPieces) |promotion| {
                 var promotionBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
+                if (piece.color == 0) {
                     // Remove the pawn
                     promotionBoard.position.whitepieces.Pawn[index].position = 0;
                     // Create new piece at promotion square
@@ -395,7 +395,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                         },
                         else => unreachable,
                     }
-            } else {
+                } else {
                     // Remove the pawn
                     promotionBoard.position.blackpieces.Pawn[index].position = 0;
                     // Create new piece at promotion square
@@ -425,7 +425,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                     }
                 }
                 moves[possiblemoves] = promotionBoard;
-            possiblemoves += 1;
+                possiblemoves += 1;
             }
         } else if ((piece.color == 0 and currentRow < 7) or (piece.color == 1 and currentRow > 2)) {
             // Regular move
@@ -438,26 +438,26 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             moves[possiblemoves] = singleMoveBoard;
             possiblemoves += 1;
 
-        // Two square forward move from starting position
-        if (currentRow == startingRow) {
-            var twoSquareForward: u64 = 0;
-            if (forwardShift > 0) {
-                twoSquareForward = piece.position << @as(u6, @intCast(forwardShift * 2));
-            } else {
-                twoSquareForward = piece.position >> @as(u6, @intCast(-forwardShift * 2));
-            }
+            // Two square forward move from starting position
+            if (currentRow == startingRow) {
+                var twoSquareForward: u64 = 0;
+                if (forwardShift > 0) {
+                    twoSquareForward = piece.position << @as(u6, @intCast(forwardShift * 2));
+                } else {
+                    twoSquareForward = piece.position >> @as(u6, @intCast(-forwardShift * 2));
+                }
 
                 if (bitmap & twoSquareForward == 0 and bitmap & oneSquareForward == 0) {
                     var doubleMoveBoard = b.Board{ .position = board.position };
-                if (piece.color == 0) {
+                    if (piece.color == 0) {
                         doubleMoveBoard.position.whitepieces.Pawn[index].position = twoSquareForward;
                         doubleMoveBoard.position.enPassantSquare = oneSquareForward;
-                } else {
+                    } else {
                         doubleMoveBoard.position.blackpieces.Pawn[index].position = twoSquareForward;
                         doubleMoveBoard.position.enPassantSquare = oneSquareForward;
-                }
+                    }
                     moves[possiblemoves] = doubleMoveBoard;
-                possiblemoves += 1;
+                    possiblemoves += 1;
                 }
             }
         }
@@ -507,11 +507,11 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
 
                     for (promotionPieces) |promotion| {
                         var capturePromotionBoard = if (piece.color == 0)
-                    captureblackpiece(leftCapture, b.Board{ .position = board.position })
-                else
-                    capturewhitepiece(leftCapture, b.Board{ .position = board.position });
+                            captureblackpiece(leftCapture, b.Board{ .position = board.position })
+                        else
+                            capturewhitepiece(leftCapture, b.Board{ .position = board.position });
 
-                    if (piece.color == 0) {
+                        if (piece.color == 0) {
                             // Remove the pawn
                             capturePromotionBoard.position.whitepieces.Pawn[index].position = 0;
                             // Create new piece at capture square
@@ -539,7 +539,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                                 },
                                 else => unreachable,
                             }
-                    } else {
+                        } else {
                             // Remove the pawn
                             capturePromotionBoard.position.blackpieces.Pawn[index].position = 0;
                             // Create new piece at capture square
@@ -583,7 +583,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                         captureBoard.position.blackpieces.Pawn[index].position = leftCapture;
                     }
                     moves[possiblemoves] = captureBoard;
-                possiblemoves += 1;
+                    possiblemoves += 1;
                 }
             }
         } else if (leftCapture == board.position.enPassantSquare) {
@@ -637,11 +637,11 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
 
                     for (promotionPieces) |promotion| {
                         var capturePromotionBoard = if (piece.color == 0)
-                    captureblackpiece(rightCapture, b.Board{ .position = board.position })
-                else
-                    capturewhitepiece(rightCapture, b.Board{ .position = board.position });
+                            captureblackpiece(rightCapture, b.Board{ .position = board.position })
+                        else
+                            capturewhitepiece(rightCapture, b.Board{ .position = board.position });
 
-                    if (piece.color == 0) {
+                        if (piece.color == 0) {
                             // Remove the pawn
                             capturePromotionBoard.position.whitepieces.Pawn[index].position = 0;
                             // Create new piece at capture square
@@ -669,7 +669,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                                 },
                                 else => unreachable,
                             }
-                    } else {
+                        } else {
                             // Remove the pawn
                             capturePromotionBoard.position.blackpieces.Pawn[index].position = 0;
                             // Create new piece at capture square
@@ -713,7 +713,7 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                         captureBoard.position.blackpieces.Pawn[index].position = rightCapture;
                     }
                     moves[possiblemoves] = captureBoard;
-                possiblemoves += 1;
+                    possiblemoves += 1;
                 }
             }
         } else if (rightCapture == board.position.enPassantSquare) {
@@ -763,7 +763,7 @@ test "ValidPawnMoves for black pawn from e2 in empty board" {
     board.position.blackpieces.Pawn[3].position = c.E2;
     const moves = ValidPawnMoves(board.position.blackpieces.Pawn[3], board);
     try std.testing.expectEqual(moves.len, 4); // Should have 4 promotion options
-    
+
     // Verify all promotion pieces are present
     var foundQueen = false;
     var foundRook = false;
@@ -850,7 +850,7 @@ test "ValidPawnMoves for black pawn promotion on capture" {
         if (move.position.blackpieces.Queen.position == c.D1 or
             move.position.blackpieces.Rook[0].position == c.D1 or
             move.position.blackpieces.Bishop[0].position == c.D1 or
-            move.position.blackpieces.Knight[0].position == c.D1) 
+            move.position.blackpieces.Knight[0].position == c.D1)
         {
             foundPromotionCapture = true;
             // Verify captured pawn is removed
@@ -2271,7 +2271,7 @@ test "ValidPawnMoves promotion with capture" {
     board.position.whitepieces.Pawn[0].position = c.E7;
     board.position.blackpieces.Pawn[0].position = c.F8;
     const moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
-    
+
     // Should have 4 regular promotions and 4 capture promotions
     try std.testing.expectEqual(moves.len, 8);
 
@@ -2280,7 +2280,7 @@ test "ValidPawnMoves promotion with capture" {
 
     for (moves) |move| {
         // Verify original pawn is removed
-            try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+        try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
 
         // Count regular promotions (to E8)
         if (move.position.whitepieces.Queen.position == c.E8 or
@@ -2309,7 +2309,7 @@ test "ValidPawnMoves promotion with capture" {
 
 test "ValidPawnMoves invalid pawn positions" {
     var board = b.Board{ .position = b.Position.emptyboard() };
-    
+
     // White pawn on first rank (invalid)
     board.position.whitepieces.Pawn[0].position = c.E1;
     var moves = ValidPawnMoves(board.position.whitepieces.Pawn[0], board);
