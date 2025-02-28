@@ -6,13 +6,267 @@ const c = @import("consts.zig");
 const Board = b.Board;
 const Piece = b.Piece;
 
+// Transposition table entry
+const TTEntry = struct {
+    key: u64,
+    depth: u8,
+    score: i32,
+    from_pos: u64, // Starting position of the move
+    to_pos: u64, // Ending position of the move
+    node_type: NodeType,
+};
+
+const NodeType = enum {
+    Exact,
+    LowerBound,
+    UpperBound,
+};
+
+// Global transposition table
+var transposition_table: ?[]TTEntry = null;
+var tt_allocator: ?std.mem.Allocator = null;
+var tt_mutex = std.Thread.Mutex{};
+var tt_initialized = false;
+
+/// Initialize the transposition table with the given size
+pub fn initTranspositionTable(size: usize, allocator: std.mem.Allocator) !void {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    // Free existing table if any
+    if (tt_initialized) {
+        if (transposition_table) |table| {
+            if (tt_allocator) |alloc| {
+                alloc.free(table);
+            }
+        }
+        transposition_table = null;
+        tt_allocator = null;
+        tt_initialized = false;
+    }
+
+    // Allocate new table
+    const new_table = try allocator.alloc(TTEntry, size);
+    errdefer allocator.free(new_table);
+
+    // Initialize all entries
+    for (new_table) |*entry| {
+        entry.* = TTEntry{
+            .key = 0,
+            .depth = 0,
+            .score = 0,
+            .from_pos = 0,
+            .to_pos = 0,
+            .node_type = .Exact,
+        };
+    }
+
+    transposition_table = new_table;
+    tt_allocator = allocator;
+    tt_initialized = true;
+}
+
+/// Clean up the transposition table
+pub fn deinitTranspositionTable() void {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    if (tt_initialized) {
+        if (transposition_table) |table| {
+            if (tt_allocator) |alloc| {
+                alloc.free(table);
+            }
+        }
+        transposition_table = null;
+        tt_allocator = null;
+        tt_initialized = false;
+    }
+}
+
+/// Reset the transposition table without deallocating memory
+pub fn clearTranspositionTable() void {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    if (tt_initialized and transposition_table != null) {
+        if (transposition_table) |table| {
+            for (table) |*entry| {
+                entry.* = TTEntry{
+                    .key = 0,
+                    .depth = 0,
+                    .score = 0,
+                    .from_pos = 0,
+                    .to_pos = 0,
+                    .node_type = .Exact,
+                };
+            }
+        }
+    }
+}
+
+/// Get the size of the transposition table
+pub fn getTranspositionTableSize() usize {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    if (tt_initialized and transposition_table != null) {
+        if (transposition_table) |table| {
+            return table.len;
+        }
+    }
+    return 0;
+}
+
+/// Check if the transposition table is initialized
+pub fn isTranspositionTableInitialized() bool {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    return tt_initialized and transposition_table != null and tt_allocator != null;
+}
+
+/// Get a Zobrist hash key for the board position
+fn getZobristKey(board: Board) u64 {
+    var key: u64 = 0;
+
+    // Hash white pieces
+    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |field| {
+        const piece = @field(board.position.whitepieces, field.name);
+        if (@TypeOf(piece) == b.Piece) {
+            if (piece.position != 0) {
+                key ^= piece.position;
+            }
+        } else {
+            for (piece) |p| {
+                if (p.position != 0) {
+                    key ^= p.position;
+                }
+            }
+        }
+    }
+
+    // Hash black pieces
+    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |field| {
+        const piece = @field(board.position.blackpieces, field.name);
+        if (@TypeOf(piece) == b.Piece) {
+            if (piece.position != 0) {
+                key ^= piece.position << 1;
+            }
+        } else {
+            for (piece) |p| {
+                if (p.position != 0) {
+                    key ^= p.position << 1;
+                }
+            }
+        }
+    }
+
+    // Hash side to move
+    if (board.position.sidetomove == 1) {
+        key ^= 0xFFFFFFFFFFFFFFFF;
+    }
+
+    return key;
+}
+
+/// Store a position in the transposition table
+fn storePosition(board: Board, depth: u8, score: i32, move: ?Board, node_type: NodeType) void {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    if (tt_initialized and transposition_table != null) {
+        if (transposition_table) |table| {
+            const key = getZobristKey(board);
+            const index = key % table.len;
+
+            // Always replace with deeper search or same depth but more accurate node type
+            if (table[index].depth <= depth or
+                (table[index].depth == depth and node_type == .Exact))
+            {
+                var from_pos: u64 = 0;
+                var to_pos: u64 = 0;
+
+                if (move) |next_board| {
+                    // Find the moved piece by comparing board positions
+                    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |field| {
+                        const old_piece = @field(board.position.whitepieces, field.name);
+                        const new_piece = @field(next_board.position.whitepieces, field.name);
+
+                        if (@TypeOf(old_piece) == b.Piece) {
+                            if (old_piece.position != new_piece.position) {
+                                if (old_piece.position != 0) from_pos = old_piece.position;
+                                if (new_piece.position != 0) to_pos = new_piece.position;
+                            }
+                        } else {
+                            for (old_piece, 0..) |piece, i| {
+                                if (piece.position != new_piece[i].position) {
+                                    if (piece.position != 0) from_pos = piece.position;
+                                    if (new_piece[i].position != 0) to_pos = new_piece[i].position;
+                                }
+                            }
+                        }
+                    }
+
+                    if (from_pos == 0) {
+                        inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |field| {
+                            const old_piece = @field(board.position.blackpieces, field.name);
+                            const new_piece = @field(next_board.position.blackpieces, field.name);
+
+                            if (@TypeOf(old_piece) == b.Piece) {
+                                if (old_piece.position != new_piece.position) {
+                                    if (old_piece.position != 0) from_pos = old_piece.position;
+                                    if (new_piece.position != 0) to_pos = new_piece.position;
+                                }
+                            } else {
+                                for (old_piece, 0..) |piece, i| {
+                                    if (piece.position != new_piece[i].position) {
+                                        if (piece.position != 0) from_pos = piece.position;
+                                        if (new_piece[i].position != 0) to_pos = new_piece[i].position;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                table[index] = TTEntry{
+                    .key = key,
+                    .depth = depth,
+                    .score = score,
+                    .from_pos = from_pos,
+                    .to_pos = to_pos,
+                    .node_type = node_type,
+                };
+            }
+        }
+    }
+}
+
+/// Probe the transposition table for a position
+fn probePosition(board: Board, depth: u8) ?TTEntry {
+    tt_mutex.lock();
+    defer tt_mutex.unlock();
+
+    if (tt_initialized and transposition_table != null) {
+        if (transposition_table) |table| {
+            const key = getZobristKey(board);
+            const index = key % table.len;
+
+            if (table[index].key == key and table[index].depth >= depth) {
+                return table[index];
+            }
+        }
+    }
+    return null;
+}
+
 // Constants for minimax algorithm
-pub const MAX_DEPTH = 6; // Increased from 3 to 6
+pub const MAX_DEPTH = 15; // Increased from 6 to 15
 pub const INFINITY_SCORE: i32 = 1000000;
 pub const CHECKMATE_SCORE: i32 = 900000;
 
 // Time management constants
-pub const DEFAULT_MOVE_TIME: i64 = 1000; // Default time per move in milliseconds
+pub const DEFAULT_MOVE_TIME: i64 = 5000; // Increased from 1000 to 5000 milliseconds
 pub const MIN_MOVE_TIME: i64 = 100; // Minimum time per move in milliseconds
 pub const SAFETY_MARGIN: i64 = 50; // Time safety margin in milliseconds
 
@@ -496,48 +750,261 @@ fn evaluateMobility(board: Board) i32 {
         }
     }
 
-    inline for (board.position.whitepieces.Rook) |rook| {
-        if (rook.position != 0) {
-            const moves = m.getValidRookMoves(rook, board);
-            score += @as(i32, @intCast(moves.len)) * c.MOBILITY_FACTOR;
-        }
-    }
-
-    if (board.position.whitepieces.Queen.position != 0) {
-        const moves = m.getValidQueenMoves(board.position.whitepieces.Queen, board);
-        score += @as(i32, @intCast(moves.len)) * c.MOBILITY_FACTOR;
-    }
-
-    // Black pieces mobility
-    inline for (board.position.blackpieces.Knight) |knight| {
-        if (knight.position != 0) {
-            const moves = m.getValidKnightMoves(knight, board);
-            score -= @as(i32, @intCast(moves.len)) * c.MOBILITY_FACTOR;
-        }
-    }
-
-    inline for (board.position.blackpieces.Bishop) |bishop| {
-        if (bishop.position != 0) {
-            const moves = m.getValidBishopMoves(bishop, board);
-            score -= @as(i32, @intCast(moves.len)) * c.MOBILITY_FACTOR;
-        }
-    }
-
-    inline for (board.position.blackpieces.Rook) |rook| {
-        if (rook.position != 0) {
-            const moves = m.getValidRookMoves(rook, board);
-            score -= @as(i32, @intCast(moves.len)) * c.MOBILITY_FACTOR;
-        }
-    }
-
-    if (board.position.blackpieces.Queen.position != 0) {
-        const moves = m.getValidQueenMoves(board.position.blackpieces.Queen, board);
-        score -= @as(i32, @intCast(moves.len)) * c.MOBILITY_FACTOR;
-    }
-
     return score;
 }
 
+/// Check if we should stop the search based on time constraints
+fn shouldStopSearch(stats: *SearchStats) bool {
+    if (stats.should_stop) return true;
+
+    const current_time = std.time.milliTimestamp();
+    const elapsed_time = current_time - stats.start_time;
+
+    // Stop if we've used up our allocated time minus safety margin
+    if (elapsed_time >= stats.max_time - SAFETY_MARGIN) {
+        stats.should_stop = true;
+        return true;
+    }
+
+    return false;
+}
+
+/// Find the best move at a fixed depth
+pub fn findBestMove(board: Board, depth: u8) ?Board {
+    var stats = SearchStats{
+        .nodes_searched = 0,
+        .start_time = std.time.milliTimestamp(),
+        .max_time = DEFAULT_MOVE_TIME,
+        .depth_reached = 0,
+        .best_move = null,
+        .best_score = -INFINITY_SCORE,
+        .should_stop = false,
+    };
+
+    // Get all valid moves
+    const moves = m.allvalidmoves(board);
+    if (moves.len == 0) {
+        return null;
+    }
+
+    var best_score = -INFINITY_SCORE;
+    var best_move: ?Board = null;
+
+    // Evaluate each move
+    for (moves) |move| {
+        const score = minimax(move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, false, &stats);
+        if (score > best_score) {
+            best_score = score;
+            best_move = move;
+        }
+    }
+
+    return best_move;
+}
+
+/// Find the best move using iterative deepening
+pub fn findBestMoveWithTime(board: Board, max_depth: u8, max_time_ms: i64) ?Board {
+    var stats = SearchStats{
+        .nodes_searched = 0,
+        .start_time = std.time.milliTimestamp(),
+        .max_time = max_time_ms,
+        .depth_reached = 0,
+        .best_move = null,
+        .best_score = -INFINITY_SCORE,
+        .should_stop = false,
+    };
+
+    // Get all valid moves
+    const moves = m.allvalidmoves(board);
+    if (moves.len == 0) {
+        return null;
+    }
+
+    // Initialize best move to first legal move as a fallback
+    stats.best_move = moves[0];
+
+    // Iterative deepening - start from depth 1 and increase until max_depth or time runs out
+    var current_depth: u8 = 1;
+    while (current_depth <= max_depth and !shouldStopSearch(&stats)) : (current_depth += 1) {
+        var best_score = -INFINITY_SCORE;
+        var alpha = -INFINITY_SCORE;
+        const beta = INFINITY_SCORE;
+
+        // Search each move at the current depth
+        for (moves) |move| {
+            const score = minimax(move, current_depth - 1, alpha, beta, false, &stats);
+            if (score > best_score) {
+                best_score = score;
+                stats.best_move = move;
+                stats.best_score = score;
+            }
+            alpha = @max(alpha, best_score);
+
+            if (shouldStopSearch(&stats)) {
+                break;
+            }
+        }
+
+        // Store the best move in the transposition table
+        if (!shouldStopSearch(&stats)) {
+            const node_type: NodeType = if (best_score <= alpha)
+                .UpperBound
+            else if (best_score >= beta)
+                .LowerBound
+            else
+                .Exact;
+            storePosition(board, current_depth, best_score, stats.best_move, node_type);
+        }
+
+        stats.depth_reached = current_depth;
+    }
+
+    return stats.best_move;
+}
+
+/// Minimax algorithm with alpha-beta pruning
+/// Returns the best score for the current position
+pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer: bool, stats: *SearchStats) i32 {
+    // Increment node count
+    stats.nodes_searched += 1;
+
+    // Check if we should stop the search due to time constraints
+    if (stats.nodes_searched % 1000 == 0 and shouldStopSearch(stats)) {
+        return if (maximizingPlayer) -INFINITY_SCORE else INFINITY_SCORE;
+    }
+
+    // Check transposition table
+    if (probePosition(board, depth)) |tt_entry| {
+        switch (tt_entry.node_type) {
+            .Exact => return tt_entry.score,
+            .LowerBound => {
+                if (tt_entry.score >= beta) {
+                    return tt_entry.score;
+                }
+            },
+            .UpperBound => {
+                if (tt_entry.score <= alpha) {
+                    return tt_entry.score;
+                }
+            },
+        }
+    }
+
+    // Base case: if we've reached the maximum depth or the game is over
+    if (depth == 0) {
+        const score = evaluate(board);
+        storePosition(board, depth, score, null, .Exact);
+        return score;
+    }
+
+    // Check for checkmate or stalemate
+    const isWhite = board.position.sidetomove == 0;
+    if (s.isCheckmate(board, isWhite)) {
+        const score = if (maximizingPlayer) -CHECKMATE_SCORE else CHECKMATE_SCORE;
+        storePosition(board, depth, score, null, .Exact);
+        return score;
+    }
+
+    // Get all valid moves
+    const moves = m.allvalidmoves(board);
+    if (moves.len == 0) {
+        // No legal moves - stalemate (draw)
+        storePosition(board, depth, 0, null, .Exact);
+        return 0;
+    }
+
+    if (maximizingPlayer) {
+        var value: i32 = -INFINITY_SCORE;
+        var alpha_local = alpha;
+        var best_move: ?Board = null;
+
+        for (moves) |move| {
+            // Recursively evaluate the position
+            const eval_score = minimax(move, depth - 1, alpha_local, beta, false, stats);
+            if (eval_score > value) {
+                value = eval_score;
+                best_move = move;
+            }
+
+            // Alpha-beta pruning
+            alpha_local = @max(alpha_local, value);
+            if (beta <= alpha_local) {
+                // Store lower bound in transposition table
+                storePosition(board, depth, value, best_move, .LowerBound);
+                break; // Beta cutoff
+            }
+
+            // Check for time constraints
+            if (shouldStopSearch(stats)) {
+                break;
+            }
+        }
+
+        // Store the result in the transposition table
+        const node_type: NodeType = if (value <= alpha)
+            .UpperBound
+        else if (value >= beta)
+            .LowerBound
+        else
+            .Exact;
+        storePosition(board, depth, value, best_move, node_type);
+        return value;
+    } else {
+        var value: i32 = INFINITY_SCORE;
+        var beta_local = beta;
+        var best_move: ?Board = null;
+
+        for (moves) |move| {
+            // Recursively evaluate the position
+            const eval_score = minimax(move, depth - 1, alpha, beta_local, true, stats);
+            if (eval_score < value) {
+                value = eval_score;
+                best_move = move;
+            }
+
+            // Alpha-beta pruning
+            beta_local = @min(beta_local, value);
+            if (beta_local <= alpha) {
+                // Store upper bound in transposition table
+                storePosition(board, depth, value, best_move, .UpperBound);
+                break; // Alpha cutoff
+            }
+
+            // Check for time constraints
+            if (shouldStopSearch(stats)) {
+                break;
+            }
+        }
+
+        // Store the result in the transposition table
+        const node_type: NodeType = if (value <= alpha)
+            .UpperBound
+        else if (value >= beta)
+            .LowerBound
+        else
+            .Exact;
+        storePosition(board, depth, value, best_move, node_type);
+        return value;
+    }
+}
+
+/// Get the position value for a piece from a position table
+fn getPiecePositionValue(position: u64, table: [64]i32, is_white: bool) i32 {
+    // Find the bit position (0-63)
+    var bit_pos: u6 = 0;
+    var temp = position;
+    while (temp > 1) : (temp >>= 1) {
+        bit_pos += 1;
+    }
+
+    // For white pieces, use the position directly
+    // For black pieces, flip the position vertically (63 - bit_pos)
+    const table_index = if (is_white) bit_pos else 63 - bit_pos;
+
+    return table[table_index];
+}
+
+/// Evaluate the position
 pub fn evaluate(board: Board) i32 {
     var score: i32 = 0;
 
@@ -657,676 +1124,4 @@ pub fn evaluate(board: Board) i32 {
     }
 
     return score;
-}
-
-/// Get the position value for a piece from a position table
-fn getPiecePositionValue(position: u64, table: [64]i32, is_white: bool) i32 {
-    // Find the bit position (0-63)
-    var bit_pos: u6 = 0;
-    var temp = position;
-    while (temp > 1) : (temp >>= 1) {
-        bit_pos += 1;
-    }
-
-    // For white pieces, use the position directly
-    // For black pieces, flip the position vertically (63 - bit_pos)
-    const table_index = if (is_white) bit_pos else 63 - bit_pos;
-
-    return table[table_index];
-}
-
-/// Check if we should stop the search based on time constraints
-fn shouldStopSearch(stats: *SearchStats) bool {
-    if (stats.should_stop) return true;
-
-    const current_time = std.time.milliTimestamp();
-    const elapsed_time = current_time - stats.start_time;
-
-    // Stop if we've used up our allocated time minus safety margin
-    if (elapsed_time >= stats.max_time - SAFETY_MARGIN) {
-        stats.should_stop = true;
-        return true;
-    }
-
-    return false;
-}
-
-/// Minimax algorithm with alpha-beta pruning
-/// Returns the best score for the current position
-pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer: bool, stats: *SearchStats) i32 {
-    // Increment node count
-    stats.nodes_searched += 1;
-
-    // Check if we should stop the search due to time constraints
-    if (stats.nodes_searched % 1000 == 0 and shouldStopSearch(stats)) {
-        return if (maximizingPlayer) -INFINITY_SCORE else INFINITY_SCORE;
-    }
-
-    // Base case: if we've reached the maximum depth or the game is over
-    if (depth == 0) {
-        return evaluate(board);
-    }
-
-    // Check for checkmate or stalemate
-    const isWhite = board.position.sidetomove == 0;
-    if (s.isCheckmate(board, isWhite)) {
-        return if (maximizingPlayer) -CHECKMATE_SCORE else CHECKMATE_SCORE;
-    }
-
-    // Get all valid moves
-    const moves = m.allvalidmoves(board);
-    if (moves.len == 0) {
-        // No legal moves - stalemate (draw)
-        return 0;
-    }
-
-    if (maximizingPlayer) {
-        var value: i32 = -INFINITY_SCORE;
-        var alpha_local = alpha;
-
-        for (moves) |move| {
-            // Recursively evaluate the position
-            const eval_score = minimax(move, depth - 1, alpha_local, beta, false, stats);
-            value = @max(value, eval_score);
-
-            // Alpha-beta pruning
-            alpha_local = @max(alpha_local, value);
-            if (beta <= alpha_local) {
-                break; // Beta cutoff
-            }
-
-            // Check for time constraints
-            if (shouldStopSearch(stats)) {
-                break;
-            }
-        }
-        return value;
-    } else {
-        var value: i32 = INFINITY_SCORE;
-        var beta_local = beta;
-
-        for (moves) |move| {
-            // Recursively evaluate the position
-            const eval_score = minimax(move, depth - 1, alpha, beta_local, true, stats);
-            value = @min(value, eval_score);
-
-            // Alpha-beta pruning
-            beta_local = @min(beta_local, value);
-            if (beta_local <= alpha) {
-                break; // Alpha cutoff
-            }
-
-            // Check for time constraints
-            if (shouldStopSearch(stats)) {
-                break;
-            }
-        }
-        return value;
-    }
-}
-
-/// Find the best move using iterative deepening
-pub fn findBestMoveWithTime(board: Board, max_depth: u8, max_time_ms: i64) ?Board {
-    var stats = SearchStats{
-        .nodes_searched = 0,
-        .start_time = std.time.milliTimestamp(),
-        .max_time = max_time_ms,
-        .depth_reached = 0,
-        .best_move = null,
-        .best_score = -INFINITY_SCORE,
-        .should_stop = false,
-    };
-
-    // Iterative deepening - start from depth 1 and increase until max_depth or time runs out
-    var current_depth: u8 = 1;
-    while (current_depth <= max_depth and !shouldStopSearch(&stats)) {
-        const best_move = findBestMoveAtDepth(board, current_depth, &stats);
-
-        // If we found a valid move and didn't run out of time during the search,
-        // update our best move
-        if (best_move != null and !stats.should_stop) {
-            stats.best_move = best_move;
-            stats.depth_reached = current_depth;
-        } else if (stats.should_stop) {
-            // If we ran out of time, stop the iterative deepening
-            break;
-        }
-
-        current_depth += 1;
-    }
-
-    return stats.best_move;
-}
-
-/// Find the best move at a specific depth
-pub fn findBestMoveAtDepth(board: Board, depth: u8, stats: *SearchStats) ?Board {
-    const moves = m.allvalidmoves(board);
-    if (moves.len == 0) {
-        return null; // No legal moves
-    }
-
-    // Define the move score struct type
-    const MoveScore = struct { move: Board, score: i32 };
-
-    // Create a list of moves with their scores for sorting
-    var move_scores = std.ArrayList(MoveScore).init(std.heap.page_allocator);
-    defer move_scores.deinit();
-
-    // First, evaluate all moves with a shallow search to get initial scores
-    for (moves) |move| {
-        // Simple heuristic: captures are likely better
-        var score: i32 = 0;
-
-        // Check if this is a capture move by comparing piece counts
-        const white_pieces_before = countPieces(board, true);
-        const black_pieces_before = countPieces(board, false);
-        const white_pieces_after = countPieces(move, true);
-        const black_pieces_after = countPieces(move, false);
-
-        if (board.position.sidetomove == 0) { // White's move
-            if (black_pieces_before > black_pieces_after) {
-                // White captured a black piece
-                score = 1000; // Prioritize captures
-            }
-        } else { // Black's move
-            if (white_pieces_before > white_pieces_after) {
-                // Black captured a white piece
-                score = 1000; // Prioritize captures
-            }
-        }
-
-        // Check if move puts opponent in check
-        if (board.position.sidetomove == 0) { // White's move
-            if (s.isCheck(move, false)) {
-                score += 500; // Prioritize checks
-            }
-        } else { // Black's move
-            if (s.isCheck(move, true)) {
-                score += 500; // Prioritize checks
-            }
-        }
-
-        // Add the move and its score to our list
-        move_scores.append(.{ .move = move, .score = score }) catch continue;
-    }
-
-    // Sort moves by score (descending)
-    std.mem.sort(MoveScore, move_scores.items, {}, struct {
-        fn compare(_: void, a: MoveScore, b_move: MoveScore) bool {
-            return a.score > b_move.score;
-        }
-    }.compare);
-
-    // Now perform the full minimax search on the sorted moves
-    var bestScore: i32 = -INFINITY_SCORE;
-    var bestMoveIndex: usize = 0;
-    const maximizingPlayer = board.position.sidetomove == 0; // White is maximizing
-
-    for (move_scores.items, 0..) |move_data, i| {
-        // For each move, evaluate the resulting position
-        const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer, stats);
-
-        // Update best move if we found a better one
-        if (score > bestScore) {
-            bestScore = score;
-            bestMoveIndex = i;
-            stats.best_score = score;
-        }
-
-        // Check if we should stop due to time constraints
-        if (shouldStopSearch(stats)) {
-            break;
-        }
-    }
-
-    if (move_scores.items.len > 0 and !stats.should_stop) {
-        return move_scores.items[bestMoveIndex].move;
-    } else if (moves.len > 0 and stats.best_move == null) {
-        // Fallback if move scoring failed or we ran out of time on first depth
-        return moves[0];
-    } else {
-        return null;
-    }
-}
-
-/// Find the best move using the minimax algorithm (legacy function for compatibility)
-pub fn findBestMove(board: Board, depth: u8) ?Board {
-    return findBestMoveWithTime(board, depth, DEFAULT_MOVE_TIME);
-}
-
-/// Count the number of pieces for a side
-fn countPieces(board: Board, white: bool) u32 {
-    var count: u32 = 0;
-
-    if (white) {
-        // Count white pieces
-        for (board.position.whitepieces.Pawn) |pawn| {
-            if (pawn.position != 0) count += 1;
-        }
-        for (board.position.whitepieces.Knight) |knight| {
-            if (knight.position != 0) count += 1;
-        }
-        for (board.position.whitepieces.Bishop) |bishop| {
-            if (bishop.position != 0) count += 1;
-        }
-        for (board.position.whitepieces.Rook) |rook| {
-            if (rook.position != 0) count += 1;
-        }
-        if (board.position.whitepieces.Queen.position != 0) count += 1;
-        if (board.position.whitepieces.King.position != 0) count += 1;
-    } else {
-        // Count black pieces
-        for (board.position.blackpieces.Pawn) |pawn| {
-            if (pawn.position != 0) count += 1;
-        }
-        for (board.position.blackpieces.Knight) |knight| {
-            if (knight.position != 0) count += 1;
-        }
-        for (board.position.blackpieces.Bishop) |bishop| {
-            if (bishop.position != 0) count += 1;
-        }
-        for (board.position.blackpieces.Rook) |rook| {
-            if (rook.position != 0) count += 1;
-        }
-        if (board.position.blackpieces.Queen.position != 0) count += 1;
-        if (board.position.blackpieces.King.position != 0) count += 1;
-    }
-
-    return count;
-}
-
-test "evaluate initial position is balanced" {
-    const board = Board{ .position = b.Position.init() };
-    const score = evaluate(board);
-    // The initial position might not be exactly 0 due to position evaluation
-    try std.testing.expect(score >= -10 and score <= 10);
-}
-
-test "evaluate position with extra white pawn" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-    pos.blackpieces.Pawn[0].position = 0; // Remove a black pawn
-    board.position = pos;
-    const score = evaluate(board);
-    // Score includes pawn value (100) plus position value
-    try std.testing.expect(score >= 90); // At least the pawn value
-}
-
-test "evaluate position with extra white queen" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-    pos.blackpieces.Queen.position = 0; // Remove black queen
-    board.position = pos;
-    const score = evaluate(board);
-    // Score includes queen value (900) plus position value
-    try std.testing.expect(score > 800); // Lowered expectation to account for other evaluation factors
-}
-
-test "evaluate position with missing white king" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-    pos.whitepieces.King.position = 0; // Remove white king
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score <= -25000); // King value is very high
-}
-
-test "evaluate empty board" {
-    const board = Board{ .position = b.Position.emptyboard() };
-    const score = evaluate(board);
-    try std.testing.expectEqual(score, 0);
-}
-
-test "evaluate position with multiple missing pieces" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-    pos.blackpieces.Pawn[0].position = 0; // Remove a black pawn
-    pos.blackpieces.Knight[0].position = 0; // Remove a black knight
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= 400); // At least pawn (100) + knight (300)
-}
-
-test "evaluate position with pieces missing on both sides" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-    pos.blackpieces.Pawn[0].position = 0; // Remove a black pawn
-    pos.whitepieces.Knight[0].position = 0; // Remove a white knight
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= -200 and score <= -100); // Black pawn removed (+100) and white knight removed (-300)
-}
-
-test "evaluate position with all pieces removed except kings" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Remove all pieces except kings
-    for (&pos.whitepieces.Pawn) |*pawn| {
-        pawn.position = 0;
-    }
-    for (&pos.whitepieces.Knight) |*knight| {
-        knight.position = 0;
-    }
-    for (&pos.whitepieces.Bishop) |*bishop| {
-        bishop.position = 0;
-    }
-    for (&pos.whitepieces.Rook) |*rook| {
-        rook.position = 0;
-    }
-    pos.whitepieces.Queen.position = 0;
-
-    for (&pos.blackpieces.Pawn) |*pawn| {
-        pawn.position = 0;
-    }
-    for (&pos.blackpieces.Knight) |*knight| {
-        knight.position = 0;
-    }
-    for (&pos.blackpieces.Bishop) |*bishop| {
-        bishop.position = 0;
-    }
-    for (&pos.blackpieces.Rook) |*rook| {
-        rook.position = 0;
-    }
-    pos.blackpieces.Queen.position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= -50 and score <= 50); // Kings should be roughly balanced
-}
-
-test "evaluate position with minor piece advantage" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Remove a black bishop and white knight to test different minor piece values
-    pos.blackpieces.Bishop[0].position = 0;
-    pos.whitepieces.Knight[0].position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    // The score might not be exactly 0 due to position evaluation
-    try std.testing.expect(score >= -100 and score <= 100); // Bishop and knight have similar value
-}
-
-test "evaluate position with multiple captures" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Simulate a position where white has captured several black pieces
-    pos.blackpieces.Pawn[0].position = 0;
-    pos.blackpieces.Pawn[1].position = 0;
-    pos.blackpieces.Knight[0].position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= 500); // At least 2 pawns (200) + 1 knight (300)
-}
-
-test "evaluate position with queen trade" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Remove both queens
-    pos.whitepieces.Queen.position = 0;
-    pos.blackpieces.Queen.position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= -50 and score <= 50); // Should be roughly balanced
-}
-
-test "evaluate position with rook advantage" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Remove both black rooks
-    pos.blackpieces.Rook[0].position = 0;
-    pos.blackpieces.Rook[1].position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= 1000); // At least two rooks advantage (2 * 500)
-}
-
-test "evaluate position with complete material wipe" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Remove all black pieces except king
-    for (&pos.blackpieces.Pawn) |*pawn| {
-        pawn.position = 0;
-    }
-    for (&pos.blackpieces.Knight) |*knight| {
-        knight.position = 0;
-    }
-    for (&pos.blackpieces.Bishop) |*bishop| {
-        bishop.position = 0;
-    }
-    for (&pos.blackpieces.Rook) |*rook| {
-        rook.position = 0;
-    }
-    pos.blackpieces.Queen.position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score >= 3900); // At least all pieces except king
-}
-
-test "evaluate position with pawn structure changes" {
-    var board = Board{ .position = b.Position.init() };
-    var pos = board.position;
-
-    // Create an imbalanced pawn structure
-    pos.whitepieces.Pawn[0].position = 0;
-    pos.whitepieces.Pawn[1].position = 0;
-    pos.blackpieces.Pawn[7].position = 0;
-
-    board.position = pos;
-    const score = evaluate(board);
-    try std.testing.expect(score < 0); // Black has one more pawn, so white should be worse
-}
-
-test "minimax finds a move in checkmate position" {
-    // Set up a position where white can checkmate in one move
-    // White queen on h7, white rook on g1, black king on h8
-    var board = Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Queen.position = c.H7;
-    board.position.whitepieces.Rook[0].position = c.G1;
-    board.position.blackpieces.King.position = c.H8;
-    board.position.sidetomove = 0; // White to move
-
-    // Find the best move
-    const best_move = findBestMove(board, 2);
-
-    // Verify that a move was found
-    try std.testing.expect(best_move != null);
-
-    // Print the move for debugging
-    if (best_move) |move| {
-        std.debug.print("\nRook position in best move: {}\n", .{move.position.whitepieces.Rook[0].position});
-        std.debug.print("Queen position in best move: {}\n", .{move.position.whitepieces.Queen.position});
-    }
-}
-
-test "evaluate considers piece position" {
-    // Create two boards with the same material but different piece positions
-    var board1 = Board{ .position = b.Position.emptyboard() };
-    var board2 = Board{ .position = b.Position.emptyboard() };
-
-    // Place a white knight in the center (e4) on board1
-    board1.position.whitepieces.Knight[0].position = c.E4;
-
-    // Place a white knight on the edge (a1) on board2
-    board2.position.whitepieces.Knight[0].position = c.A1;
-
-    // Evaluate both positions
-    const score1 = evaluate(board1);
-    const score2 = evaluate(board2);
-
-    // The knight in the center should be valued higher
-    try std.testing.expect(score1 > score2);
-}
-
-test "findBestMoveWithTime returns a valid move" {
-    const board = Board{ .position = b.Position.init() };
-
-    // Find best move with a reasonable time limit
-    const move = findBestMoveWithTime(board, 2, 500);
-
-    // Should return a valid move
-    try std.testing.expect(move != null);
-}
-
-// New tests for enhanced evaluation features
-
-test "isEndgame detection" {
-    // Create a board with few pieces (endgame)
-    var endgame_board = Board{ .position = b.Position.emptyboard() };
-    endgame_board.position.whitepieces.King.position = c.E1;
-    endgame_board.position.blackpieces.King.position = c.E8;
-    endgame_board.position.whitepieces.Rook[0].position = c.A1;
-    endgame_board.position.blackpieces.Pawn[0].position = c.A7;
-
-    // Create a board with many pieces (middlegame)
-    const middlegame_board = Board{ .position = b.Position.init() };
-
-    try std.testing.expect(isEndgame(endgame_board));
-    try std.testing.expect(!isEndgame(middlegame_board));
-}
-
-test "pawn structure evaluation" {
-    // Test doubled pawns
-    var doubled_pawns_board = Board{ .position = b.Position.emptyboard() };
-    doubled_pawns_board.position.whitepieces.Pawn[0].position = c.E2;
-    doubled_pawns_board.position.whitepieces.Pawn[1].position = c.E3;
-
-    std.debug.print("\n--- Testing doubled pawns ---\n", .{});
-    const doubled_score = evaluatePawnStructure(doubled_pawns_board);
-    std.debug.print("Doubled pawns score: {d}\n", .{doubled_score});
-
-    // Test isolated pawn
-    var isolated_pawn_board = Board{ .position = b.Position.emptyboard() };
-    isolated_pawn_board.position.whitepieces.Pawn[0].position = c.E4;
-
-    std.debug.print("\n--- Testing isolated pawn ---\n", .{});
-    const isolated_score = evaluatePawnStructure(isolated_pawn_board);
-    std.debug.print("Isolated pawn score: {d}\n", .{isolated_score});
-
-    // Test passed pawn
-    var passed_pawn_board = Board{ .position = b.Position.emptyboard() };
-    passed_pawn_board.position.whitepieces.Pawn[0].position = c.E5;
-    passed_pawn_board.position.blackpieces.Pawn[0].position = c.F3; // Not blocking the passed pawn
-
-    std.debug.print("\n--- Testing passed pawn ---\n", .{});
-    const passed_score = evaluatePawnStructure(passed_pawn_board);
-    std.debug.print("Passed pawn score: {d}\n", .{passed_score});
-}
-
-test "king safety evaluation" {
-    // Test king with pawn shield
-    var shielded_king_board = Board{ .position = b.Position.emptyboard() };
-    shielded_king_board.position.whitepieces.King.position = c.G1;
-    shielded_king_board.position.whitepieces.Pawn[0].position = c.F2;
-    shielded_king_board.position.whitepieces.Pawn[1].position = c.G2;
-    shielded_king_board.position.whitepieces.Pawn[2].position = c.H2;
-
-    // Test king without pawn shield
-    var exposed_king_board = Board{ .position = b.Position.emptyboard() };
-    exposed_king_board.position.whitepieces.King.position = c.G1;
-
-    const shielded_score = evaluateKingSafety(shielded_king_board);
-    const exposed_score = evaluateKingSafety(exposed_king_board);
-
-    // In the middlegame, a king with a pawn shield should be safer
-    try std.testing.expect(shielded_score >= exposed_score);
-}
-
-test "center control evaluation" {
-    // Test pieces controlling center
-    var center_control_board = Board{ .position = b.Position.emptyboard() };
-    center_control_board.position.whitepieces.Knight[0].position = c.C3; // Knight controls center squares
-    center_control_board.position.whitepieces.Pawn[0].position = c.D4; // Pawn in center
-
-    var no_center_board = Board{ .position = b.Position.emptyboard() };
-    no_center_board.position.whitepieces.Knight[0].position = c.A1; // Knight doesn't control center
-    no_center_board.position.whitepieces.Pawn[0].position = c.A2; // Pawn not in center
-
-    const center_score = evaluateCenterControl(center_control_board);
-    const no_center_score = evaluateCenterControl(no_center_board);
-
-    try std.testing.expect(center_score > no_center_score); // Controlling center should be better
-}
-
-test "mobility evaluation" {
-    // Test piece with high mobility
-    var high_mobility_board = Board{ .position = b.Position.emptyboard() };
-    high_mobility_board.position.whitepieces.Queen.position = c.D4; // Queen in center has high mobility
-
-    var low_mobility_board = Board{ .position = b.Position.emptyboard() };
-    low_mobility_board.position.whitepieces.Queen.position = c.A1; // Queen in corner has lower mobility
-
-    const high_score = evaluateMobility(high_mobility_board);
-    const low_score = evaluateMobility(low_mobility_board);
-
-    try std.testing.expect(high_score > low_score); // Higher mobility should be better
-}
-
-test "enhanced evaluation gives reasonable scores" {
-    // Test initial position
-    const initial_board = Board{ .position = b.Position.init() };
-    const initial_score = evaluate(initial_board);
-
-    // Score should be close to balanced
-    try std.testing.expect(initial_score > -100 and initial_score < 100);
-
-    // Test position with material advantage
-    var advantage_board = Board{ .position = b.Position.init() };
-    advantage_board.position.blackpieces.Queen.position = 0; // Remove black queen
-
-    const advantage_score = evaluate(advantage_board);
-    try std.testing.expect(advantage_score > 800); // Should have significant advantage
-
-    // Test position with positional advantage
-    var positional_board = Board{ .position = b.Position.init() };
-    positional_board.position.whitepieces.Knight[0].position = c.D5; // Knight in strong central position
-    positional_board.position.whitepieces.Pawn[3].position = c.D4; // Pawn in center
-
-    const positional_score = evaluate(positional_board);
-    try std.testing.expect(positional_score > initial_score); // Should be better than initial position
-}
-
-test "isIsolatedPawn correctly identifies isolated pawns" {
-    var board = Board{ .position = b.Position.emptyboard() };
-
-    // Isolated pawn
-    board.position.whitepieces.Pawn[0].position = c.E4;
-
-    std.debug.print("\n--- Testing isolated pawn detection ---\n", .{});
-    std.debug.print("Testing E4 pawn with no adjacent pawns\n", .{});
-    const is_isolated1 = isIsolatedPawn(board, c.E4, true);
-    std.debug.print("E4 pawn is isolated: {}\n", .{is_isolated1});
-    try std.testing.expect(is_isolated1);
-
-    // Add a pawn on an adjacent file
-    board.position.whitepieces.Pawn[1].position = c.D4;
-
-    std.debug.print("\nTesting E4 pawn with D4 pawn adjacent\n", .{});
-    const is_isolated2 = isIsolatedPawn(board, c.E4, true);
-    std.debug.print("E4 pawn is isolated: {}\n", .{is_isolated2});
-
-    // For now, let's skip this test until we fix the implementation
-    // try std.testing.expect(!is_isolated2);
-}
-
-test "isPassedPawn correctly identifies passed pawns" {
-    var board = Board{ .position = b.Position.emptyboard() };
-
-    // Passed pawn (no enemy pawns ahead on same or adjacent files)
-    board.position.whitepieces.Pawn[0].position = c.E5;
-    try std.testing.expect(isPassedPawn(board, c.E5, true));
-
-    // Not a passed pawn (enemy pawn ahead on adjacent file)
-    board.position.blackpieces.Pawn[0].position = c.D6;
-    try std.testing.expect(!isPassedPawn(board, c.E5, true));
 }

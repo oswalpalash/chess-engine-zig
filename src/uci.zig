@@ -55,7 +55,7 @@ pub const UciProtocol = struct {
     search_in_progress: bool = false,
 
     // Add a list to track allocated strings that need to be freed
-    allocated_strings: std.ArrayList([]u8) = undefined,
+    allocated_strings: std.ArrayList([]u8),
 
     // UCI Options
     move_overhead: u32 = 10,
@@ -126,11 +126,7 @@ pub const UciProtocol = struct {
         }
 
         // If in debug mode, log the search depth
-        if (self.debug_mode) {
-            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with depth {d}", .{search_depth});
-            try self.allocated_strings.append(debug_msg);
-            try self.respond(debug_msg);
-        }
+        try self.debugMessage("info string Searching with depth {d}", .{search_depth});
 
         // Find the best move using minimax
         if (e.findBestMove(self.current_board, search_depth)) |best_move| {
@@ -147,19 +143,15 @@ pub const UciProtocol = struct {
         // The maximum search depth is determined by the skill level (1-20)
         var max_depth: u8 = 1;
         if (self.skill_level > 5 and self.skill_level <= 10) {
-            max_depth = 3;
-        } else if (self.skill_level > 10 and self.skill_level <= 15) {
             max_depth = 4;
+        } else if (self.skill_level > 10 and self.skill_level <= 15) {
+            max_depth = 8;
         } else if (self.skill_level > 15) {
-            max_depth = 5;
+            max_depth = e.MAX_DEPTH;
         }
 
         // If in debug mode, log the search parameters
-        if (self.debug_mode) {
-            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with max depth {d} and time {d}ms", .{ max_depth, max_time_ms });
-            try self.allocated_strings.append(debug_msg);
-            try self.respond(debug_msg);
-        }
+        try self.debugMessage("info string Searching with max depth {d} and time {d}ms", .{ max_depth, max_time_ms });
 
         // Find the best move using iterative deepening
         if (e.findBestMoveWithTime(self.current_board, max_depth, max_time_ms)) |best_move| {
@@ -238,8 +230,15 @@ pub const UciProtocol = struct {
 
     /// Process a single UCI command
     pub fn processCommand(self: *UciProtocol, line: []const u8) !void {
-        const cmd = UciCommand.fromString(line);
+        // Ensure we clean up any allocated strings from previous commands
+        defer {
+            for (self.allocated_strings.items) |str| {
+                self.allocator.free(str);
+            }
+            self.allocated_strings.clearRetainingCapacity();
+        }
 
+        const cmd = UciCommand.fromString(line);
         switch (cmd) {
             .uci => {
                 // Send engine identification
@@ -279,222 +278,35 @@ pub const UciProtocol = struct {
             .setoption => {
                 var iter = std.mem.splitScalar(u8, line, ' ');
                 _ = iter.next(); // Skip "setoption"
-                const name_token = iter.next();
-                if (name_token != null and std.mem.eql(u8, name_token.?, "name")) {
-                    const option_name = iter.next() orelse return;
 
-                    // Handle different option types
-                    if (std.mem.eql(u8, option_name, "Move")) {
-                        // Existing Move Overhead handling
-                        const overhead = iter.next() orelse return;
-                        if (std.mem.eql(u8, overhead, "Overhead")) {
-                            const value_token = iter.next() orelse return;
-                            if (std.mem.eql(u8, value_token, "value")) {
-                                const value_str = iter.next() orelse return;
-                                if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                    self.move_overhead = @min(5000, @max(0, value));
-                                } else |_| {
-                                    if (self.debug_mode) try self.respond("info string Invalid Move Overhead value");
+                while (iter.next()) |token| {
+                    if (std.mem.eql(u8, token, "name")) {
+                        if (iter.next()) |name| {
+                            if (std.mem.eql(u8, name, "Hash")) {
+                                while (iter.next()) |value_token| {
+                                    if (std.mem.eql(u8, value_token, "value")) {
+                                        if (iter.next()) |value| {
+                                            if (std.fmt.parseInt(u32, value, 10)) |size| {
+                                                self.hash_size = size;
+                                                // Calculate table size based on hash_size (MB)
+                                                const table_size = size * 32768;
+                                                try self.debugMessage("info string Setting hash size to {d}MB", .{size});
+                                                e.initTranspositionTable(table_size, self.allocator) catch |err| {
+                                                    try self.debugMessage("info string Failed to initialize transposition table: {}", .{err});
+                                                };
+                                            } else |_| {
+                                                try self.debugMessage("info string Invalid hash size value", .{});
+                                            }
+                                        }
+                                        break;
+                                    }
                                 }
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Threads")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.threads = @min(512, @max(1, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid Threads value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Hash")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.hash_size = @min(33554432, @max(1, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid Hash value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Clear")) {
-                        const hash = iter.next() orelse return;
-                        if (std.mem.eql(u8, hash, "Hash")) {
-                            // TODO: Implement hash table clearing
-                            if (self.debug_mode) try self.respond("info string Hash table cleared");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Contempt")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(i32, value_str, 10)) |value| {
-                                self.contempt = @min(100, @max(-100, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid Contempt value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Analysis")) {
-                        const contempt = iter.next() orelse return;
-                        if (std.mem.eql(u8, contempt, "Contempt")) {
-                            const value_token = iter.next() orelse return;
-                            if (std.mem.eql(u8, value_token, "value")) {
-                                const value_str = iter.next() orelse return;
-                                if (std.mem.eql(u8, value_str, "Off")) {
-                                    self.analysis_contempt = .Off;
-                                } else if (std.mem.eql(u8, value_str, "White")) {
-                                    self.analysis_contempt = .White;
-                                } else if (std.mem.eql(u8, value_str, "Black")) {
-                                    self.analysis_contempt = .Black;
-                                } else if (std.mem.eql(u8, value_str, "Both")) {
-                                    self.analysis_contempt = .Both;
-                                }
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Ponder")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.ponder = std.mem.eql(u8, value_str, "true");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "MultiPV")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.multi_pv = @min(500, @max(1, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid MultiPV value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Skill")) {
-                        const level = iter.next() orelse return;
-                        if (std.mem.eql(u8, level, "Level")) {
-                            const value_token = iter.next() orelse return;
-                            if (std.mem.eql(u8, value_token, "value")) {
-                                const value_str = iter.next() orelse return;
-                                if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                    self.skill_level = @min(20, @max(0, value));
-                                } else |_| {
-                                    if (self.debug_mode) try self.respond("info string Invalid Skill Level value");
-                                }
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Slow")) {
-                        const mover = iter.next() orelse return;
-                        if (std.mem.eql(u8, mover, "Mover")) {
-                            const value_token = iter.next() orelse return;
-                            if (std.mem.eql(u8, value_token, "value")) {
-                                const value_str = iter.next() orelse return;
-                                if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                    self.slow_mover = @min(1000, @max(10, value));
-                                } else |_| {
-                                    if (self.debug_mode) try self.respond("info string Invalid Slow Mover value");
-                                }
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "nodestime")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.nodes_time = @min(10000, @max(0, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid nodestime value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "UCI_Chess960")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.chess960 = std.mem.eql(u8, value_str, "true");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "UCI_AnalyseMode")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.analyse_mode = std.mem.eql(u8, value_str, "true");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "UCI_LimitStrength")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.limit_strength = std.mem.eql(u8, value_str, "true");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "UCI_Elo")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.elo = @min(2850, @max(1350, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid UCI_Elo value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "UCI_ShowWDL")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.show_wdl = std.mem.eql(u8, value_str, "true");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "SyzygyPath")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.syzygy_path = value_str;
-                        }
-                    } else if (std.mem.eql(u8, option_name, "SyzygyProbeDepth")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.syzygy_probe_depth = @min(100, @max(1, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid SyzygyProbeDepth value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Syzygy50MoveRule")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.syzygy_50_move_rule = std.mem.eql(u8, value_str, "true");
-                        }
-                    } else if (std.mem.eql(u8, option_name, "SyzygyProbeLimit")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            if (std.fmt.parseInt(u32, value_str, 10)) |value| {
-                                self.syzygy_probe_limit = @min(7, @max(0, value));
-                            } else |_| {
-                                if (self.debug_mode) try self.respond("info string Invalid SyzygyProbeLimit value");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Use")) {
-                        const nnue = iter.next() orelse return;
-                        if (std.mem.eql(u8, nnue, "NNUE")) {
-                            const value_token = iter.next() orelse return;
-                            if (std.mem.eql(u8, value_token, "value")) {
-                                const value_str = iter.next() orelse return;
-                                self.use_nnue = std.mem.eql(u8, value_str, "true");
-                            }
-                        }
-                    } else if (std.mem.eql(u8, option_name, "EvalFile")) {
-                        const value_token = iter.next() orelse return;
-                        if (std.mem.eql(u8, value_token, "value")) {
-                            const value_str = iter.next() orelse return;
-                            self.eval_file = value_str;
-                        }
-                    } else if (std.mem.eql(u8, option_name, "Debug")) {
-                        const log = iter.next() orelse return;
-                        if (std.mem.eql(u8, log, "Log") and std.mem.eql(u8, iter.next() orelse return, "File")) {
-                            const value_token = iter.next() orelse return;
-                            if (std.mem.eql(u8, value_token, "value")) {
-                                const value_str = iter.next() orelse return;
-                                self.debug_log_file = value_str;
+                            } else if (std.mem.eql(u8, name, "Clear")) {
+                                e.clearTranspositionTable();
+                                try self.debugMessage("info string Transposition table cleared", .{});
                             }
                         }
                     }
-                    // Add more option handling here as needed
                 }
             },
             .position => {
@@ -504,125 +316,57 @@ pub const UciProtocol = struct {
                 self.current_board = try parsePositionLine(line, self.allocator);
             },
             .go => {
-                // Choose a move from the current position
-                self.search_in_progress = true;
-
-                // Parse go command parameters
-                var max_depth: u8 = 3; // Default depth
-                var max_time_ms: i64 = e.DEFAULT_MOVE_TIME; // Default time
+                var max_time_ms: i64 = e.DEFAULT_MOVE_TIME;
                 var iter = std.mem.splitScalar(u8, line, ' ');
                 _ = iter.next(); // Skip "go"
 
-                while (iter.next()) |param| {
-                    if (std.mem.eql(u8, param, "depth")) {
-                        if (iter.next()) |depth_str| {
-                            if (std.fmt.parseInt(u8, depth_str, 10)) |depth| {
-                                max_depth = @min(depth, 5); // Limit max depth to 5
-                            } else |_| {}
-                        }
-                    } else if (std.mem.eql(u8, param, "movetime")) {
+                while (iter.next()) |token| {
+                    if (std.mem.eql(u8, token, "movetime")) {
                         if (iter.next()) |time_str| {
                             if (std.fmt.parseInt(i64, time_str, 10)) |time| {
-                                max_time_ms = @max(time, e.MIN_MOVE_TIME);
-                            } else |_| {}
-                        }
-                    } else if (std.mem.eql(u8, param, "wtime") and self.current_board.position.sidetomove == 0) {
-                        // White's time remaining (if we're white)
-                        if (iter.next()) |time_str| {
-                            if (std.fmt.parseInt(i64, time_str, 10)) |time| {
-                                // Allocate ~1/30 of remaining time for this move
-                                max_time_ms = @max(@divTrunc(time, 30), e.MIN_MOVE_TIME);
-                            } else |_| {}
-                        }
-                    } else if (std.mem.eql(u8, param, "btime") and self.current_board.position.sidetomove == 1) {
-                        // Black's time remaining (if we're black)
-                        if (iter.next()) |time_str| {
-                            if (std.fmt.parseInt(i64, time_str, 10)) |time| {
-                                // Allocate ~1/30 of remaining time for this move
-                                max_time_ms = @max(@divTrunc(time, 30), e.MIN_MOVE_TIME);
+                                max_time_ms = time;
                             } else |_| {}
                         }
                     }
                 }
 
-                // Send info about the search
-                try self.respond("info string Starting search");
-
-                // Start a timer to measure search time
-                const start_time = std.time.milliTimestamp();
-
-                // Choose the best move
                 if (try self.chooseBestMoveWithTime(max_time_ms)) |new_board| {
-                    // Calculate search time
-                    const end_time = std.time.milliTimestamp();
-                    const search_time = end_time - start_time;
-
-                    // Evaluate the position
-                    const score = e.evaluate(new_board);
-
-                    // Send search info
-                    const info_msg = try std.fmt.allocPrint(self.allocator, "info depth {d} score cp {d} time {d}", .{ max_depth, score, search_time });
-                    try self.allocated_strings.append(info_msg);
-                    try self.respond(info_msg);
-
-                    // Convert the move to UCI format
-                    const move = moveToUci(self.current_board, new_board);
-                    var move_str: [10]u8 = undefined;
-                    var move_len: usize = 4;
-                    @memcpy(move_str[0..5], &move);
-                    if (move[4] != 0) {
-                        move_len = 5;
+                    // Find the move that was made
+                    const move_str = try m.moveToUci(self.current_board, new_board);
+                    try self.sendResponse("bestmove ");
+                    var len: usize = 4;
+                    if (move_str[4] != 0) {
+                        len = 5;
                     }
-                    // Use string formatting instead of concatenation
-                    if (self.test_writer) |w| {
-                        try w.print("bestmove {s}\n", .{move_str[0..move_len]});
-                    } else {
-                        const stdout = std.io.getStdOut().writer();
-                        try stdout.print("bestmove {s}\n", .{move_str[0..move_len]});
-                    }
+                    try self.sendResponse(move_str[0..len]);
+                    try self.sendResponse("\n");
+                    self.current_board = new_board;
                 } else {
-                    // No legal moves available
-                    try self.respond("bestmove 0000");
+                    try self.sendResponse("bestmove 0000\n"); // No legal moves
                 }
-                self.search_in_progress = false;
             },
             .stop => {
-                if (self.search_in_progress) {
-                    // Stop any ongoing search
-                    self.search_in_progress = false;
-                    // Send the best move found so far - use a very short time limit
-                    if (try self.chooseBestMoveWithTime(e.MIN_MOVE_TIME)) |new_board| {
-                        const move = moveToUci(self.current_board, new_board);
-                        var move_str: [10]u8 = undefined;
-                        var move_len: usize = 4;
-                        @memcpy(move_str[0..5], &move);
-                        if (move[4] != 0) {
-                            move_len = 5;
-                        }
-                        if (self.test_writer) |w| {
-                            try w.print("bestmove {s}\n", .{move_str[0..move_len]});
-                        } else {
-                            const stdout = std.io.getStdOut().writer();
-                            try stdout.print("bestmove {s}\n", .{move_str[0..move_len]});
-                        }
-                    } else {
-                        try self.respond("bestmove 0000");
-                    }
-                }
+                self.search_in_progress = false;
+                // Send a bestmove response when stopping
+                try self.sendResponse("bestmove 0000\n");
             },
             .ucinewgame => {
                 if (self.debug_mode) {
-                    try self.respond("Received ucinewgame command. Will be implemented in future.");
+                    try self.debugMessage("Received ucinewgame command", .{});
                 }
                 // Reset the board to initial position
                 self.current_board = b.Board{ .position = b.Position.init() };
+                // Clear the transposition table
+                e.clearTranspositionTable();
+                if (self.debug_mode) {
+                    try self.debugMessage("info string Hash table cleared for new game", .{});
+                }
             },
             .quit => {
                 // Send a goodbye message if in debug mode
                 if (self.debug_mode) {
-                    try self.respond("Goodbye!");
+                    try self.debugMessage("Goodbye!", .{});
                 }
-                // No need to do anything else, mainLoop will handle the exit
             },
             else => {
                 // For now, just echo other commands back
@@ -655,10 +399,10 @@ pub const UciProtocol = struct {
     /// Send a response back to the UCI interface
     fn respond(self: *UciProtocol, msg: []const u8) !void {
         if (self.test_writer) |w| {
-            try w.print("{s}\n", .{msg});
+            try w.print("{s}", .{msg});
         } else {
             const stdout = std.io.getStdOut().writer();
-            try stdout.print("{s}\n", .{msg});
+            try stdout.print("{s}", .{msg});
         }
     }
 
@@ -669,6 +413,26 @@ pub const UciProtocol = struct {
             self.allocator.free(str);
         }
         self.allocated_strings.deinit();
+    }
+
+    /// Send a debug message
+    fn debugMessage(self: *UciProtocol, comptime fmt: []const u8, args: anytype) !void {
+        if (self.debug_mode) {
+            const msg = try std.fmt.allocPrint(self.allocator, fmt, args);
+            errdefer self.allocator.free(msg);
+            try self.allocated_strings.append(msg);
+            try self.respond(msg);
+        }
+    }
+
+    /// Send a response back to the UCI interface
+    fn sendResponse(self: *UciProtocol, msg: []const u8) !void {
+        if (self.test_writer) |w| {
+            try w.print("{s}", .{msg});
+        } else {
+            const stdout = std.io.getStdOut().writer();
+            try stdout.print("{s}", .{msg});
+        }
     }
 };
 
@@ -916,6 +680,10 @@ test "setoption command handling" {
     defer buf.deinit();
 
     var protocol = UciProtocol.init(std.testing.allocator);
+    defer {
+        protocol.deinit();
+        e.deinitTranspositionTable();
+    }
     protocol.test_writer = buf.writer();
     protocol.debug_mode = true;
 
@@ -929,6 +697,10 @@ test "ucinewgame command handling" {
     defer buf.deinit();
 
     var protocol = UciProtocol.init(std.testing.allocator);
+    defer {
+        protocol.deinit();
+        e.deinitTranspositionTable();
+    }
     protocol.test_writer = buf.writer();
     protocol.debug_mode = true;
 
@@ -998,6 +770,10 @@ test "quit command sends goodbye message in debug mode" {
     defer buf.deinit();
 
     var protocol = UciProtocol.init(std.testing.allocator);
+    defer {
+        protocol.deinit();
+        e.deinitTranspositionTable();
+    }
     protocol.test_writer = buf.writer();
     protocol.debug_mode = true;
 
@@ -1193,5 +969,13 @@ pub fn main() !void {
 
     var protocol = UciProtocol.init(allocator);
     defer protocol.deinit();
+
+    // Initialize the transposition table with default size
+    const default_hash_size = 16; // 16 MB
+    const table_size = default_hash_size * 32768;
+    e.initTranspositionTable(table_size, allocator) catch |err| {
+        std.debug.print("Failed to initialize transposition table: {}\n", .{err});
+    };
+
     try protocol.mainLoop();
 }

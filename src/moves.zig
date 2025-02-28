@@ -1,6 +1,7 @@
 const std = @import("std");
 const b = @import("board.zig");
 const c = @import("consts.zig");
+const u = @import("uci.zig");
 
 // Import the reverse function from board.zig
 const reverse = b.reverse;
@@ -2606,4 +2607,171 @@ test "allvalidmoves allows capturing the checking piece" {
     }
 
     try std.testing.expect(foundCapture);
+}
+
+/// Convert a board move to UCI format (e.g., "e2e4" or "e7e8q")
+pub fn moveToUci(old_board: b.Board, new_board: b.Board) ![5]u8 {
+    var result: [5]u8 = undefined;
+    var from_pos: u64 = 0;
+    var to_pos: u64 = 0;
+    var is_promotion = false;
+
+    // Find which piece moved by comparing the board states
+    inline for (std.meta.fields(@TypeOf(old_board.position.whitepieces))) |field| {
+        const old_piece = @field(old_board.position.whitepieces, field.name);
+        const new_piece = @field(new_board.position.whitepieces, field.name);
+
+        if (@TypeOf(old_piece) == b.Piece) {
+            if (old_piece.position != new_piece.position) {
+                if (old_piece.position != 0) from_pos = old_piece.position;
+                if (new_piece.position != 0) {
+                    to_pos = new_piece.position;
+                    if (field.name[0] == 'P' and new_piece.representation == 'Q') {
+                        is_promotion = true;
+                    }
+                }
+            }
+        } else {
+            for (old_piece, new_piece) |p1, p2| {
+                if (p1.position != p2.position) {
+                    if (p1.position != 0) from_pos = p1.position;
+                    if (p2.position != 0) {
+                        to_pos = p2.position;
+                        if (field.name[0] == 'P' and p2.representation == 'Q') {
+                            is_promotion = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check black pieces if we haven't found the move
+    if (from_pos == 0) {
+        inline for (std.meta.fields(@TypeOf(old_board.position.blackpieces))) |field| {
+            const old_piece = @field(old_board.position.blackpieces, field.name);
+            const new_piece = @field(new_board.position.blackpieces, field.name);
+
+            if (@TypeOf(old_piece) == b.Piece) {
+                if (old_piece.position != new_piece.position) {
+                    if (old_piece.position != 0) from_pos = old_piece.position;
+                    if (new_piece.position != 0) {
+                        to_pos = new_piece.position;
+                        if (field.name[0] == 'P' and new_piece.representation == 'q') {
+                            is_promotion = true;
+                        }
+                    }
+                }
+            } else {
+                for (old_piece, new_piece) |p1, p2| {
+                    if (p1.position != p2.position) {
+                        if (p1.position != 0) from_pos = p1.position;
+                        if (p2.position != 0) {
+                            to_pos = p2.position;
+                            if (field.name[0] == 'P' and p2.representation == 'q') {
+                                is_promotion = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Convert positions to algebraic notation
+    const from_square = b.bitboardToSquare(from_pos);
+    const to_square = b.bitboardToSquare(to_pos);
+
+    // Build the move string
+    result[0] = from_square[0];
+    result[1] = from_square[1];
+    result[2] = to_square[0];
+    result[3] = to_square[1];
+
+    // Add promotion piece if necessary
+    if (is_promotion) {
+        result[4] = 'q';
+    } else {
+        result[4] = 0;
+    }
+
+    return result;
+}
+
+/// Find the move that was made between two board states
+pub fn findMoveBetweenBoards(old_board: b.Board, new_board: b.Board) ![]const u8 {
+    // Get all valid moves from the old board
+    const moves = allvalidmoves(old_board);
+
+    // Try each move to find which one leads to the new board
+    for (moves) |move| {
+        var test_board = old_board;
+        if (makemove(&test_board, move)) {
+            // Compare the resulting board with the new board
+            if (boardsEqual(test_board, new_board)) {
+                // Convert the move to UCI format
+                const uci = try moveToUci(old_board, move);
+                var len: usize = 4;
+                if (uci[4] != 0) {
+                    len = 5;
+                }
+                return uci[0..len];
+            }
+        }
+    }
+
+    return error.MoveNotFound;
+}
+
+/// Compare two boards for equality
+fn boardsEqual(board1: b.Board, board2: b.Board) bool {
+    // Compare piece placement
+    inline for (std.meta.fields(@TypeOf(board1.position.whitepieces))) |field| {
+        const piece1 = @field(board1.position.whitepieces, field.name);
+        const piece2 = @field(board2.position.whitepieces, field.name);
+
+        if (@TypeOf(piece1) == b.Piece) {
+            if (piece1.position != piece2.position) return false;
+        } else {
+            for (piece1, piece2) |p1, p2| {
+                if (p1.position != p2.position) return false;
+            }
+        }
+    }
+
+    inline for (std.meta.fields(@TypeOf(board1.position.blackpieces))) |field| {
+        const piece1 = @field(board1.position.blackpieces, field.name);
+        const piece2 = @field(board2.position.blackpieces, field.name);
+
+        if (@TypeOf(piece1) == b.Piece) {
+            if (piece1.position != piece2.position) return false;
+        } else {
+            for (piece1, piece2) |p1, p2| {
+                if (p1.position != p2.position) return false;
+            }
+        }
+    }
+
+    // Compare side to move
+    if (board1.position.sidetomove != board2.position.sidetomove) return false;
+
+    // Compare castling rights
+    if (board1.position.canCastleWhiteKingside != board2.position.canCastleWhiteKingside) return false;
+    if (board1.position.canCastleWhiteQueenside != board2.position.canCastleWhiteQueenside) return false;
+    if (board1.position.canCastleBlackKingside != board2.position.canCastleBlackKingside) return false;
+    if (board1.position.canCastleBlackQueenside != board2.position.canCastleBlackQueenside) return false;
+
+    // Compare en passant square
+    if (board1.position.enPassantSquare != board2.position.enPassantSquare) return false;
+
+    return true;
+}
+
+/// Apply a move to a board
+pub fn makemove(board: *b.Board, move: b.Board) bool {
+    // Copy the move's position to the board
+    board.position = move.position;
+    // Update side to move
+    board.position.sidetomove = if (board.position.sidetomove == 0) 1 else 0;
+    return true;
 }
