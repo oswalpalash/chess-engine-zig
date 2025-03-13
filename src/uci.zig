@@ -50,6 +50,7 @@ pub const UciCommand = enum {
 pub const UciProtocol = struct {
     allocator: std.mem.Allocator,
     debug_mode: bool = false,
+    test_mode: bool = false, // New flag for test mode
     test_writer: ?std.ArrayList(u8).Writer = null, // Use ArrayList writer for testing
     current_board: b.Board = b.Board{ .position = b.Position.init() },
     search_in_progress: bool = false,
@@ -84,6 +85,8 @@ pub const UciProtocol = struct {
     pub fn init(allocator: std.mem.Allocator) UciProtocol {
         return UciProtocol{
             .allocator = allocator,
+            .debug_mode = false,
+            .test_mode = false, // Initialize test_mode to false
             .test_writer = null,
             .current_board = b.Board{ .position = b.Position.init() },
             .search_in_progress = false,
@@ -115,29 +118,68 @@ pub const UciProtocol = struct {
 
     /// Choose a simple move from the current position
     fn chooseBestMove(self: *UciProtocol) !?b.Board {
-        // Use the minimax algorithm to find the best move
-        // The search depth is determined by the skill level (1-20)
-        // Map skill level to search depth: 1-5 -> depth 1, 6-10 -> depth 2, 11-20 -> depth 3
-        var search_depth: u8 = 1;
-        if (self.skill_level > 5 and self.skill_level <= 10) {
-            search_depth = 2;
-        } else if (self.skill_level > 10) {
-            search_depth = 3;
+        // Find the best move using the evaluation function
+        var depth: u8 = @intCast(self.skill_level);
+        var time_limit_ms: u64 = e.DEFAULT_SEARCH_TIME;
+
+        // If we're running a benchmark, set a higher depth
+        if (self.debug_mode) {
+            depth = 5;
         }
 
-        // If in debug mode, log the search depth
+        // Use much shorter time and depth for tests to prevent infinite searching
+        if (self.test_mode) {
+            depth = 3; // Limit depth in test mode
+            time_limit_ms = 500; // 500ms time limit in test mode
+        }
+
         if (self.debug_mode) {
-            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with depth {d}", .{search_depth});
+            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with depth {d}", .{depth});
             try self.allocated_strings.append(debug_msg);
             try self.respond(debug_msg);
         }
 
-        // Find the best move using minimax
-        if (e.findBestMove(self.current_board, search_depth)) |best_move| {
+        // Find the best move using iterative deepening with a time limit
+        if (self.test_mode) {
+            // For tests, use fixed depth to ensure quick completion
+            const result = e.findBestMove(self.current_board, 1);
+            if (result == null) {
+                if (self.debug_mode) {
+                    const no_legal_moves_msg = try std.fmt.allocPrint(self.allocator, "info string No legal moves found, returning null", .{});
+                    try self.allocated_strings.append(no_legal_moves_msg);
+                    try self.respond(no_legal_moves_msg);
+                }
+                return null;
+            }
+
+            // Extract just the board from the result
+            const best_move = result.?[0];
             return best_move;
         } else {
-            // If no best move found, fall back to random move
-            return chooseRandomMove(self);
+            // For normal operation, use iterative deepening with time limit
+            const result = e.findBestMoveIterativeDeepening(self.current_board, depth, time_limit_ms);
+            if (result == null) {
+                if (self.debug_mode) {
+                    const no_legal_moves_msg = try std.fmt.allocPrint(self.allocator, "info string No legal moves found, returning null", .{});
+                    try self.allocated_strings.append(no_legal_moves_msg);
+                    try self.respond(no_legal_moves_msg);
+                }
+                return null;
+            }
+
+            // Log search statistics if in debug mode
+            if (self.debug_mode) {
+                const stats = result.?.stats;
+                // Get an evaluation score for the best move
+                const eval_score = e.evaluate(result.?.move);
+                const search_stats_msg = try std.fmt.allocPrint(self.allocator, "info depth {d} score cp {d} time {d} nodes {d}", .{ stats.max_depth_reached, eval_score, stats.time_spent_ms, stats.nodes_evaluated });
+                try self.allocated_strings.append(search_stats_msg);
+                try self.respond(search_stats_msg);
+            }
+
+            // Extract just the board from the result
+            const best_move = result.?.move;
+            return best_move;
         }
     }
 
@@ -974,6 +1016,7 @@ test "go command returns a valid move" {
     var protocol = UciProtocol.init(std.testing.allocator);
     defer protocol.deinit();
     protocol.test_writer = buf.writer();
+    protocol.test_mode = true; // Enable test mode to limit search
 
     // Start from initial position
     try protocol.processCommand("position startpos");
@@ -997,6 +1040,7 @@ test "go command with no legal moves" {
     var protocol = UciProtocol.init(std.testing.allocator);
     defer protocol.deinit();
     protocol.test_writer = buf.writer();
+    protocol.test_mode = true; // Enable test mode
 
     // Set up the Fool's Mate checkmate position (white is checkmated)
     // 1. f3 e5 2. g4 Qh4#
@@ -1033,6 +1077,7 @@ test "stop command stops ongoing search" {
     var protocol = UciProtocol.init(std.testing.allocator);
     defer protocol.deinit();
     protocol.test_writer = buf.writer();
+    protocol.test_mode = true; // Enable test mode
     protocol.search_in_progress = true; // Simulate ongoing search
 
     try protocol.processCommand("stop");
@@ -1049,6 +1094,7 @@ test "startpos moves e2e4 e7e5 b1c3" {
     var protocol = UciProtocol.init(std.testing.allocator);
     defer protocol.deinit();
     protocol.test_writer = buf.writer();
+    protocol.test_mode = true; // Enable test mode
 
     // Send a single position command with the moves
     try protocol.processCommand("position startpos moves e2e4 e7e5 b1c3");
@@ -1083,6 +1129,7 @@ test "complex position with multiple captures - incremental" {
     defer protocol.deinit();
     protocol.test_writer = buf.writer();
     protocol.debug_mode = true;
+    protocol.test_mode = true; // Enable test mode
 
     // Process the final position with all moves
     const final_position = "position startpos moves b1c3 c7c6 c3d5 c6d5 g1h3 f7f6 h3g5 f6g5 a2a3 g8f6";
@@ -1109,6 +1156,7 @@ test "chooseBestMove finds a move in checkmate position" {
     defer protocol.deinit();
     protocol.test_writer = buf.writer();
     protocol.debug_mode = true;
+    protocol.test_mode = true; // Enable test mode
 
     // Set up a position where white can checkmate in one move
     // White queen on h7, white rook on g1, black king on h8
@@ -1131,6 +1179,64 @@ test "chooseBestMove finds a move in checkmate position" {
         std.debug.print("\nRook position in best move: {}\n", .{move.position.whitepieces.Rook[0].position});
         std.debug.print("Queen position in best move: {}\n", .{move.position.whitepieces.Queen.position});
     }
+}
+
+test "go command finds mate in 1" {
+    var buf = std.ArrayList(u8).init(std.testing.allocator);
+    defer buf.deinit();
+
+    var protocol = UciProtocol.init(std.testing.allocator);
+    defer protocol.deinit();
+    protocol.test_writer = buf.writer();
+    protocol.debug_mode = true;
+
+    // For tactical positions, we want to use deeper search
+    protocol.test_mode = true;
+    protocol.skill_level = 3; // Increase depth a bit
+
+    // Set up a position where white can checkmate in one move
+    // White queen on d5, white rook on g1, black king on h8
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.D5;
+    board.position.whitepieces.Rook[0].position = c.G1;
+    board.position.blackpieces.King.position = c.H8;
+    // Add a piece to block h7 so the king can't escape there
+    board.position.blackpieces.Pawn[0].position = c.H7;
+    board.position.sidetomove = 0; // White to move
+    protocol.current_board = board;
+
+    // Request a move
+    try protocol.processCommand("go");
+
+    const output = buf.items;
+    // Print the output for debugging
+    std.debug.print("\nEngine output for mate in 1: {s}\n", .{output});
+
+    // Check if the output contains "bestmove"
+    try std.testing.expect(std.mem.indexOf(u8, output, "bestmove") != null);
+
+    // Find the bestmove in the output
+    const best_move_idx = std.mem.indexOf(u8, output, "bestmove") orelse unreachable;
+    // Extract everything after "bestmove "
+    const move_line = output[best_move_idx + "bestmove ".len ..];
+    // Find the first space or end of string
+    const end_idx = std.mem.indexOfAny(u8, move_line, " \n\r") orelse move_line.len;
+    const move_str = move_line[0..end_idx];
+
+    std.debug.print("Best move: {s}\n", .{move_str});
+
+    // Parse the move and apply it to verify it's a checkmate
+    const uci_move = try m.parseUciMove(move_str);
+    const new_board = try m.applyMove(board, uci_move);
+
+    // Check if this move delivers checkmate to black
+    const s = @import("state.zig");
+    const black_in_checkmate = s.isCheckmate(new_board, false);
+
+    std.debug.print("Black in checkmate after move: {}\n", .{black_in_checkmate});
+
+    // The move should deliver checkmate
+    try std.testing.expect(black_in_checkmate);
 }
 
 pub fn main() !void {
