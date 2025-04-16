@@ -302,4 +302,4 @@ test "capture white pawn at e2 in initial board" {
     const board_mod = @import("../board.zig");
     const newboard = capturewhitepiece(consts.E2, board_mod.Board{ .position = board_mod.Position.init() });
     try std.testing.expectEqual(newboard.position.whitepieces.Pawn[4].position, 0);
-} 
+}

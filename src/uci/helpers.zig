@@ -91,4 +91,4 @@ pub fn moveToUci(old_board: b.Board, new_board: b.Board) [5]u8 {
         result[4] = 0;
     }
     return result;
-} 
+}

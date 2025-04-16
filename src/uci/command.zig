@@ -34,4 +34,4 @@ pub const UciCommand = enum {
 
         return .unknown;
     }
-}; 
+};

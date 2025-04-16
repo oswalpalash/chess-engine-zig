@@ -519,4 +519,4 @@ pub const UciProtocol = struct {
         }
         self.allocated_strings.deinit();
     }
-}; 
+};

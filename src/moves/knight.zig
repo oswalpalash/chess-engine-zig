@@ -193,4 +193,4 @@ test "ValidKnightMoves unordered test for knight on b1" {
     }
     try std.testing.expect(foundC3);
     try std.testing.expect(foundA3);
-} 
+}

@@ -141,4 +141,4 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     return moves[0..possiblemoves];
-} 
+}

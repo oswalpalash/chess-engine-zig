@@ -218,4 +218,4 @@ extern fn piecefromlocation(location: u64, board: b.Board) b.Piece;
 extern fn captureblackpiece(loc: u64, board: b.Board) b.Board;
 extern fn capturewhitepiece(loc: u64, board: b.Board) b.Board;
 extern fn rowfrombitmap(bitmap: u64) u64;
-extern fn colfrombitmap(bitmap: u64) u64; 
+extern fn colfrombitmap(bitmap: u64) u64;
