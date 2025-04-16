@@ -48,7 +48,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
         // Check black bishops
         for (board.position.blackpieces.Bishop) |bishop| {
             if (bishop.position == 0) continue;
-            const moves = m.ValidBishopMoves(bishop, board);
+            const moves = m.getValidBishopMoves(bishop, board);
             for (moves) |move| {
                 // Check if any of the bishop's valid moves can reach the king's position
                 if (move.position.blackpieces.Bishop[0].position == kingPosition or
@@ -121,7 +121,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
         // Check white bishops
         for (board.position.whitepieces.Bishop) |bishop| {
             if (bishop.position == 0) continue;
-            const moves = m.ValidBishopMoves(bishop, board);
+            const moves = m.getValidBishopMoves(bishop, board);
             for (moves) |move| {
                 // Check if any of the bishop's valid moves can reach the king's position
                 if (move.position.whitepieces.Bishop[0].position == kingPosition or
@@ -264,7 +264,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check bishop moves
         for (board.position.whitepieces.Bishop) |bishop| {
             if (bishop.position == 0) continue;
-            const bishopMoves = m.ValidBishopMoves(bishop, board);
+            const bishopMoves = m.getValidBishopMoves(bishop, board);
             for (bishopMoves) |move| {
                 if (!isCheck(move, true)) return false;
             }
@@ -315,7 +315,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check bishop moves
         for (board.position.blackpieces.Bishop) |bishop| {
             if (bishop.position == 0) continue;
-            const bishopMoves = m.ValidBishopMoves(bishop, board);
+            const bishopMoves = m.getValidBishopMoves(bishop, board);
             for (bishopMoves) |move| {
                 if (!isCheck(move, false)) return false;
             }

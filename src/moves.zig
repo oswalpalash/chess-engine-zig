@@ -1,6 +1,13 @@
 const std = @import("std");
 const b = @import("board.zig");
 const c = @import("consts.zig");
+const pawn = @import("moves/pawn.zig");
+const board_helpers = @import("utils/board_helpers.zig");
+const rook = @import("moves/rook.zig");
+const knight = @import("moves/knight.zig");
+const bishop = @import("moves/bishop.zig");
+const queen = @import("moves/queen.zig");
+const king = @import("moves/king.zig");
 
 // Import the reverse function from board.zig
 const reverse = b.reverse;
@@ -93,29 +100,7 @@ const pawnShifts = [4]u6{ 8, 16, 7, 9 };
 
 // takes in a board and iterates through all pieces and returns a 64 bit representation of the board
 pub fn bitmapfromboard(board: b.Board) u64 {
-    var bitmap: u64 = 0;
-    const cpiece = b.Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0 };
-    _ = cpiece;
-    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
-            bitmap |= (@as(piece.type, @field(board.position.whitepieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
-        }
-    }
-    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
-            bitmap |= (@as(piece.type, @field(board.position.blackpieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
-        }
-    }
-
-    return bitmap;
+    return board_helpers.bitmapfromboard(board);
 }
 
 test "bitmap of initial board" {
@@ -126,34 +111,7 @@ test "bitmap of initial board" {
 }
 
 pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
-    // iterate through all pieces of each colour to find which piece position matches the location
-    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
-            if ((@as(piece.type, @field(board.position.whitepieces, piece.name))).position == location) {
-                return (@as(piece.type, @field(board.position.whitepieces, piece.name)));
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
-                }
-            }
-        }
-    }
-    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
-            if ((@as(piece.type, @field(board.position.blackpieces, piece.name))).position == location) {
-                return (@as(piece.type, @field(board.position.blackpieces, piece.name)));
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
-                }
-            }
-        }
-    }
-    return b.Piece{ .color = 0, .value = 0, .representation = '.', .stdval = 0, .position = 0 };
+    return board_helpers.piecefromlocation(location, board);
 }
 
 test "piece from location" {
@@ -202,75 +160,7 @@ test "black piece from location" {
 }
 
 pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
-    var piece: b.Piece = piecefromlocation(loc, board);
-    var boardCopy: b.Board = board;
-    // determine type of piece
-    _ = switch (piece.representation) {
-        'k' => {
-            boardCopy.position.blackpieces.King.position = 0;
-            piece.position = 0;
-        },
-        'q' => {
-            boardCopy.position.blackpieces.Queen.position = 0;
-            piece.position = 0;
-        },
-        'r' => {
-            if (boardCopy.position.blackpieces.Rook[0].position == loc) {
-                boardCopy.position.blackpieces.Rook[0].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Rook[1].position == loc) {
-                boardCopy.position.blackpieces.Rook[1].position = 0;
-                piece.position = 0;
-            }
-        },
-        'b' => {
-            if (boardCopy.position.blackpieces.Bishop[0].position == loc) {
-                boardCopy.position.blackpieces.Bishop[0].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Bishop[1].position == loc) {
-                boardCopy.position.blackpieces.Bishop[1].position = 0;
-                piece.position = 0;
-            }
-        },
-        'n' => {
-            if (boardCopy.position.blackpieces.Knight[0].position == loc) {
-                boardCopy.position.blackpieces.Knight[0].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Knight[1].position == loc) {
-                boardCopy.position.blackpieces.Knight[1].position = 0;
-                piece.position = 0;
-            }
-        },
-        'p' => {
-            if (boardCopy.position.blackpieces.Pawn[0].position == loc) {
-                boardCopy.position.blackpieces.Pawn[0].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[1].position == loc) {
-                boardCopy.position.blackpieces.Pawn[1].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[2].position == loc) {
-                boardCopy.position.blackpieces.Pawn[2].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[3].position == loc) {
-                boardCopy.position.blackpieces.Pawn[3].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[4].position == loc) {
-                boardCopy.position.blackpieces.Pawn[4].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[5].position == loc) {
-                boardCopy.position.blackpieces.Pawn[5].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[6].position == loc) {
-                boardCopy.position.blackpieces.Pawn[6].position = 0;
-                piece.position = 0;
-            } else if (boardCopy.position.blackpieces.Pawn[7].position == loc) {
-                boardCopy.position.blackpieces.Pawn[7].position = 0;
-                piece.position = 0;
-            }
-        },
-        else => {},
-    };
-    return boardCopy;
+    return board_helpers.captureblackpiece(loc, board);
 }
 
 test "capture black pawn at e7 in initial board" {
@@ -316,8 +206,8 @@ pub fn ValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
-    const currentRow = rowfrombitmap(piece.position);
-    const currentCol = colfrombitmap(piece.position);
+    const currentRow = board_helpers.rowfrombitmap(piece.position);
+    const currentCol = board_helpers.colfrombitmap(piece.position);
 
     // Direction modifiers based on piece color
     const forwardShift: i8 = if (piece.color == 0) 8 else -8;
@@ -592,23 +482,11 @@ test "pawn capture e3 f4 or go to e4" {
 }
 
 pub fn rowfrombitmap(bitmap: u64) u64 {
-    const rows = [8]u6{ 0, 1, 2, 3, 4, 5, 6, 7 };
-    for (rows) |i| {
-        if (bitmap & (@as(u64, 0xFF) << (i * 8)) != 0) {
-            return i + 1;
-        }
-    }
-    return 0;
+    return board_helpers.rowfrombitmap(bitmap);
 }
 
 pub fn colfrombitmap(bitmap: u64) u64 {
-    const cols = [8]u6{ 0, 1, 2, 3, 4, 5, 6, 7 };
-    for (cols) |i| {
-        if (bitmap & (@as(u64, 0x0101010101010101) << i) != 0) {
-            return 8 - i;
-        }
-    }
-    return 0;
+    return board_helpers.colfrombitmap(bitmap);
 }
 
 test "rowfrombitmap and colfrombitmap for black rook at a8" {
@@ -777,7 +655,7 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    var king: b.Piece = piece;
+    var king_piece: b.Piece = piece;
     var dummypiece: b.Piece = undefined;
     const directional_kingshifts = [4]u6{ 1, 7, 8, 9 };
     // forward moves
@@ -795,13 +673,13 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                     continue;
                 }
             }
-            king.position = piece.position << shift;
+            king_piece.position = piece.position << shift;
             // update board
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
-                newBoard.position.whitepieces.King.position = king.position;
+                newBoard.position.whitepieces.King.position = king_piece.position;
             } else {
-                newBoard.position.blackpieces.King.position = king.position;
+                newBoard.position.blackpieces.King.position = king_piece.position;
             }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
@@ -810,17 +688,17 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                 dummypiece = piecefromlocation(piece.position << shift, board);
                 if (dummypiece.representation != '.') {
                     if (dummypiece.color != piece.color) {
-                        king.position = piece.position << shift;
+                        king_piece.position = piece.position << shift;
                         // update board with appropriate capture
                         var newBoard = if (piece.color == 0)
-                            captureblackpiece(king.position, b.Board{ .position = board.position })
+                            captureblackpiece(king_piece.position, b.Board{ .position = board.position })
                         else
-                            capturewhitepiece(king.position, b.Board{ .position = board.position });
+                            capturewhitepiece(king_piece.position, b.Board{ .position = board.position });
 
                         if (piece.color == 0) {
-                            newBoard.position.whitepieces.King.position = king.position;
+                            newBoard.position.whitepieces.King.position = king_piece.position;
                         } else {
-                            newBoard.position.blackpieces.King.position = king.position;
+                            newBoard.position.blackpieces.King.position = king_piece.position;
                         }
                         moves[possiblemoves] = newBoard;
                         possiblemoves += 1;
@@ -829,26 +707,26 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             }
         }
     }
-    king = piece;
+    king_piece = piece;
     // reverse moves
     for (directional_kingshifts) |shift| {
-        if (king.position >> shift == 0) {
+        if (king_piece.position >> shift == 0) {
             continue;
         }
-        if (bitmap & (king.position >> shift) == 0) {
+        if (bitmap & (king_piece.position >> shift) == 0) {
             dummypiece = piecefromlocation(piece.position >> shift, board);
             if (dummypiece.representation != '.') {
                 if (dummypiece.color == piece.color) {
                     continue;
                 }
             }
-            king.position = piece.position >> shift;
+            king_piece.position = piece.position >> shift;
             // update board
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
-                newBoard.position.whitepieces.King.position = king.position;
+                newBoard.position.whitepieces.King.position = king_piece.position;
             } else {
-                newBoard.position.blackpieces.King.position = king.position;
+                newBoard.position.blackpieces.King.position = king_piece.position;
             }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
@@ -857,17 +735,17 @@ pub fn ValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                 dummypiece = piecefromlocation(piece.position >> shift, board);
                 if (dummypiece.representation != '.') {
                     if (dummypiece.color != piece.color) {
-                        king.position = piece.position >> shift;
+                        king_piece.position = piece.position >> shift;
                         // update board with appropriate capture
                         var newBoard = if (piece.color == 0)
-                            captureblackpiece(king.position, b.Board{ .position = board.position })
+                            captureblackpiece(king_piece.position, b.Board{ .position = board.position })
                         else
-                            capturewhitepiece(king.position, b.Board{ .position = board.position });
+                            capturewhitepiece(king_piece.position, b.Board{ .position = board.position });
 
                         if (piece.color == 0) {
-                            newBoard.position.whitepieces.King.position = king.position;
+                            newBoard.position.whitepieces.King.position = king_piece.position;
                         } else {
-                            newBoard.position.blackpieces.King.position = king.position;
+                            newBoard.position.blackpieces.King.position = king_piece.position;
                         }
                         moves[possiblemoves] = newBoard;
                         possiblemoves += 1;
@@ -1072,259 +950,12 @@ pub fn ValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     return moves[0..possiblemoves];
 }
 
-test "ValidKnightMoves for empty board with knight on e4" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Knight[0].position = c.E4;
-    _ = board.print();
-    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 8); // Knight should have all 8 possible moves
-}
-
-test "ValidKnightMoves for init board with knight on b1" {
-    const board = b.Board{ .position = b.Position.init() };
-    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 2); // Can only move to a3 and c3
-}
-
-test "ValidKnightMoves for empty board with knight on b1 and black piece on c3" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Knight[0].position = c.B1;
-    board.position.blackpieces.Pawn[2].position = c.C3;
-    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 3); // Can move to a3, c3 (capture), and d2
-}
-
-test "ValidKnightMoves for corner positions" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-
-    // Test from a1 corner
-    board.position.whitepieces.Knight[0].position = c.A1;
-    var moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 2); // Can only move to b3 and c2
-
-    // Test from h8 corner
-    board.position.whitepieces.Knight[0].position = c.H8;
-    moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 2); // Can only move to f7 and g6
-}
-
-test "ValidKnightMoves with both knights" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Knight[0].position = c.B1;
-    board.position.whitepieces.Knight[1].position = c.G1;
-
-    const moves1 = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves1.len, 3); // Can move to a3, c3, and d2
-
-    const moves2 = ValidKnightMoves(board.position.whitepieces.Knight[1], board);
-    try std.testing.expectEqual(moves2.len, 3); // Can move to e2, f3, and h3
-}
-
-test "ValidKnightMoves captures" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Knight[0].position = c.E4;
-
-    // Place some black pieces in knight's path
-    board.position.blackpieces.Pawn[0].position = c.F6; // Can be captured
-    board.position.blackpieces.Pawn[1].position = c.D6; // Can be captured
-    board.position.whitepieces.Pawn[0].position = c.G5; // Blocked by own piece
-
-    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 7); // 8 possible moves - 1 blocked by own piece
-
-    // Verify captures are possible
-    var foundCaptures = false;
-    for (moves) |move| {
-        if (move.position.blackpieces.Pawn[0].position == 0 or
-            move.position.blackpieces.Pawn[1].position == 0)
-        {
-            foundCaptures = true;
-            break;
-        }
-    }
-    try std.testing.expect(foundCaptures);
-}
-
-pub fn ValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
-    const bitmap: u64 = bitmapfromboard(board);
-    var moves: [256]b.Board = undefined;
-    var possiblemoves: u64 = 0;
-    var index: u64 = 0; // Initialize with a default value
-
-    // Find which bishop we're moving
-    if (piece.color == 0) {
-        for (board.position.whitepieces.Bishop, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    } else {
-        for (board.position.blackpieces.Bishop, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    }
-
-    const row = rowfrombitmap(piece.position);
-    const col = colfrombitmap(piece.position);
-
-    // Bishop moves along diagonals
-    const bishopshifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
-
-    // Up-Right diagonal moves (NE)
-    for (bishopshifts) |shift| {
-        if (row + shift > 8 or col + shift > 8) break;
-
-        const newpos = piece.position << (shift * 7);
-        if (newpos == 0) break;
-
-        // Check if target square is empty
-        if (bitmap & newpos == 0) {
-            var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
-            } else {
-                newBoard.position.blackpieces.Bishop[index].position = newpos;
-            }
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
-        } else {
-            // Check if enemy piece (possible capture)
-            const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0)
-                    captureblackpiece(newpos, b.Board{ .position = board.position })
-                else
-                    capturewhitepiece(newpos, b.Board{ .position = board.position });
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Bishop[index].position = newpos;
-                } else {
-                    newBoard.position.blackpieces.Bishop[index].position = newpos;
-                }
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
-            }
-            break; // Stop in this direction after capture or blocked
-        }
-    }
-
-    // Up-Left diagonal moves (NW)
-    for (bishopshifts) |shift| {
-        if (row + shift > 8 or col <= shift) break;
-
-        const newpos = piece.position << (shift * 9);
-        if (newpos == 0) break;
-
-        if (bitmap & newpos == 0) {
-            var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
-            } else {
-                newBoard.position.blackpieces.Bishop[index].position = newpos;
-            }
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
-        } else {
-            const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0)
-                    captureblackpiece(newpos, b.Board{ .position = board.position })
-                else
-                    capturewhitepiece(newpos, b.Board{ .position = board.position });
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Bishop[index].position = newpos;
-                } else {
-                    newBoard.position.blackpieces.Bishop[index].position = newpos;
-                }
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
-            }
-            break;
-        }
-    }
-
-    // Down-Right diagonal moves (SE)
-    for (bishopshifts) |shift| {
-        if (row <= shift or col + shift > 8) break;
-
-        const newpos = piece.position >> (shift * 9);
-        if (newpos == 0) break;
-
-        if (bitmap & newpos == 0) {
-            var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
-            } else {
-                newBoard.position.blackpieces.Bishop[index].position = newpos;
-            }
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
-        } else {
-            const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0)
-                    captureblackpiece(newpos, b.Board{ .position = board.position })
-                else
-                    capturewhitepiece(newpos, b.Board{ .position = board.position });
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Bishop[index].position = newpos;
-                } else {
-                    newBoard.position.blackpieces.Bishop[index].position = newpos;
-                }
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
-            }
-            break;
-        }
-    }
-
-    // Down-Left diagonal moves (SW)
-    for (bishopshifts) |shift| {
-        if (row <= shift or col <= shift) break;
-
-        const newpos = piece.position >> (shift * 7);
-        if (newpos == 0) break;
-
-        if (bitmap & newpos == 0) {
-            var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Bishop[index].position = newpos;
-            } else {
-                newBoard.position.blackpieces.Bishop[index].position = newpos;
-            }
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
-        } else {
-            const targetPiece = piecefromlocation(newpos, board);
-            if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0)
-                    captureblackpiece(newpos, b.Board{ .position = board.position })
-                else
-                    capturewhitepiece(newpos, b.Board{ .position = board.position });
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Bishop[index].position = newpos;
-                } else {
-                    newBoard.position.blackpieces.Bishop[index].position = newpos;
-                }
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
-            }
-            break;
-        }
-    }
-
-    return moves[0..possiblemoves];
-}
-
 test "ValidBishopMoves for empty board with bishop on e4" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Bishop[0].position = c.E4;
     _ = board.print();
 
-    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    const moves = getValidBishopMoves(board.position.whitepieces.Bishop[0], board);
     try std.testing.expectEqual(moves.len, 13); // Bishop on e4 can move to 13 squares
 
     // Verify specific positions
@@ -1353,7 +984,7 @@ test "ValidBishopMoves for empty board with bishop on e4" {
 
 test "ValidBishopMoves for bishop on c1 in initial position" {
     const board = b.Board{ .position = b.Position.init() };
-    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[1], board);
+    const moves = getValidBishopMoves(board.position.whitepieces.Bishop[1], board);
     try std.testing.expectEqual(moves.len, 0); // Bishop should be blocked by pawns
 }
 
@@ -1370,7 +1001,7 @@ test "ValidBishopMoves with captures" {
     // Place white piece to block
     board.position.whitepieces.Pawn[0].position = c.F5; // Blocks further Up-Right movement
 
-    const moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    const moves = getValidBishopMoves(board.position.whitepieces.Bishop[0], board);
 
     // Expected moves:
     // Up-Left: d5, c6(capture)
@@ -1395,12 +1026,12 @@ test "ValidBishopMoves edge cases" {
 
     // Test from corner
     board.position.whitepieces.Bishop[0].position = c.A1;
-    var moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    var moves = getValidBishopMoves(board.position.whitepieces.Bishop[0], board);
     try std.testing.expectEqual(moves.len, 7); // Can only move diagonally up-right
 
     // Test from edge
     board.position.whitepieces.Bishop[0].position = c.A4;
-    moves = ValidBishopMoves(board.position.whitepieces.Bishop[0], board);
+    moves = getValidBishopMoves(board.position.whitepieces.Bishop[0], board);
     try std.testing.expectEqual(moves.len, 7); // Can move diagonally up-right and down-right
 }
 
@@ -1408,26 +1039,26 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u64 = 0;
-    const queen: b.Piece = piece;
+    const queen_piece: b.Piece = piece;
 
     const shifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };
-    const row: u64 = rowfrombitmap(queen.position);
-    const col: u64 = colfrombitmap(queen.position);
-    var newqueen: b.Piece = queen;
+    const row: u64 = rowfrombitmap(queen_piece.position);
+    const col: u64 = colfrombitmap(queen_piece.position);
+    var newqueen: b.Piece = queen_piece;
     var testpiece: b.Piece = undefined;
 
     // Rook-like moves
     // Forward moves
     for (shifts) |shift| {
         if (row + shift > 8) break;
-        const newpos = queen.position << (shift * 8);
+        const newpos = queen_piece.position << (shift * 8);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1436,9 +1067,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1454,14 +1085,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Backward moves
     for (shifts) |shift| {
         if (row <= shift) break;
-        const newpos = queen.position >> (shift * 8);
+        const newpos = queen_piece.position >> (shift * 8);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1470,9 +1101,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1488,14 +1119,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Left moves
     for (shifts) |shift| {
         if (col <= shift) break;
-        const newpos = queen.position << shift;
+        const newpos = queen_piece.position << shift;
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1504,9 +1135,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1522,14 +1153,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Right moves
     for (shifts) |shift| {
         if (col + shift > 8) break;
-        const newpos = queen.position >> shift;
+        const newpos = queen_piece.position >> shift;
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1538,9 +1169,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1557,14 +1188,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Up-Left diagonal
     for (shifts) |shift| {
         if (row + shift > 8 or col <= shift) break;
-        const newpos = queen.position << (shift * 9);
+        const newpos = queen_piece.position << (shift * 9);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1573,9 +1204,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1591,14 +1222,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Up-Right diagonal
     for (shifts) |shift| {
         if (row + shift > 8 or col + shift > 8) break;
-        const newpos = queen.position << (shift * 7);
+        const newpos = queen_piece.position << (shift * 7);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1607,9 +1238,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1625,14 +1256,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Down-Left diagonal
     for (shifts) |shift| {
         if (row <= shift or col <= shift) break;
-        const newpos = queen.position >> (shift * 7);
+        const newpos = queen_piece.position >> (shift * 7);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1641,9 +1272,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1659,14 +1290,14 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     // Down-Right diagonal
     for (shifts) |shift| {
         if (row <= shift or col + shift > 8) break;
-        const newpos = queen.position >> (shift * 9);
+        const newpos = queen_piece.position >> (shift * 9);
         if (newpos == 0) break;
 
         if (bitmap & newpos == 0) {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen.color == 0) {
+            if (queen_piece.color == 0) {
                 moves[possiblemoves].position.whitepieces.Queen = newqueen;
             } else {
                 moves[possiblemoves].position.blackpieces.Queen = newqueen;
@@ -1675,9 +1306,9 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else {
             // Check for capture
             testpiece = piecefromlocation(newpos, board);
-            if (testpiece.color != queen.color) {
+            if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen.color == 0) {
+                if (queen_piece.color == 0) {
                     moves[possiblemoves] = captureblackpiece(newpos, b.Board{ .position = board.position });
                     moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
@@ -1696,8 +1327,8 @@ pub fn ValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
 // Test cases for ValidQueenMoves
 test "ValidQueenMoves for initial board (no moves expected)" {
     const board = b.Board{ .position = b.Position.init() };
-    const queen = board.position.whitepieces.Queen;
-    const moves = ValidQueenMoves(queen, board);
+    const queen_piece = board.position.whitepieces.Queen;
+    const moves = ValidQueenMoves(queen_piece, board);
     try std.testing.expectEqual(moves.len, 0); // Queen is blocked by own pieces
 }
 
@@ -1751,9 +1382,7 @@ test "ValidQueenMoves with obstacles" {
 }
 
 // Color-specific move functions
-pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
-    return ValidPawnMoves(piece, board);
-}
+pub const getValidPawnMoves = pawn.getValidPawnMoves;
 
 test "getValidPawnMoves works for white pawns" {
     const board = b.Board{ .position = b.Position.init() };
@@ -1767,9 +1396,7 @@ test "getValidPawnMoves works for black pawns" {
     try std.testing.expectEqual(moves.len, 2); // e7 pawn can move to e6 and e5
 }
 
-pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
-    return ValidRookMoves(piece, board);
-}
+pub const getValidRookMoves = rook.getValidRookMoves;
 
 test "getValidRookMoves works for white rooks" {
     var board = b.Board{ .position = b.Position.emptyboard() };
@@ -1785,25 +1412,9 @@ test "getValidRookMoves works for black rooks" {
     try std.testing.expectEqual(moves.len, 14); // Rook on e4 can move to 14 squares (7 horizontal + 7 vertical)
 }
 
-pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
-    return ValidKnightMoves(piece, board);
-}
+pub const getValidKnightMoves = knight.getValidKnightMoves;
 
-test "getValidKnightMoves works for white knights" {
-    const board = b.Board{ .position = b.Position.init() };
-    const moves = getValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 2); // b1 knight can move to a3 and c3
-}
-
-test "getValidKnightMoves works for black knights" {
-    const board = b.Board{ .position = b.Position.init() };
-    const moves = getValidKnightMoves(board.position.blackpieces.Knight[0], board);
-    try std.testing.expectEqual(moves.len, 2); // b8 knight can move to a6 and c6
-}
-
-pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
-    return ValidBishopMoves(piece, board);
-}
+pub const getValidBishopMoves = bishop.getValidBishopMoves;
 
 test "getValidBishopMoves works for white bishops" {
     var board = b.Board{ .position = b.Position.emptyboard() };
@@ -1819,9 +1430,7 @@ test "getValidBishopMoves works for black bishops" {
     try std.testing.expectEqual(moves.len, 13); // Bishop on e4 can move to 13 squares
 }
 
-pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
-    return ValidQueenMoves(piece, board);
-}
+pub const getValidQueenMoves = queen.getValidQueenMoves;
 
 test "getValidQueenMoves works for white queen" {
     var board = b.Board{ .position = b.Position.emptyboard() };
@@ -1837,9 +1446,7 @@ test "getValidQueenMoves works for black queen" {
     try std.testing.expectEqual(moves.len, 27); // Queen on e4 can move to 27 squares
 }
 
-pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
-    return ValidKingMoves(piece, board);
-}
+pub const getValidKingMoves = king.getValidKingMoves;
 
 test "getValidKingMoves works for white king" {
     var board = b.Board{ .position = b.Position.emptyboard() };
@@ -1853,21 +1460,6 @@ test "getValidKingMoves works for black king" {
     board.position.blackpieces.King.position = c.E4;
     const moves = getValidKingMoves(board.position.blackpieces.King, board);
     try std.testing.expectEqual(moves.len, 8); // King on e4 can move to 8 squares
-}
-
-test "ValidKnightMoves unordered test for knight on b1" {
-    var board = b.Board{ .position = b.Position.emptyboard() };
-    board.position.whitepieces.Knight[0].position = c.B1;
-    const moves = ValidKnightMoves(board.position.whitepieces.Knight[0], board);
-    var foundC3 = false;
-    var foundA3 = false;
-    for (moves) |move| {
-        const newPos = move.position.whitepieces.Knight[0].position;
-        if (newPos == c.C3) foundC3 = true;
-        if (newPos == c.A3) foundA3 = true;
-    }
-    try std.testing.expect(foundC3);
-    try std.testing.expect(foundA3);
 }
 
 pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
@@ -2045,9 +1637,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Rook moves
         var rookMoveCount: usize = 0;
-        for (board.position.whitepieces.Rook) |rook| {
-            if (rook.position == 0) continue;
-            const rookMoves = getValidRookMoves(rook, board);
+        for (board.position.whitepieces.Rook) |r| {
+            if (r.position == 0) continue;
+            const rookMoves = getValidRookMoves(r, board);
             rookMoveCount += rookMoves.len;
             for (rookMoves) |move| {
                 if (!s.isCheck(move, true)) {
@@ -2060,9 +1652,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Bishop moves
         var bishopMoveCount: usize = 0;
-        for (board.position.whitepieces.Bishop) |bishop| {
-            if (bishop.position == 0) continue;
-            const bishopMoves = getValidBishopMoves(bishop, board);
+        for (board.position.whitepieces.Bishop) |piece| {
+            if (piece.position == 0) continue;
+            const bishopMoves = getValidBishopMoves(piece, board);
             bishopMoveCount += bishopMoves.len;
             for (bishopMoves) |move| {
                 if (!s.isCheck(move, true)) {
@@ -2075,9 +1667,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Knight moves
         var knightMoveCount: usize = 0;
-        for (board.position.whitepieces.Knight) |knight| {
-            if (knight.position == 0) continue;
-            const knightMoves = getValidKnightMoves(knight, board);
+        for (board.position.whitepieces.Knight) |k| {
+            if (k.position == 0) continue;
+            const knightMoves = getValidKnightMoves(k, board);
             knightMoveCount += knightMoves.len;
             for (knightMoves) |move| {
                 if (!s.isCheck(move, true)) {
@@ -2090,9 +1682,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Pawn moves
         var pawnMoveCount: usize = 0;
-        for (board.position.whitepieces.Pawn) |pawn| {
-            if (pawn.position == 0) continue;
-            const pawnMoves = getValidPawnMoves(pawn, board);
+        for (board.position.whitepieces.Pawn) |p| {
+            if (p.position == 0) continue;
+            const pawnMoves = getValidPawnMoves(p, board);
             pawnMoveCount += pawnMoves.len;
             for (pawnMoves) |move| {
                 if (!s.isCheck(move, true)) {
@@ -2126,9 +1718,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Rook moves
         var rookMoveCount: usize = 0;
-        for (board.position.blackpieces.Rook) |rook| {
-            if (rook.position == 0) continue;
-            const rookMoves = getValidRookMoves(rook, board);
+        for (board.position.blackpieces.Rook) |r| {
+            if (r.position == 0) continue;
+            const rookMoves = getValidRookMoves(r, board);
             rookMoveCount += rookMoves.len;
             for (rookMoves) |move| {
                 if (!s.isCheck(move, false)) {
@@ -2141,9 +1733,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Bishop moves
         var bishopMoveCount: usize = 0;
-        for (board.position.blackpieces.Bishop) |bishop| {
-            if (bishop.position == 0) continue;
-            const bishopMoves = getValidBishopMoves(bishop, board);
+        for (board.position.blackpieces.Bishop) |piece| {
+            if (piece.position == 0) continue;
+            const bishopMoves = getValidBishopMoves(piece, board);
             bishopMoveCount += bishopMoves.len;
             for (bishopMoves) |move| {
                 if (!s.isCheck(move, false)) {
@@ -2156,9 +1748,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Knight moves
         var knightMoveCount: usize = 0;
-        for (board.position.blackpieces.Knight) |knight| {
-            if (knight.position == 0) continue;
-            const knightMoves = getValidKnightMoves(knight, board);
+        for (board.position.blackpieces.Knight) |k| {
+            if (k.position == 0) continue;
+            const knightMoves = getValidKnightMoves(k, board);
             knightMoveCount += knightMoves.len;
             for (knightMoves) |move| {
                 if (!s.isCheck(move, false)) {
@@ -2171,9 +1763,9 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
 
         // Pawn moves
         var pawnMoveCount: usize = 0;
-        for (board.position.blackpieces.Pawn) |pawn| {
-            if (pawn.position == 0) continue;
-            const pawnMoves = getValidPawnMoves(pawn, board);
+        for (board.position.blackpieces.Pawn) |p| {
+            if (p.position == 0) continue;
+            const pawnMoves = getValidPawnMoves(p, board);
             pawnMoveCount += pawnMoves.len;
             for (pawnMoves) |move| {
                 if (!s.isCheck(move, false)) {
@@ -2299,17 +1891,17 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
                 // Find the pawn that was promoted and update its representation
                 if (board.position.sidetomove == 0) {
                     // White pawn promotion
-                    for (&result.position.whitepieces.Pawn) |*pawn| {
-                        if (pawn.position == move.to) {
-                            pawn.representation = std.ascii.toUpper(promotion);
+                    for (&result.position.whitepieces.Pawn) |*p| {
+                        if (p.position == move.to) {
+                            p.representation = std.ascii.toUpper(promotion);
                             break;
                         }
                     }
                 } else {
                     // Black pawn promotion
-                    for (&result.position.blackpieces.Pawn) |*pawn| {
-                        if (pawn.position == move.to) {
-                            pawn.representation = promotion;
+                    for (&result.position.blackpieces.Pawn) |*p| {
+                        if (p.position == move.to) {
+                            p.representation = promotion;
                             break;
                         }
                     }
@@ -2473,8 +2065,8 @@ test "ValidQueenMoves captures in all directions" {
     // Should have exactly 8 capture moves
     var captureCount: usize = 0;
     for (moves) |move| {
-        for (board.position.whitepieces.Pawn) |pawn| {
-            if (move.position.blackpieces.Queen.position == pawn.position) {
+        for (board.position.whitepieces.Pawn) |p| {
+            if (move.position.blackpieces.Queen.position == p.position) {
                 captureCount += 1;
             }
         }
