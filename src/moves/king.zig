@@ -1,6 +1,7 @@
 const b = @import("../board.zig");
 const c = @import("../consts.zig");
 const board_helpers = @import("../utils/board_helpers.zig");
+const std = @import("std");
 
 pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
@@ -141,4 +142,69 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     return moves[0..possiblemoves];
+}
+
+test "getValidKingMoves for empty board with king on e1" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E4;
+    _ = board.print();
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 8);
+}
+
+test "getValidKingMoves for init board with king on e1" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 0);
+}
+
+test "getValidKingMoves for empty board with king on e1 and black piece on e2" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.blackpieces.Pawn[4].position = c.E2;
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+    try std.testing.expectEqual(moves.len, 5);
+}
+
+test "getValidKingMoves for black king on empty board" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E4;
+    const moves = getValidKingMoves(board.position.blackpieces.King, board);
+    try std.testing.expectEqual(moves.len, 8); // Should have 8 moves in all directions
+
+    // Verify the king's position is updated correctly in the resulting boards
+    for (moves) |move| {
+        try std.testing.expectEqual(move.position.blackpieces.King.position != c.E4, true);
+        try std.testing.expectEqual(move.position.whitepieces.King.position, 0);
+    }
+}
+
+test "getValidKingMoves for black king with captures" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E4;
+    // Place white pieces to capture
+    board.position.whitepieces.Pawn[0].position = c.E5;
+    board.position.whitepieces.Pawn[1].position = c.F4;
+    // Place black piece to block
+    board.position.blackpieces.Pawn[0].position = c.D4;
+
+    const moves = getValidKingMoves(board.position.blackpieces.King, board);
+    try std.testing.expectEqual(moves.len, 7); // 8 directions - 1 blocked
+
+    // Verify captures work correctly
+    var captureFound = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.King.position == c.E5 or
+            move.position.blackpieces.King.position == c.F4)
+        {
+            captureFound = true;
+            // Check that the captured piece is removed
+            if (move.position.blackpieces.King.position == c.E5) {
+                try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+            } else {
+                try std.testing.expectEqual(move.position.whitepieces.Pawn[1].position, 0);
+            }
+        }
+    }
+    try std.testing.expect(captureFound);
 }
