@@ -1,7 +1,7 @@
 const b = @import("../board.zig");
 const c = @import("../consts.zig");
-const std = @import("std");
 const board_helpers = @import("../utils/board_helpers.zig");
+const std = @import("std");
 
 // Returns an array of boards representing all possible moves for the given pawn
 pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {

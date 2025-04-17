@@ -208,3 +208,24 @@ test "getValidKingMoves for black king with captures" {
     }
     try std.testing.expect(captureFound);
 }
+
+test "getValidKingMoves for black king with castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E8;
+    board.position.blackpieces.Rook[1].position = c.H8;
+    board.position.canCastleBlackKingside = true;
+
+    const moves = getValidKingMoves(board.position.blackpieces.King, board);
+
+    // Verify castling is included in the moves
+    var castlingFound = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.King.position == c.G8 and
+            move.position.blackpieces.Rook[1].position == c.F8)
+        {
+            castlingFound = true;
+            try std.testing.expectEqual(move.position.canCastleBlackKingside, false);
+        }
+    }
+    try std.testing.expect(castlingFound);
+}
