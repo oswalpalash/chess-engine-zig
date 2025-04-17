@@ -1,6 +1,7 @@
 const b = @import("../board.zig");
 const c = @import("../consts.zig");
 const board_helpers = @import("../utils/board_helpers.zig");
+const std = @import("std");
 
 pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
@@ -86,4 +87,69 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     return moves[0..possiblemoves];
+}
+
+test "getValidRookMoves for empty board with rook on e4" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.E4;
+    const moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // 7 horizontal + 7 vertical moves
+}
+
+test "getValidRookMoves for black rook captures" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Rook[0].position = c.E4;
+    board.position.whitepieces.Pawn[0].position = c.E6; // Can be captured
+    board.position.whitepieces.Pawn[1].position = c.C4; // Can be captured
+    board.position.blackpieces.Pawn[0].position = c.E3; // Blocks movement
+
+    const moves = getValidRookMoves(board.position.blackpieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 8); // 2 captures + 6 empty squares
+
+    // Verify captures are possible
+    var foundCaptures = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Pawn[0].position == 0 or
+            move.position.whitepieces.Pawn[1].position == 0)
+        {
+            foundCaptures = true;
+            break;
+        }
+    }
+    try std.testing.expect(foundCaptures);
+}
+
+test "getValidRookMoves blocked by own pieces" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.E4;
+    // Place friendly pieces to block in all directions
+    board.position.whitepieces.Pawn[0].position = c.E5;
+    board.position.whitepieces.Pawn[1].position = c.E3;
+    board.position.whitepieces.Pawn[2].position = c.D4;
+    board.position.whitepieces.Pawn[3].position = c.F4;
+
+    const moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 0); // No moves possible
+}
+
+test "getValidRookMoves edge cases" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+
+    // Test from corner
+    board.position.whitepieces.Rook[0].position = c.A1;
+    var moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // 7 up + 7 right
+
+    // Test from edge
+    board.position.whitepieces.Rook[0].position = c.A4;
+    moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    try std.testing.expectEqual(moves.len, 14); // 7 horizontal + 7 vertical
+}
+
+// New test to verify that the black rook at A8 in the initial board has 0 moves
+test "ValidRookMoves for black rook at a8 in initial board" {
+    const board = b.Board{ .position = b.Position.init() };
+    // Based on our board setup, the black rook at A8 is stored in blackpieces.Rook[1]
+    const moves = getValidRookMoves(board.position.blackpieces.Rook[1], board);
+    try std.testing.expectEqual(moves.len, 0);
 }

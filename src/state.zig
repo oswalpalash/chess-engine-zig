@@ -62,7 +62,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
         // Check black rooks
         for (board.position.blackpieces.Rook) |rook| {
             if (rook.position == 0) continue;
-            const moves = m.ValidRookMoves(rook, board);
+            const moves = m.getValidRookMoves(rook, board);
             for (moves) |move| {
                 // Check if any of the rook's valid moves can reach the king's position
                 if (move.position.blackpieces.Rook[0].position == kingPosition or
@@ -135,7 +135,7 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
         // Check white rooks
         for (board.position.whitepieces.Rook) |rook| {
             if (rook.position == 0) continue;
-            const moves = m.ValidRookMoves(rook, board);
+            const moves = m.getValidRookMoves(rook, board);
             for (moves) |move| {
                 // Check if any of the rook's valid moves can reach the king's position
                 if (move.position.whitepieces.Rook[0].position == kingPosition or
@@ -237,7 +237,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
 
     if (isWhite) {
         // Check king moves first
-        const kingMoves = m.ValidKingMoves(board.position.whitepieces.King, board);
+        const kingMoves = m.getValidKingMoves(board.position.whitepieces.King, board);
         for (kingMoves) |move| {
             // For each move, check if it gets us out of check
             if (!isCheck(move, true)) return false;
@@ -246,7 +246,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check pawn moves
         for (board.position.whitepieces.Pawn) |pawn| {
             if (pawn.position == 0) continue;
-            const pawnMoves = m.ValidPawnMoves(pawn, board);
+            const pawnMoves = m.getValidPawnMoves(pawn, board);
             for (pawnMoves) |move| {
                 if (!isCheck(move, true)) return false;
             }
@@ -255,7 +255,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check knight moves
         for (board.position.whitepieces.Knight) |knight| {
             if (knight.position == 0) continue;
-            const knightMoves = m.ValidKnightMoves(knight, board);
+            const knightMoves = m.getValidKnightMoves(knight, board);
             for (knightMoves) |move| {
                 if (!isCheck(move, true)) return false;
             }
@@ -273,7 +273,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check rook moves
         for (board.position.whitepieces.Rook) |rook| {
             if (rook.position == 0) continue;
-            const rookMoves = m.ValidRookMoves(rook, board);
+            const rookMoves = m.getValidRookMoves(rook, board);
             for (rookMoves) |move| {
                 if (!isCheck(move, true)) return false;
             }
@@ -288,7 +288,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         }
     } else {
         // Check king moves first
-        const kingMoves = m.ValidKingMoves(board.position.blackpieces.King, board);
+        const kingMoves = m.getValidKingMoves(board.position.blackpieces.King, board);
         for (kingMoves) |move| {
             // For each move, check if it gets us out of check
             if (!isCheck(move, false)) return false;
@@ -297,7 +297,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check pawn moves
         for (board.position.blackpieces.Pawn) |pawn| {
             if (pawn.position == 0) continue;
-            const pawnMoves = m.ValidPawnMoves(pawn, board);
+            const pawnMoves = m.getValidPawnMoves(pawn, board);
             for (pawnMoves) |move| {
                 if (!isCheck(move, false)) return false;
             }
@@ -306,7 +306,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check knight moves
         for (board.position.blackpieces.Knight) |knight| {
             if (knight.position == 0) continue;
-            const knightMoves = m.ValidKnightMoves(knight, board);
+            const knightMoves = m.getValidKnightMoves(knight, board);
             for (knightMoves) |move| {
                 if (!isCheck(move, false)) return false;
             }
@@ -324,7 +324,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check rook moves
         for (board.position.blackpieces.Rook) |rook| {
             if (rook.position == 0) continue;
-            const rookMoves = m.ValidRookMoves(rook, board);
+            const rookMoves = m.getValidRookMoves(rook, board);
             for (rookMoves) |move| {
                 if (!isCheck(move, false)) return false;
             }
