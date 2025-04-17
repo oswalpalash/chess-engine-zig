@@ -246,7 +246,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check pawn moves
         for (board.position.whitepieces.Pawn) |pawn| {
             if (pawn.position == 0) continue;
-            const pawnMoves = m.ValidPawnMoves(pawn, board);
+            const pawnMoves = m.getValidPawnMoves(pawn, board);
             for (pawnMoves) |move| {
                 if (!isCheck(move, true)) return false;
             }
@@ -297,7 +297,7 @@ pub fn isCheckmate(board: b.Board, isWhite: bool) bool {
         // Check pawn moves
         for (board.position.blackpieces.Pawn) |pawn| {
             if (pawn.position == 0) continue;
-            const pawnMoves = m.ValidPawnMoves(pawn, board);
+            const pawnMoves = m.getValidPawnMoves(pawn, board);
             for (pawnMoves) |move| {
                 if (!isCheck(move, false)) return false;
             }
