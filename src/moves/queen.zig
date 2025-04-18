@@ -4,9 +4,11 @@ const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
 pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
-    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
+    if (piece.position == 0) return moves[0..possiblemoves];
+
+    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     const queen_piece: b.Piece = piece;
 
     const shifts = [7]u6{ 1, 2, 3, 4, 5, 6, 7 };

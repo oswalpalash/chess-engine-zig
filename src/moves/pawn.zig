@@ -5,9 +5,11 @@ const std = @import("std");
 
 // Returns an array of boards representing all possible moves for the given pawn
 pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
-    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u6 = 0;
+    if (piece.position == 0) return moves[0..possiblemoves];
+
+    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var index: u64 = 0;
 
     // Find which pawn we're moving

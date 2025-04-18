@@ -4,29 +4,45 @@ const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
 pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
-    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
+    if (piece.position == 0) return moves[0..possiblemoves]; // Should not happen for king, but safe
+
+    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var king: b.Piece = piece;
     var dummypiece: b.Piece = undefined;
-    const directional_kingshifts = [4]u6{ 1, 7, 8, 9 };
-    // forward moves
-    for (directional_kingshifts) |shift| {
-        if (piece.position << shift == 0) {
-            continue;
+
+    // King move shifts and corresponding masks to prevent wrap-around
+    const kingShifts = [_]struct { shift: i8, mask: u64 }{
+        .{ .shift = 8, .mask = 0xFFFFFFFFFFFFFFFF }, // Up 1
+        .{ .shift = -8, .mask = 0xFFFFFFFFFFFFFFFF }, // Down 1
+        .{ .shift = 1, .mask = 0xFEFEFEFEFEFEFEFE }, // Right 1 (not from H file)
+        .{ .shift = -1, .mask = 0x7F7F7F7F7F7F7F7F }, // Left 1 (not from A file)
+        .{ .shift = 9, .mask = 0xFEFEFEFEFEFEFEFE }, // Up 1, Right 1 (not from H file)
+        .{ .shift = 7, .mask = 0x7F7F7F7F7F7F7F7F }, // Up 1, Left 1 (not from A file)
+        .{ .shift = -7, .mask = 0xFEFEFEFEFEFEFEFE }, // Down 1, Right 1 (not from H file)
+        .{ .shift = -9, .mask = 0x7F7F7F7F7F7F7F7F }, // Down 1, Left 1 (not from A file)
+    };
+
+    for (kingShifts) |move| {
+        // Apply mask to ensure king is not on the edge it would wrap from
+        if ((piece.position & move.mask) == 0) continue;
+
+        var newpos: u64 = undefined;
+        if (move.shift > 0) {
+            // Check for potential overflow before shifting (though unlikely for king moves)
+            newpos = piece.position << @as(u6, @intCast(move.shift));
+        } else {
+            // Check for potential underflow before shifting
+            newpos = piece.position >> @as(u6, @intCast(-move.shift));
         }
-        // if there is no piece, allow shifting
-        // if there is a piece, check if it is of different colour, if so, capture it
-        // if it is of same colour, don't allow shifting
-        if (bitmap & (piece.position << shift) == 0) {
-            dummypiece = board_helpers.piecefromlocation(piece.position << shift, board);
-            if (dummypiece.representation != '.') {
-                if (dummypiece.color == piece.color) {
-                    continue;
-                }
-            }
-            king.position = piece.position << shift;
-            // update board
+
+        // If newpos is 0 after shift (e.g., E1 >> 9), skip
+        if (newpos == 0) continue;
+
+        // Check if target square is empty or has an enemy piece
+        if (bitmap & newpos == 0) { // Square is empty
+            king.position = newpos;
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
                 newBoard.position.whitepieces.King.position = king.position;
@@ -35,76 +51,25 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             }
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
-        } else {
-            if (bitmap & (piece.position << shift) != 0) {
-                dummypiece = board_helpers.piecefromlocation(piece.position << shift, board);
-                if (dummypiece.representation != '.') {
-                    if (dummypiece.color != piece.color) {
-                        king.position = piece.position << shift;
-                        // update board with appropriate capture
-                        var newBoard = if (piece.color == 0)
-                            board_helpers.captureblackpiece(king.position, b.Board{ .position = board.position })
-                        else
-                            board_helpers.capturewhitepiece(king.position, b.Board{ .position = board.position });
+        } else { // Square is occupied
+            dummypiece = board_helpers.piecefromlocation(newpos, board);
+            if (dummypiece.representation != '.' and dummypiece.color != piece.color) { // Enemy piece
+                king.position = newpos;
+                var newBoard = if (piece.color == 0)
+                    board_helpers.captureblackpiece(king.position, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(king.position, b.Board{ .position = board.position });
 
-                        if (piece.color == 0) {
-                            newBoard.position.whitepieces.King.position = king.position;
-                        } else {
-                            newBoard.position.blackpieces.King.position = king.position;
-                        }
-                        moves[possiblemoves] = newBoard;
-                        possiblemoves += 1;
-                    }
+                if (piece.color == 0) {
+                    newBoard.position.whitepieces.King.position = king.position;
+                } else {
+                    newBoard.position.blackpieces.King.position = king.position;
                 }
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
             }
         }
-    }
-    king = piece;
-    // reverse moves
-    for (directional_kingshifts) |shift| {
-        if (king.position >> shift == 0) {
-            continue;
-        }
-        if (bitmap & (king.position >> shift) == 0) {
-            dummypiece = board_helpers.piecefromlocation(piece.position >> shift, board);
-            if (dummypiece.representation != '.') {
-                if (dummypiece.color == piece.color) {
-                    continue;
-                }
-            }
-            king.position = piece.position >> shift;
-            // update board
-            var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.King.position = king.position;
-            } else {
-                newBoard.position.blackpieces.King.position = king.position;
-            }
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
-        } else {
-            if (bitmap & (piece.position >> shift) != 0) {
-                dummypiece = board_helpers.piecefromlocation(piece.position >> shift, board);
-                if (dummypiece.representation != '.') {
-                    if (dummypiece.color != piece.color) {
-                        king.position = piece.position >> shift;
-                        // update board with appropriate capture
-                        var newBoard = if (piece.color == 0)
-                            board_helpers.captureblackpiece(king.position, b.Board{ .position = board.position })
-                        else
-                            board_helpers.capturewhitepiece(king.position, b.Board{ .position = board.position });
-
-                        if (piece.color == 0) {
-                            newBoard.position.whitepieces.King.position = king.position;
-                        } else {
-                            newBoard.position.blackpieces.King.position = king.position;
-                        }
-                        moves[possiblemoves] = newBoard;
-                        possiblemoves += 1;
-                    }
-                }
-            }
-        }
+        king = piece; // Reset king struct for next iteration
     }
 
     // Add castling moves for white king (kingside) if available

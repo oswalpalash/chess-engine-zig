@@ -8,6 +8,7 @@ const knight = @import("moves/knight.zig");
 const bishop = @import("moves/bishop.zig");
 const queen = @import("moves/queen.zig");
 const king = @import("moves/king.zig");
+const legal = @import("moves/legal.zig");
 
 // Import the reverse function from board.zig
 const reverse = b.reverse;
@@ -159,6 +160,16 @@ test "black piece from location" {
 
 pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
     return board_helpers.captureblackpiece(loc, board);
+}
+
+pub fn getlegalmoves(color: u8, board: b.Board) []b.Board {
+    return legal.getLegalMoves(color, board);
+}
+
+test "get legal moves for white in initial board" {
+    const board = b.Board{ .position = b.Position.init() };
+    const moves = getlegalmoves(0, board);
+    try std.testing.expectEqual(moves.len, 20);
 }
 
 test "capture black pawn at e7 in initial board" {

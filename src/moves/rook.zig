@@ -4,9 +4,11 @@ const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
 pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
-    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
+    if (piece.position == 0) return moves[0..possiblemoves]; // Return empty if piece is captured
+
+    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var index: usize = 0; // Initialize with a default value
 
     // Find which rook we're moving

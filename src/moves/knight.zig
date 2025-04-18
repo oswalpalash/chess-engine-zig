@@ -4,9 +4,11 @@ const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
 pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
-    const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
+    if (piece.position == 0) return moves[0..possiblemoves];
+
+    const bitmap: u64 = board_helpers.bitmapfromboard(board);
 
     // Find the correct index for the knight
     var index: u8 = 0;
