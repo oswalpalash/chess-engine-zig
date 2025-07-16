@@ -279,7 +279,7 @@ pub fn parseFen(fen: []const u8) Position {
     var index: u6 = 0;
     var i: usize = 0;
 
-    fn addPiece(comptime T: type, arr: *T, bit: u64) void {
+    fn addPiece(arr: anytype, bit: u64) void {
         inline for (arr.*) |*p, j| {
             if (p.position == 0) {
                 p.position = bit;
@@ -305,10 +305,10 @@ pub fn parseFen(fen: []const u8) Position {
                         position.whitepieces.Queen.position |= bit;
                         position.whitepieces.Queen.index = 0;
                     },
-                    'R' => addPiece(*[2]Piece, &position.whitepieces.Rook, bit),
-                    'B' => addPiece(*[2]Piece, &position.whitepieces.Bishop, bit),
-                    'N' => addPiece(*[2]Piece, &position.whitepieces.Knight, bit),
-                    'P' => addPiece(*[8]Piece, &position.whitepieces.Pawn, bit),
+                    'R' => addPiece(&position.whitepieces.Rook, bit),
+                    'B' => addPiece(&position.whitepieces.Bishop, bit),
+                    'N' => addPiece(&position.whitepieces.Knight, bit),
+                    'P' => addPiece(&position.whitepieces.Pawn, bit),
                     'k' => {
                         position.blackpieces.King.position |= bit;
                         position.blackpieces.King.index = 0;
@@ -317,10 +317,10 @@ pub fn parseFen(fen: []const u8) Position {
                         position.blackpieces.Queen.position |= bit;
                         position.blackpieces.Queen.index = 0;
                     },
-                    'r' => addPiece(*[2]Piece, &position.blackpieces.Rook, bit),
-                    'b' => addPiece(*[2]Piece, &position.blackpieces.Bishop, bit),
-                    'n' => addPiece(*[2]Piece, &position.blackpieces.Knight, bit),
-                    'p' => addPiece(*[8]Piece, &position.blackpieces.Pawn, bit),
+                    'r' => addPiece(&position.blackpieces.Rook, bit),
+                    'b' => addPiece(&position.blackpieces.Bishop, bit),
+                    'n' => addPiece(&position.blackpieces.Knight, bit),
+                    'p' => addPiece(&position.blackpieces.Pawn, bit),
                     else => {},
                 }
                 if (index < 63) {
