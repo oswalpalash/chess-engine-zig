@@ -141,70 +141,32 @@ pub const Position = struct {
     pub fn flip(self: Position) Position {
         var whitepieces: WhitePieces = self.whitepieces;
         var blackpieces: BlackPieces = self.blackpieces;
-        whitepieces.King.position = reverse(whitepieces.King.position);
-        whitepieces.King.index = self.whitepieces.King.index;
-        whitepieces.Queen.position = reverse(whitepieces.Queen.position);
-        whitepieces.Queen.index = self.whitepieces.Queen.index;
-        whitepieces.Rook[0].position = reverse(whitepieces.Rook[0].position);
-        whitepieces.Rook[0].index = self.whitepieces.Rook[0].index;
-        whitepieces.Rook[1].position = reverse(whitepieces.Rook[1].position);
-        whitepieces.Rook[1].index = self.whitepieces.Rook[1].index;
-        whitepieces.Bishop[0].position = reverse(whitepieces.Bishop[0].position);
-        whitepieces.Bishop[0].index = self.whitepieces.Bishop[0].index;
-        whitepieces.Bishop[1].position = reverse(whitepieces.Bishop[1].position);
-        whitepieces.Bishop[1].index = self.whitepieces.Bishop[1].index;
-        whitepieces.Knight[0].position = reverse(whitepieces.Knight[0].position);
-        whitepieces.Knight[0].index = self.whitepieces.Knight[0].index;
-        whitepieces.Knight[1].position = reverse(whitepieces.Knight[1].position);
-        whitepieces.Knight[1].index = self.whitepieces.Knight[1].index;
-        whitepieces.Pawn[0].position = reverse(whitepieces.Pawn[0].position);
-        whitepieces.Pawn[0].index = self.whitepieces.Pawn[0].index;
-        whitepieces.Pawn[1].position = reverse(whitepieces.Pawn[1].position);
-        whitepieces.Pawn[1].index = self.whitepieces.Pawn[1].index;
-        whitepieces.Pawn[2].position = reverse(whitepieces.Pawn[2].position);
-        whitepieces.Pawn[2].index = self.whitepieces.Pawn[2].index;
-        whitepieces.Pawn[3].position = reverse(whitepieces.Pawn[3].position);
-        whitepieces.Pawn[3].index = self.whitepieces.Pawn[3].index;
-        whitepieces.Pawn[4].position = reverse(whitepieces.Pawn[4].position);
-        whitepieces.Pawn[4].index = self.whitepieces.Pawn[4].index;
-        whitepieces.Pawn[5].position = reverse(whitepieces.Pawn[5].position);
-        whitepieces.Pawn[5].index = self.whitepieces.Pawn[5].index;
-        whitepieces.Pawn[6].position = reverse(whitepieces.Pawn[6].position);
-        whitepieces.Pawn[6].index = self.whitepieces.Pawn[6].index;
-        whitepieces.Pawn[7].position = reverse(whitepieces.Pawn[7].position);
-        whitepieces.Pawn[7].index = self.whitepieces.Pawn[7].index;
-        blackpieces.King.position = reverse(blackpieces.King.position);
-        blackpieces.King.index = self.blackpieces.King.index;
-        blackpieces.Queen.position = reverse(blackpieces.Queen.position);
-        blackpieces.Queen.index = self.blackpieces.Queen.index;
-        blackpieces.Rook[0].position = reverse(blackpieces.Rook[0].position);
-        blackpieces.Rook[0].index = self.blackpieces.Rook[0].index;
-        blackpieces.Rook[1].position = reverse(blackpieces.Rook[1].position);
-        blackpieces.Rook[1].index = self.blackpieces.Rook[1].index;
-        blackpieces.Bishop[0].position = reverse(blackpieces.Bishop[0].position);
-        blackpieces.Bishop[0].index = self.blackpieces.Bishop[0].index;
-        blackpieces.Bishop[1].position = reverse(blackpieces.Bishop[1].position);
-        blackpieces.Bishop[1].index = self.blackpieces.Bishop[1].index;
-        blackpieces.Knight[0].position = reverse(blackpieces.Knight[0].position);
-        blackpieces.Knight[0].index = self.blackpieces.Knight[0].index;
-        blackpieces.Knight[1].position = reverse(blackpieces.Knight[1].position);
-        blackpieces.Knight[1].index = self.blackpieces.Knight[1].index;
-        blackpieces.Pawn[0].position = reverse(blackpieces.Pawn[0].position);
-        blackpieces.Pawn[0].index = self.blackpieces.Pawn[0].index;
-        blackpieces.Pawn[1].position = reverse(blackpieces.Pawn[1].position);
-        blackpieces.Pawn[1].index = self.blackpieces.Pawn[1].index;
-        blackpieces.Pawn[2].position = reverse(blackpieces.Pawn[2].position);
-        blackpieces.Pawn[2].index = self.blackpieces.Pawn[2].index;
-        blackpieces.Pawn[3].position = reverse(blackpieces.Pawn[3].position);
-        blackpieces.Pawn[3].index = self.blackpieces.Pawn[3].index;
-        blackpieces.Pawn[4].position = reverse(blackpieces.Pawn[4].position);
-        blackpieces.Pawn[4].index = self.blackpieces.Pawn[4].index;
-        blackpieces.Pawn[5].position = reverse(blackpieces.Pawn[5].position);
-        blackpieces.Pawn[5].index = self.blackpieces.Pawn[5].index;
-        blackpieces.Pawn[6].position = reverse(blackpieces.Pawn[6].position);
-        blackpieces.Pawn[6].index = self.blackpieces.Pawn[6].index;
-        blackpieces.Pawn[7].position = reverse(blackpieces.Pawn[7].position);
-        blackpieces.Pawn[7].index = self.blackpieces.Pawn[7].index;
+
+        inline for (std.meta.fields(WhitePieces)) |field| {
+            const T = @TypeOf(@field(whitepieces, field.name));
+            if (T == Piece) {
+                @field(whitepieces, field.name).position =
+                    reverse(@field(whitepieces, field.name).position);
+            } else {
+                inline for (0..@typeInfo(T).Array.len) |i| {
+                    @field(whitepieces, field.name)[i].position =
+                        reverse(@field(whitepieces, field.name)[i].position);
+                }
+            }
+        }
+
+        inline for (std.meta.fields(BlackPieces)) |field| {
+            const T = @TypeOf(@field(blackpieces, field.name));
+            if (T == Piece) {
+                @field(blackpieces, field.name).position =
+                    reverse(@field(blackpieces, field.name).position);
+            } else {
+                inline for (0..@typeInfo(T).Array.len) |i| {
+                    @field(blackpieces, field.name)[i].position =
+                        reverse(@field(blackpieces, field.name)[i].position);
+                }
+            }
+        }
 
         return Position{
             .whitepieces = whitepieces,
@@ -219,82 +181,42 @@ pub const Position = struct {
     }
 
     pub fn print(position: Position) [64]u8 {
-        var printBuffer: [64]u8 = undefined;
-        std.debug.print("\n", .{});
-        var i: u6 = 0;
-        while (i < printBuffer.len) : (i += 1) {
-            if (position.whitepieces.King.position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.King.representation;
-            } else if (position.whitepieces.Queen.position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Queen.representation;
-            } else if (position.whitepieces.Rook[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Rook[0].representation;
-            } else if (position.whitepieces.Rook[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Rook[1].representation;
-            } else if (position.whitepieces.Bishop[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Bishop[0].representation;
-            } else if (position.whitepieces.Bishop[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Bishop[1].representation;
-            } else if (position.whitepieces.Knight[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Knight[0].representation;
-            } else if (position.whitepieces.Knight[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Knight[1].representation;
-            } else if (position.whitepieces.Pawn[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[0].representation;
-            } else if (position.whitepieces.Pawn[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[1].representation;
-            } else if (position.whitepieces.Pawn[2].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[2].representation;
-            } else if (position.whitepieces.Pawn[3].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[3].representation;
-            } else if (position.whitepieces.Pawn[4].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[4].representation;
-            } else if (position.whitepieces.Pawn[5].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[5].representation;
-            } else if (position.whitepieces.Pawn[6].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[6].representation;
-            } else if (position.whitepieces.Pawn[7].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[7].representation;
-            } else if (position.blackpieces.King.position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.King.representation;
-            } else if (position.blackpieces.Queen.position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Queen.representation;
-            } else if (position.blackpieces.Rook[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Rook[0].representation;
-            } else if (position.blackpieces.Rook[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Rook[1].representation;
-            } else if (position.blackpieces.Bishop[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Bishop[0].representation;
-            } else if (position.blackpieces.Bishop[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Bishop[1].representation;
-            } else if (position.blackpieces.Knight[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Knight[0].representation;
-            } else if (position.blackpieces.Knight[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Knight[1].representation;
-            } else if (position.blackpieces.Pawn[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[0].representation;
-            } else if (position.blackpieces.Pawn[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[1].representation;
-            } else if (position.blackpieces.Pawn[2].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[2].representation;
-            } else if (position.blackpieces.Pawn[3].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[3].representation;
-            } else if (position.blackpieces.Pawn[4].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[4].representation;
-            } else if (position.blackpieces.Pawn[5].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[5].representation;
-            } else if (position.blackpieces.Pawn[6].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[6].representation;
-            } else if (position.blackpieces.Pawn[7].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[7].representation;
-            } else {
-                printBuffer[i] = Empty.representation;
-            }
-            if (i == BoardSize - 1) {
-                break;
+        var printBuffer: [64]u8 = [_]u8{'.'} ** BoardSize;
+
+        fn setPiece(buf: *[64]u8, piece: Piece) void {
+            if (piece.position == 0) return;
+            var idx: u6 = 0;
+            while (idx < BoardSize) : (idx += 1) {
+                if (piece.position >> idx & 1 == 1) {
+                    buf[idx] = piece.representation;
+                    break;
+                }
             }
         }
-        // print the buffer in reverse order
+
+        inline for (std.meta.fields(WhitePieces)) |field| {
+            const T = @TypeOf(@field(position.whitepieces, field.name));
+            if (T == Piece) {
+                setPiece(&printBuffer, @field(position.whitepieces, field.name));
+            } else {
+                for (@field(position.whitepieces, field.name)) |p| {
+                    setPiece(&printBuffer, p);
+                }
+            }
+        }
+
+        inline for (std.meta.fields(BlackPieces)) |field| {
+            const T = @TypeOf(@field(position.blackpieces, field.name));
+            if (T == Piece) {
+                setPiece(&printBuffer, @field(position.blackpieces, field.name));
+            } else {
+                for (@field(position.blackpieces, field.name)) |p| {
+                    setPiece(&printBuffer, p);
+                }
+            }
+        }
+
+        std.debug.print("\n", .{});
         for (0..printBuffer.len) |index| {
             if (index % 8 == 0 and index != 0) {
                 std.debug.print("\n", .{});
@@ -356,6 +278,17 @@ pub fn parseFen(fen: []const u8) Position {
 
     var index: u6 = 0;
     var i: usize = 0;
+
+    fn addPiece(comptime T: type, arr: *T, bit: u64) void {
+        inline for (arr.*) |*p, j| {
+            if (p.position == 0) {
+                p.position = bit;
+                p.index = @intCast(j);
+                break;
+            }
+        }
+    }
+
     while (i < piecePlacement.len) : (i += 1) {
         const ch = piecePlacement[i];
         switch (ch) {
@@ -372,46 +305,10 @@ pub fn parseFen(fen: []const u8) Position {
                         position.whitepieces.Queen.position |= bit;
                         position.whitepieces.Queen.index = 0;
                     },
-                    'R' => {
-                        var rookCount: u6 = 0;
-                        while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
-                            if (position.whitepieces.Rook[rookCount].position == 0) {
-                                position.whitepieces.Rook[rookCount].position = bit;
-                                position.whitepieces.Rook[rookCount].index = rookCount;
-                                break;
-                            }
-                        }
-                    },
-                    'B' => {
-                        var bishopCount: u6 = 0;
-                        while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
-                            if (position.whitepieces.Bishop[bishopCount].position == 0) {
-                                position.whitepieces.Bishop[bishopCount].position = bit;
-                                position.whitepieces.Bishop[bishopCount].index = bishopCount;
-                                break;
-                            }
-                        }
-                    },
-                    'N' => {
-                        var knightCount: u6 = 0;
-                        while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
-                            if (position.whitepieces.Knight[knightCount].position == 0) {
-                                position.whitepieces.Knight[knightCount].position = bit;
-                                position.whitepieces.Knight[knightCount].index = knightCount;
-                                break;
-                            }
-                        }
-                    },
-                    'P' => {
-                        var pawnCount: u6 = 0;
-                        while (pawnCount < position.whitepieces.Pawn.len) : (pawnCount += 1) {
-                            if (position.whitepieces.Pawn[pawnCount].position == 0) {
-                                position.whitepieces.Pawn[pawnCount].position = bit;
-                                position.whitepieces.Pawn[pawnCount].index = pawnCount;
-                                break;
-                            }
-                        }
-                    },
+                    'R' => addPiece(*[2]Piece, &position.whitepieces.Rook, bit),
+                    'B' => addPiece(*[2]Piece, &position.whitepieces.Bishop, bit),
+                    'N' => addPiece(*[2]Piece, &position.whitepieces.Knight, bit),
+                    'P' => addPiece(*[8]Piece, &position.whitepieces.Pawn, bit),
                     'k' => {
                         position.blackpieces.King.position |= bit;
                         position.blackpieces.King.index = 0;
@@ -420,46 +317,10 @@ pub fn parseFen(fen: []const u8) Position {
                         position.blackpieces.Queen.position |= bit;
                         position.blackpieces.Queen.index = 0;
                     },
-                    'r' => {
-                        var rookCount: u6 = 0;
-                        while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
-                            if (position.blackpieces.Rook[rookCount].position == 0) {
-                                position.blackpieces.Rook[rookCount].position = bit;
-                                position.blackpieces.Rook[rookCount].index = rookCount;
-                                break;
-                            }
-                        }
-                    },
-                    'b' => {
-                        var bishopCount: u6 = 0;
-                        while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
-                            if (position.blackpieces.Bishop[bishopCount].position == 0) {
-                                position.blackpieces.Bishop[bishopCount].position = bit;
-                                position.blackpieces.Bishop[bishopCount].index = bishopCount;
-                                break;
-                            }
-                        }
-                    },
-                    'n' => {
-                        var knightCount: u6 = 0;
-                        while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
-                            if (position.blackpieces.Knight[knightCount].position == 0) {
-                                position.blackpieces.Knight[knightCount].position = bit;
-                                position.blackpieces.Knight[knightCount].index = knightCount;
-                                break;
-                            }
-                        }
-                    },
-                    'p' => {
-                        var pawnCount: u6 = 0;
-                        while (pawnCount < position.blackpieces.Pawn.len) : (pawnCount += 1) {
-                            if (position.blackpieces.Pawn[pawnCount].position == 0) {
-                                position.blackpieces.Pawn[pawnCount].position = bit;
-                                position.blackpieces.Pawn[pawnCount].index = pawnCount;
-                                break;
-                            }
-                        }
-                    },
+                    'r' => addPiece(*[2]Piece, &position.blackpieces.Rook, bit),
+                    'b' => addPiece(*[2]Piece, &position.blackpieces.Bishop, bit),
+                    'n' => addPiece(*[2]Piece, &position.blackpieces.Knight, bit),
+                    'p' => addPiece(*[8]Piece, &position.blackpieces.Pawn, bit),
                     else => {},
                 }
                 if (index < 63) {
