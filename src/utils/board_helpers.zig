@@ -65,7 +65,12 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
             }
         }
     }
-    return b.Piece{ .color = 0, .value = 0, .representation = '.', .stdval = 0, .position = 0 };
+    // Return an "empty" piece when no piece occupies the requested location.
+    // The color `2` is used throughout the engine to denote the absence of a
+    // piece (see `board.zig`'s `Empty` piece). Previously this function
+    // returned color `0` which corresponds to white, causing callers that rely
+    // on the color field to misidentify empty squares as white pieces.
+    return b.Piece{ .color = 2, .value = 0, .representation = '.', .stdval = 0, .position = 0 };
 }
 
 test "piece from location" {
@@ -93,6 +98,7 @@ test "empty location" {
         board,
     );
     try std.testing.expectEqual(piece.representation, '.');
+    try std.testing.expectEqual(piece.color, 2);
 }
 
 test "black pawn from location" {
