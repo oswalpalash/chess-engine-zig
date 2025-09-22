@@ -41,6 +41,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
         // Check if target square is empty
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Bishop[index].position = newpos;
             } else {
@@ -56,6 +57,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                     board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.enPassantSquare = 0;
                 if (piece.color == 0) {
                     newBoard.position.whitepieces.Bishop[index].position = newpos;
                 } else {
@@ -77,6 +79,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
 
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Bishop[index].position = newpos;
             } else {
@@ -91,6 +94,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                     board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.enPassantSquare = 0;
                 if (piece.color == 0) {
                     newBoard.position.whitepieces.Bishop[index].position = newpos;
                 } else {
@@ -112,6 +116,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
 
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Bishop[index].position = newpos;
             } else {
@@ -126,6 +131,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                     board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.enPassantSquare = 0;
                 if (piece.color == 0) {
                     newBoard.position.whitepieces.Bishop[index].position = newpos;
                 } else {
@@ -147,6 +153,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
 
         if (bitmap & newpos == 0) {
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Bishop[index].position = newpos;
             } else {
@@ -161,6 +168,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                     board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.enPassantSquare = 0;
                 if (piece.color == 0) {
                     newBoard.position.whitepieces.Bishop[index].position = newpos;
                 } else {

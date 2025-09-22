@@ -48,6 +48,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         if ((piece.color == 0 and currentRow < 7) or (piece.color == 1 and currentRow > 2)) {
             // Regular move
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = oneSquareForward;
             } else {
@@ -58,6 +59,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
             // Promotion
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = oneSquareForward;
                 newBoard.position.whitepieces.Pawn[index].representation = 'Q';
@@ -80,6 +82,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
 
             if (bitmap & twoSquareForward == 0) {
                 var newBoard = b.Board{ .position = board.position };
+                newBoard.position.enPassantSquare = 0;
                 if (piece.color == 0) {
                     newBoard.position.whitepieces.Pawn[index].position = twoSquareForward;
                     // Set en passant square
@@ -116,6 +119,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                     board_helpers.captureblackpiece(leftCapture, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(leftCapture, b.Board{ .position = board.position });
+                newBoard.position.enPassantSquare = 0;
 
                 if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
                     // Promotion on capture
@@ -139,6 +143,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else if (leftCapture == board.position.enPassantSquare) {
             // En passant capture to the left
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             var capturedPawnPos: u64 = 0;
 
             if (piece.color == 0) {
@@ -167,6 +172,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                     board_helpers.captureblackpiece(rightCapture, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(rightCapture, b.Board{ .position = board.position });
+                newBoard.position.enPassantSquare = 0;
 
                 if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
                     // Promotion on capture
@@ -190,6 +196,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         } else if (rightCapture == board.position.enPassantSquare) {
             // En passant capture to the right
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             var capturedPawnPos: u64 = 0;
 
             if (piece.color == 0) {

@@ -28,6 +28,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             king.position = piece.position << shift;
             // update board
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.King.position = king.position;
             } else {
@@ -46,6 +47,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                             board_helpers.captureblackpiece(king.position, b.Board{ .position = board.position })
                         else
                             board_helpers.capturewhitepiece(king.position, b.Board{ .position = board.position });
+                        newBoard.position.enPassantSquare = 0;
 
                         if (piece.color == 0) {
                             newBoard.position.whitepieces.King.position = king.position;
@@ -75,6 +77,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             king.position = piece.position >> shift;
             // update board
             var newBoard = b.Board{ .position = board.position };
+            newBoard.position.enPassantSquare = 0;
             if (piece.color == 0) {
                 newBoard.position.whitepieces.King.position = king.position;
             } else {
@@ -93,6 +96,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                             board_helpers.captureblackpiece(king.position, b.Board{ .position = board.position })
                         else
                             board_helpers.capturewhitepiece(king.position, b.Board{ .position = board.position });
+                        newBoard.position.enPassantSquare = 0;
 
                         if (piece.color == 0) {
                             newBoard.position.whitepieces.King.position = king.position;
@@ -114,6 +118,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             var castledKing = piece;
             castledKing.position = c.G1; // king moves two squares towards rook
             var newBoard = board;
+            newBoard.position.enPassantSquare = 0;
             newBoard.position.whitepieces.King = castledKing;
             // Update kingside rook: from H1 to F1
             newBoard.position.whitepieces.Rook[1].position = c.F1;
@@ -131,6 +136,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             var castledKing = piece;
             castledKing.position = c.G8; // king moves two squares towards rook
             var newBoard = board;
+            newBoard.position.enPassantSquare = 0;
             newBoard.position.blackpieces.King = castledKing;
             // Update kingside rook: from H8 to F8
             newBoard.position.blackpieces.Rook[1].position = c.F8;

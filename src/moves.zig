@@ -1077,6 +1077,12 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
         // If this valid move matches our input move, return it
         var result = valid_move;
         if (found_piece_pos == move.to) {
+            const from_row = board_helpers.rowfrombitmap(move.from);
+            const to_row = board_helpers.rowfrombitmap(move.to);
+            const row_diff = if (to_row > from_row) to_row - from_row else from_row - to_row;
+            const is_double_step =
+                ((piece.representation == 'P') or (piece.representation == 'p')) and row_diff == 2;
+
             // Handle promotion if specified
             if (move.promotion_piece) |promotion| {
                 // Find the pawn that was promoted and update its representation
@@ -1099,9 +1105,15 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
                 }
                 //  update side to move
                 result.position.sidetomove = 1 - board.position.sidetomove;
+                if (!is_double_step) {
+                    result.position.enPassantSquare = 0;
+                }
                 return result;
             }
             result.position.sidetomove = 1 - board.position.sidetomove;
+            if (!is_double_step) {
+                result.position.enPassantSquare = 0;
+            }
             return result;
         }
     }
@@ -1180,6 +1192,41 @@ test "applyMove castling" {
     const new_board = try applyMove(board, move);
     try std.testing.expectEqual(new_board.position.whitepieces.King.position, c.G1);
     try std.testing.expectEqual(new_board.position.whitepieces.Rook[1].position, c.F1);
+}
+
+test "applyMove clears en passant on non double-step" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.blackpieces.King.position = c.E8;
+    board.position.whitepieces.Pawn[4].position = c.E2;
+    board.position.enPassantSquare = c.D6;
+
+    const move = Move{ .from = c.E2, .to = c.E3, .promotion_piece = null };
+    const new_board = try applyMove(board, move);
+    try std.testing.expectEqual(new_board.position.enPassantSquare, 0);
+}
+
+test "double-step en passant available only immediately" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.blackpieces.King.position = c.E8;
+    board.position.whitepieces.Pawn[4].position = c.E2;
+    board.position.blackpieces.Pawn[3].position = c.D4;
+    board.position.blackpieces.Knight[0].position = c.G8;
+
+    const double_step = Move{ .from = c.E2, .to = c.E4, .promotion_piece = null };
+    const after_double = try applyMove(board, double_step);
+    try std.testing.expectEqual(after_double.position.enPassantSquare, c.E3);
+
+    const en_passant_capture = Move{ .from = c.D4, .to = c.E3, .promotion_piece = null };
+    const captured_board = try applyMove(after_double, en_passant_capture);
+    try std.testing.expectEqual(captured_board.position.blackpieces.Pawn[3].position, c.E3);
+    try std.testing.expectEqual(captured_board.position.whitepieces.Pawn[4].position, 0);
+    try std.testing.expectEqual(captured_board.position.enPassantSquare, 0);
+
+    const knight_move = Move{ .from = c.G8, .to = c.F6, .promotion_piece = null };
+    const after_knight_move = try applyMove(after_double, knight_move);
+    try std.testing.expectEqual(after_knight_move.position.enPassantSquare, 0);
 }
 
 test "debug knight move sequence" {
