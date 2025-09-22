@@ -1,173 +1,23 @@
 const b = @import("board.zig");
 const c = @import("consts.zig");
 const m = @import("moves.zig");
+const attacks = @import("utils/attacks.zig");
 const std = @import("std");
 
 // isCheck determines if the given board position has the king in check
 // It does this by checking if any enemy piece can capture the king in the next move
 pub fn isCheck(board: b.Board, isWhite: bool) bool {
-    // Get the king's position based on color
-    const kingPosition = if (isWhite) board.position.whitepieces.King.position else board.position.blackpieces.King.position;
+    const king_position = if (isWhite)
+        board.position.whitepieces.King.position
+    else
+        board.position.blackpieces.King.position;
 
-    const knightShifts = [_]struct { shift: i8, mask: u64 }{
-        .{ .shift = 6, .mask = 0xFCFCFCFCFCFCFCFC }, // Up 1, Left 2 (not from a,b files)
-        .{ .shift = 10, .mask = 0x3F3F3F3F3F3F3F3F }, // Up 1, Right 2 (not from g,h files)
-        .{ .shift = 15, .mask = 0xFEFEFEFEFEFEFEFE }, // Up 2, Left 1 (not from a file)
-        .{ .shift = 17, .mask = 0x7F7F7F7F7F7F7F7F }, // Up 2, Right 1 (not from h file)
-        .{ .shift = -6, .mask = 0x3F3F3F3F3F3F3F3F }, // Down 1, Right 2 (not from g,h files)
-        .{ .shift = -10, .mask = 0xFCFCFCFCFCFCFCFC }, // Down 1, Left 2 (not from a,b files)
-        .{ .shift = -15, .mask = 0x7F7F7F7F7F7F7F7F }, // Down 2, Right 1 (not from h file)
-        .{ .shift = -17, .mask = 0xFEFEFEFEFEFEFEFE }, // Down 2, Left 1 (not from a file)
-    };
-
-    // For each enemy piece, check if it can capture the king
-    // For white king in check, check all black pieces
-    if (isWhite) {
-        // Check black pawns
-        for (board.position.blackpieces.Pawn) |pawn| {
-            if (pawn.position == 0) continue;
-            // Black pawns capture diagonally downward
-            const captureLeft = pawn.position >> 9;
-            const captureRight = pawn.position >> 7;
-            if (captureLeft == kingPosition or captureRight == kingPosition) {
-                return true;
-            }
-        }
-
-        // Check black knights
-        for (board.position.blackpieces.Knight) |knight| {
-            if (knight.position == 0) continue;
-            // Knight moves are special - check all possible knight moves from king position
-            // and see if they intersect with enemy knight position
-            for (knightShifts) |move| {
-                if (kingPosition & move.mask == 0) continue;
-
-                const candidate = if (move.shift > 0)
-                    kingPosition << @as(u6, @intCast(move.shift))
-                else
-                    kingPosition >> @as(u6, @intCast(-move.shift));
-
-                if (candidate == 0) continue;
-
-                if (candidate == knight.position) {
-                    return true;
-                }
-            }
-        }
-
-        // Check black bishops
-        for (board.position.blackpieces.Bishop) |bishop| {
-            if (bishop.position == 0) continue;
-            const moves = m.getValidBishopMoves(bishop, board);
-            for (moves) |move| {
-                // Check if any of the bishop's valid moves can reach the king's position
-                if (move.position.blackpieces.Bishop[0].position == kingPosition or
-                    move.position.blackpieces.Bishop[1].position == kingPosition)
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check black rooks
-        for (board.position.blackpieces.Rook) |rook| {
-            if (rook.position == 0) continue;
-            const moves = m.getValidRookMoves(rook, board);
-            for (moves) |move| {
-                // Check if any of the rook's valid moves can reach the king's position
-                if (move.position.blackpieces.Rook[0].position == kingPosition or
-                    move.position.blackpieces.Rook[1].position == kingPosition)
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check black queen
-        if (board.position.blackpieces.Queen.position != 0) {
-            const moves = m.ValidQueenMoves(board.position.blackpieces.Queen, board);
-            for (moves) |move| {
-                // Check if any of the queen's valid moves can reach the king's position
-                if (move.position.blackpieces.Queen.position == kingPosition) {
-                    return true;
-                }
-            }
-        }
-    } else {
-        // For black king in check, check all white pieces
-        // Check white pawns
-        for (board.position.whitepieces.Pawn) |pawn| {
-            if (pawn.position == 0) continue;
-            // White pawns capture diagonally upward
-            const captureLeft = pawn.position << 7;
-            const captureRight = pawn.position << 9;
-            if (captureLeft == kingPosition or captureRight == kingPosition) {
-                return true;
-            }
-        }
-
-        // Check white knights
-        for (board.position.whitepieces.Knight) |knight| {
-            if (knight.position == 0) continue;
-            // Knight moves are special - check all possible knight moves from king position
-            // and see if they intersect with enemy knight position
-            for (knightShifts) |move| {
-                if (kingPosition & move.mask == 0) continue;
-
-                const candidate = if (move.shift > 0)
-                    kingPosition << @as(u6, @intCast(move.shift))
-                else
-                    kingPosition >> @as(u6, @intCast(-move.shift));
-
-                if (candidate == 0) continue;
-
-                if (candidate == knight.position) {
-                    return true;
-                }
-            }
-        }
-
-        // Check white bishops
-        for (board.position.whitepieces.Bishop) |bishop| {
-            if (bishop.position == 0) continue;
-            const moves = m.getValidBishopMoves(bishop, board);
-            for (moves) |move| {
-                // Check if any of the bishop's valid moves can reach the king's position
-                if (move.position.whitepieces.Bishop[0].position == kingPosition or
-                    move.position.whitepieces.Bishop[1].position == kingPosition)
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check white rooks
-        for (board.position.whitepieces.Rook) |rook| {
-            if (rook.position == 0) continue;
-            const moves = m.getValidRookMoves(rook, board);
-            for (moves) |move| {
-                // Check if any of the rook's valid moves can reach the king's position
-                if (move.position.whitepieces.Rook[0].position == kingPosition or
-                    move.position.whitepieces.Rook[1].position == kingPosition)
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check white queen
-        if (board.position.whitepieces.Queen.position != 0) {
-            const moves = m.ValidQueenMoves(board.position.whitepieces.Queen, board);
-            for (moves) |move| {
-                // Check if any of the queen's valid moves can reach the king's position
-                if (move.position.whitepieces.Queen.position == kingPosition) {
-                    return true;
-                }
-            }
-        }
+    if (king_position == 0) {
+        return false;
     }
 
-    return false;
+    const attackers_are_white = !isWhite;
+    return attacks.isSquareAttacked(&board, king_position, attackers_are_white);
 }
 
 test "isCheck - initial board position is not check" {
