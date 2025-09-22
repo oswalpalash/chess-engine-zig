@@ -176,9 +176,10 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
     // Define the move score struct type
     const MoveScore = struct { move: Board, score: i32 };
 
-    // Create a list of moves with their scores for sorting
-    var move_scores = std.ArrayList(MoveScore).init(std.heap.page_allocator);
-    defer move_scores.deinit();
+    // Create a list of moves with their scores for sorting. Limit matches the
+    // maximum number of moves generated in `m.allvalidmoves`.
+    var move_scores: [1024]MoveScore = undefined;
+    var move_score_len: usize = 0;
 
     // First, evaluate all moves with a shallow search to get initial scores
     for (moves) |move| {
@@ -215,11 +216,14 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
         }
 
         // Add the move and its score to our list
-        move_scores.append(.{ .move = move, .score = score }) catch continue;
+        if (move_score_len >= move_scores.len) continue;
+        move_scores[move_score_len] = .{ .move = move, .score = score };
+        move_score_len += 1;
     }
 
     // Sort moves by score (descending)
-    std.mem.sort(MoveScore, move_scores.items, {}, struct {
+    const move_scores_slice = move_scores[0..move_score_len];
+    std.mem.sort(MoveScore, move_scores_slice, {}, struct {
         fn compare(_: void, a: MoveScore, b_move: MoveScore) bool {
             return a.score > b_move.score;
         }
@@ -230,7 +234,7 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
     var bestMoveIndex: usize = 0;
     const maximizingPlayer = board.position.sidetomove == 0; // White is maximizing
 
-    for (move_scores.items, 0..) |move_data, i| {
+    for (move_scores_slice, 0..) |move_data, i| {
         // For each move, evaluate the resulting position
         const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer);
 
@@ -241,8 +245,8 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
         }
     }
 
-    if (move_scores.items.len > 0) {
-        return move_scores.items[bestMoveIndex].move;
+    if (move_scores_slice.len > 0) {
+        return move_scores_slice[bestMoveIndex].move;
     } else if (moves.len > 0) {
         // Fallback if move scoring failed
         return moves[0];
