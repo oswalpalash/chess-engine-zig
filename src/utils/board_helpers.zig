@@ -13,7 +13,7 @@ pub fn bitmapfromboard(board: b.Board) u64 {
         if (FieldType == b.Piece) {
             bitmap |= value.position;
         } else switch (@typeInfo(FieldType)) {
-            .Array => |array_info| {
+            .array => |array_info| {
                 if (array_info.child == b.Piece) {
                     for (value) |item| {
                         bitmap |= item.position;
@@ -29,7 +29,7 @@ pub fn bitmapfromboard(board: b.Board) u64 {
         if (FieldType == b.Piece) {
             bitmap |= value.position;
         } else switch (@typeInfo(FieldType)) {
-            .Array => |array_info| {
+            .array => |array_info| {
                 if (array_info.child == b.Piece) {
                     for (value) |item| {
                         bitmap |= item.position;
@@ -57,7 +57,7 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
         if (FieldType == b.Piece) {
             if (value.position == location) return value;
         } else switch (@typeInfo(FieldType)) {
-            .Array => |array_info| {
+            .array => |array_info| {
                 if (array_info.child == b.Piece) {
                     for (value) |item| {
                         if (item.position == location) return item;
@@ -73,7 +73,7 @@ pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
         if (FieldType == b.Piece) {
             if (value.position == location) return value;
         } else switch (@typeInfo(FieldType)) {
-            .Array => |array_info| {
+            .array => |array_info| {
                 if (array_info.child == b.Piece) {
                     for (value) |item| {
                         if (item.position == location) return item;

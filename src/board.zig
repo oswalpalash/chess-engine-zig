@@ -103,7 +103,7 @@ pub const Position = struct {
                     return true;
                 }
             } else switch (@typeInfo(FieldType)) {
-                .Array => |array_info| {
+                .array => |array_info| {
                     if (array_info.child == Piece) {
                         inline for (0..array_info.len) |i| {
                             if (field_ptr.*[i].position == original.position and field_ptr.*[i].representation == original.representation and field_ptr.*[i].index == original.index) {
@@ -193,7 +193,7 @@ pub const Position = struct {
             if (FieldType == Piece) {
                 field_ptr.*.position = reverse(field_ptr.*.position);
             } else switch (@typeInfo(FieldType)) {
-                .Array => |array_info| {
+                .array => |array_info| {
                     if (array_info.child == Piece) {
                         inline for (0..array_info.len) |i| {
                             field_ptr.*[i].position = reverse(field_ptr.*[i].position);
@@ -299,7 +299,7 @@ pub const Position = struct {
             if (FieldType == Piece) {
                 if (value.position & mask != 0) return value;
             } else switch (@typeInfo(FieldType)) {
-                .Array => |array_info| {
+                .array => |array_info| {
                     if (array_info.child == Piece) {
                         for (value) |item| {
                             if (item.position & mask != 0) return item;
@@ -315,7 +315,7 @@ pub const Position = struct {
             if (FieldType == Piece) {
                 if (value.position & mask != 0) return value;
             } else switch (@typeInfo(FieldType)) {
-                .Array => |array_info| {
+                .array => |array_info| {
                     if (array_info.child == Piece) {
                         for (value) |item| {
                             if (item.position & mask != 0) return item;

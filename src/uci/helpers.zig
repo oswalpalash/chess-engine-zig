@@ -33,7 +33,7 @@ pub fn moveToUci(old_board: b.Board, new_board: b.Board) [5]u8 {
                 if (new_piece.position != 0) to_pos = new_piece.position;
             }
         } else switch (@typeInfo(FieldType)) {
-            .Array => |array_info| {
+            .array => |array_info| {
                 if (array_info.child == b.Piece) {
                     for (old_piece, 0..) |piece, i| {
                         if (piece.position != new_piece[i].position) {
@@ -58,7 +58,7 @@ pub fn moveToUci(old_board: b.Board, new_board: b.Board) [5]u8 {
                     if (new_piece.position != 0) to_pos = new_piece.position;
                 }
             } else switch (@typeInfo(FieldType)) {
-                .Array => |array_info| {
+                .array => |array_info| {
                     if (array_info.child == b.Piece) {
                         for (old_piece, 0..) |piece, i| {
                             if (piece.position != new_piece[i].position) {
