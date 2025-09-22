@@ -543,6 +543,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 movecount += 1;
             }
         }
+        for (board.position.whitepieces.PromotedQueen) |q| {
+            if (q.position == 0) continue;
+            const promotedMoves = getValidQueenMoves(q, board);
+            for (promotedMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
 
         // Rook moves
         var rookMoveCount: usize = 0;
@@ -550,6 +562,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             if (r.position == 0) continue;
             const rookMoves = getValidRookMoves(r, board);
             rookMoveCount += rookMoves.len;
+            for (rookMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+        for (board.position.whitepieces.PromotedRook) |r| {
+            if (r.position == 0) continue;
+            const rookMoves = getValidRookMoves(r, board);
             for (rookMoves) |move| {
                 if (!s.isCheck(move, true)) {
                     boardCopy = move;
@@ -575,6 +599,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 }
             }
         }
+        for (board.position.whitepieces.PromotedBishop) |piece| {
+            if (piece.position == 0) continue;
+            const bishopMoves = getValidBishopMoves(piece, board);
+            for (bishopMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
 
         // Knight moves
         var knightMoveCount: usize = 0;
@@ -582,6 +618,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             if (k.position == 0) continue;
             const knightMoves = getValidKnightMoves(k, board);
             knightMoveCount += knightMoves.len;
+            for (knightMoves) |move| {
+                if (!s.isCheck(move, true)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+        for (board.position.whitepieces.PromotedKnight) |k| {
+            if (k.position == 0) continue;
+            const knightMoves = getValidKnightMoves(k, board);
             for (knightMoves) |move| {
                 if (!s.isCheck(move, true)) {
                     boardCopy = move;
@@ -630,6 +678,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 movecount += 1;
             }
         }
+        for (board.position.blackpieces.PromotedQueen) |q| {
+            if (q.position == 0) continue;
+            const promotedMoves = getValidQueenMoves(q, board);
+            for (promotedMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
 
         // Rook moves
         var rookMoveCount: usize = 0;
@@ -637,6 +697,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             if (r.position == 0) continue;
             const rookMoves = getValidRookMoves(r, board);
             rookMoveCount += rookMoves.len;
+            for (rookMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+        for (board.position.blackpieces.PromotedRook) |r| {
+            if (r.position == 0) continue;
+            const rookMoves = getValidRookMoves(r, board);
             for (rookMoves) |move| {
                 if (!s.isCheck(move, false)) {
                     boardCopy = move;
@@ -662,6 +734,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
                 }
             }
         }
+        for (board.position.blackpieces.PromotedBishop) |piece| {
+            if (piece.position == 0) continue;
+            const bishopMoves = getValidBishopMoves(piece, board);
+            for (bishopMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
 
         // Knight moves
         var knightMoveCount: usize = 0;
@@ -669,6 +753,18 @@ pub fn allvalidmoves(board: b.Board) []b.Board {
             if (k.position == 0) continue;
             const knightMoves = getValidKnightMoves(k, board);
             knightMoveCount += knightMoves.len;
+            for (knightMoves) |move| {
+                if (!s.isCheck(move, false)) {
+                    boardCopy = move;
+                    boardCopy.position.sidetomove = next_side;
+                    moves[movecount] = boardCopy;
+                    movecount += 1;
+                }
+            }
+        }
+        for (board.position.blackpieces.PromotedKnight) |k| {
+            if (k.position == 0) continue;
+            const knightMoves = getValidKnightMoves(k, board);
             for (knightMoves) |move| {
                 if (!s.isCheck(move, false)) {
                     boardCopy = move;
@@ -761,74 +857,32 @@ pub fn applyMove(board: b.Board, move: Move) !b.Board {
 
     // Find the matching move in valid moves
     for (valid_moves) |valid_move| {
-        // Find the piece that moved by comparing board states
-        var found_piece_pos: u64 = 0;
+        const destination_piece = board_helpers.piecefromlocation(move.to, valid_move);
+        const from_square_after = board_helpers.piecefromlocation(move.from, valid_move);
 
-        // Check white pieces
-        inline for (std.meta.fields(@TypeOf(valid_move.position.whitepieces))) |field| {
-            const old_piece = @field(board.position.whitepieces, field.name);
-            const new_piece = @field(valid_move.position.whitepieces, field.name);
+        // The origin square must be empty after the move (the piece moved away)
+        if (from_square_after.position != 0) continue;
 
-            if (@TypeOf(old_piece) == b.Piece) {
-                if (old_piece.position == move.from) {
-                    found_piece_pos = new_piece.position;
-                }
-            } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
-                for (old_piece, 0..) |p, i| {
-                    if (p.position == move.from) {
-                        found_piece_pos = new_piece[i].position;
-                    }
-                }
-            }
-        }
-
-        // Check black pieces if we haven't found the move
-        if (found_piece_pos == 0) {
-            inline for (std.meta.fields(@TypeOf(valid_move.position.blackpieces))) |field| {
-                const old_piece = @field(board.position.blackpieces, field.name);
-                const new_piece = @field(valid_move.position.blackpieces, field.name);
-
-                if (@TypeOf(old_piece) == b.Piece) {
-                    if (old_piece.position == move.from) {
-                        found_piece_pos = new_piece.position;
-                    }
-                } else if (@TypeOf(old_piece) == [2]b.Piece or @TypeOf(old_piece) == [8]b.Piece) {
-                    for (old_piece, 0..) |p, i| {
-                        if (p.position == move.from) {
-                            found_piece_pos = new_piece[i].position;
-                        }
-                    }
-                }
-            }
-        }
-
-        // If this valid move matches our input move, return it
-        var result = valid_move;
-        if (found_piece_pos == move.to) {
-            // Handle promotion if specified
-            if (move.promotion_piece) |promotion| {
-                // Find the pawn that was promoted and update its representation
-                if (board.position.sidetomove == 0) {
-                    // White pawn promotion
-                    for (&result.position.whitepieces.Pawn) |*p| {
-                        if (p.position == move.to) {
-                            p.representation = std.ascii.toUpper(promotion);
-                            break;
-                        }
-                    }
-                } else {
-                    // Black pawn promotion
-                    for (&result.position.blackpieces.Pawn) |*p| {
-                        if (p.position == move.to) {
-                            p.representation = promotion;
-                            break;
-                        }
-                    }
-                }
-                //  update side to move
+        // Promotion handling requires the resulting piece to match the requested promotion
+        if (move.promotion_piece) |promotion| {
+            const expected = if (board.position.sidetomove == 0)
+                std.ascii.toUpper(promotion)
+            else
+                std.ascii.toLower(promotion);
+            if (destination_piece.position == move.to and destination_piece.representation == expected) {
+                var result = valid_move;
                 result.position.sidetomove = 1 - board.position.sidetomove;
                 return result;
             }
+            continue;
+        }
+
+        // Non-promotion moves require the moving piece type/color to match the origin piece
+        if (destination_piece.position == move.to and
+            destination_piece.representation == piece.representation and
+            destination_piece.color == piece.color)
+        {
+            var result = valid_move;
             result.position.sidetomove = 1 - board.position.sidetomove;
             return result;
         }
@@ -878,8 +932,9 @@ test "applyMove pawn promotion" {
     };
 
     const new_board = try applyMove(board, move);
-    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, c.E8);
-    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].representation, 'Q');
+    try std.testing.expectEqual(new_board.position.whitepieces.Pawn[0].position, 0);
+    const promoted = board_helpers.piecefromlocation(c.E8, new_board);
+    try std.testing.expectEqual(promoted.representation, 'Q');
 }
 
 test "applyMove invalid move" {
@@ -908,6 +963,61 @@ test "applyMove castling" {
     const new_board = try applyMove(board, move);
     try std.testing.expectEqual(new_board.position.whitepieces.King.position, c.G1);
     try std.testing.expectEqual(new_board.position.whitepieces.Rook[1].position, c.F1);
+}
+
+test "promoted queen can move" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E7;
+
+    const promotion_moves = pawn.getValidPawnMoves(board.position.whitepieces.Pawn[0], board);
+    var promoted_board: ?b.Board = null;
+    for (promotion_moves) |candidate| {
+        const promoted = board_helpers.piecefromlocation(c.E8, candidate);
+        if (promoted.position != 0 and promoted.representation == 'Q') {
+            promoted_board = candidate;
+            break;
+        }
+    }
+    try std.testing.expect(promoted_board != null);
+
+    const promoted_piece = board_helpers.piecefromlocation(c.E8, promoted_board.?);
+    const queen_moves = queen.getValidQueenMoves(promoted_piece, promoted_board.?);
+    var found_forward = false;
+    for (queen_moves) |candidate| {
+        if (board_helpers.piecefromlocation(c.E6, candidate).representation == 'Q') {
+            found_forward = true;
+            break;
+        }
+    }
+    try std.testing.expect(found_forward);
+}
+
+test "promoted black knight can move" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Pawn[1].position = c.B2;
+
+    const promotion_moves = pawn.getValidPawnMoves(board.position.blackpieces.Pawn[1], board);
+    var promoted_board: ?b.Board = null;
+    for (promotion_moves) |candidate| {
+        const promoted = board_helpers.piecefromlocation(c.B1, candidate);
+        if (promoted.position != 0 and promoted.representation == 'n') {
+            promoted_board = candidate;
+            break;
+        }
+    }
+    try std.testing.expect(promoted_board != null);
+
+    const promoted_piece = board_helpers.piecefromlocation(c.B1, promoted_board.?);
+    const knight_moves = knight.getValidKnightMoves(promoted_piece, promoted_board.?);
+    var found_jump = false;
+    for (knight_moves) |candidate| {
+        const piece = board_helpers.piecefromlocation(c.C3, candidate);
+        if (piece.representation == 'n') {
+            found_jump = true;
+            break;
+        }
+    }
+    try std.testing.expect(found_jump);
 }
 
 test "debug knight move sequence" {

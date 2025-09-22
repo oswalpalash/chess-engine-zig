@@ -7,24 +7,36 @@ const std = @import("std");
 
 pub fn bitmapfromboard(board: b.Board) u64 {
     var bitmap: u64 = 0;
-    const cpiece = b.Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0 };
-    _ = cpiece;
-    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
-            bitmap |= (@as(piece.type, @field(board.position.whitepieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
+    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |field| {
+        const value = @field(board.position.whitepieces, field.name);
+        const FieldType = @TypeOf(value);
+        if (FieldType == b.Piece) {
+            bitmap |= value.position;
+        } else switch (@typeInfo(FieldType)) {
+            .array => |array_info| {
+                if (array_info.child == b.Piece) {
+                    for (value) |item| {
+                        bitmap |= item.position;
+                    }
+                }
+            },
+            else => {},
         }
     }
-    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
-            bitmap |= (@as(piece.type, @field(board.position.blackpieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
+    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |field| {
+        const value = @field(board.position.blackpieces, field.name);
+        const FieldType = @TypeOf(value);
+        if (FieldType == b.Piece) {
+            bitmap |= value.position;
+        } else switch (@typeInfo(FieldType)) {
+            .array => |array_info| {
+                if (array_info.child == b.Piece) {
+                    for (value) |item| {
+                        bitmap |= item.position;
+                    }
+                }
+            },
+            else => {},
         }
     }
     return bitmap;
@@ -39,30 +51,36 @@ test "bitmap of initial board" {
 
 pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
     // iterate through all pieces of each colour to find which piece position matches the location
-    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
-            if ((@as(piece.type, @field(board.position.whitepieces, piece.name))).position == location) {
-                return (@as(piece.type, @field(board.position.whitepieces, piece.name)));
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
+    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |field| {
+        const value = @field(board.position.whitepieces, field.name);
+        const FieldType = @TypeOf(value);
+        if (FieldType == b.Piece) {
+            if (value.position == location) return value;
+        } else switch (@typeInfo(FieldType)) {
+            .array => |array_info| {
+                if (array_info.child == b.Piece) {
+                    for (value) |item| {
+                        if (item.position == location) return item;
+                    }
                 }
-            }
+            },
+            else => {},
         }
     }
-    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
-            if ((@as(piece.type, @field(board.position.blackpieces, piece.name))).position == location) {
-                return (@as(piece.type, @field(board.position.blackpieces, piece.name)));
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
+    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |field| {
+        const value = @field(board.position.blackpieces, field.name);
+        const FieldType = @TypeOf(value);
+        if (FieldType == b.Piece) {
+            if (value.position == location) return value;
+        } else switch (@typeInfo(FieldType)) {
+            .array => |array_info| {
+                if (array_info.child == b.Piece) {
+                    for (value) |item| {
+                        if (item.position == location) return item;
+                    }
                 }
-            }
+            },
+            else => {},
         }
     }
     return b.Piece{ .color = 0, .value = 0, .representation = '.', .stdval = 0, .position = 0 };
@@ -123,8 +141,21 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             piece.position = 0;
         },
         'q' => {
-            boardCopy.position.blackpieces.Queen.position = 0;
-            piece.position = 0;
+            if (boardCopy.position.blackpieces.Queen.position == loc) {
+                boardCopy.position.blackpieces.Queen.position = 0;
+                piece.position = 0;
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedQueen) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.blackpieces.PromotedQueenCount > 0) {
+                            boardCopy.position.blackpieces.PromotedQueenCount -= 1;
+                        }
+                        break;
+                    }
+                }
+            }
         },
         'r' => {
             if (boardCopy.position.blackpieces.Rook[0].position == loc) {
@@ -143,6 +174,17 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
                 } else if (loc == c.A8) {
                     boardCopy.position.canCastleBlackQueenside = false;
                 }
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedRook) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.blackpieces.PromotedRookCount > 0) {
+                            boardCopy.position.blackpieces.PromotedRookCount -= 1;
+                        }
+                        break;
+                    }
+                }
             }
         },
         'b' => {
@@ -152,6 +194,17 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.blackpieces.Bishop[1].position == loc) {
                 boardCopy.position.blackpieces.Bishop[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedBishop) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.blackpieces.PromotedBishopCount > 0) {
+                            boardCopy.position.blackpieces.PromotedBishopCount -= 1;
+                        }
+                        break;
+                    }
+                }
             }
         },
         'n' => {
@@ -161,6 +214,17 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.blackpieces.Knight[1].position == loc) {
                 boardCopy.position.blackpieces.Knight[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedKnight) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.blackpieces.PromotedKnightCount > 0) {
+                            boardCopy.position.blackpieces.PromotedKnightCount -= 1;
+                        }
+                        break;
+                    }
+                }
             }
         },
         'p' => {
@@ -245,8 +309,21 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             piece.position = 0;
         },
         'Q' => {
-            boardCopy.position.whitepieces.Queen.position = 0;
-            piece.position = 0;
+            if (boardCopy.position.whitepieces.Queen.position == loc) {
+                boardCopy.position.whitepieces.Queen.position = 0;
+                piece.position = 0;
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedQueen) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.whitepieces.PromotedQueenCount > 0) {
+                            boardCopy.position.whitepieces.PromotedQueenCount -= 1;
+                        }
+                        break;
+                    }
+                }
+            }
         },
         'R' => {
             if (boardCopy.position.whitepieces.Rook[0].position == loc) {
@@ -265,6 +342,17 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
                 } else if (loc == c.H1) {
                     boardCopy.position.canCastleWhiteKingside = false;
                 }
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedRook) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.whitepieces.PromotedRookCount > 0) {
+                            boardCopy.position.whitepieces.PromotedRookCount -= 1;
+                        }
+                        break;
+                    }
+                }
             }
         },
         'B' => {
@@ -274,6 +362,17 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.whitepieces.Bishop[1].position == loc) {
                 boardCopy.position.whitepieces.Bishop[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedBishop) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.whitepieces.PromotedBishopCount > 0) {
+                            boardCopy.position.whitepieces.PromotedBishopCount -= 1;
+                        }
+                        break;
+                    }
+                }
             }
         },
         'N' => {
@@ -283,6 +382,17 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.whitepieces.Knight[1].position == loc) {
                 boardCopy.position.whitepieces.Knight[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedKnight) |*promoted| {
+                    if (promoted.position == loc) {
+                        promoted.position = 0;
+                        piece.position = 0;
+                        if (boardCopy.position.whitepieces.PromotedKnightCount > 0) {
+                            boardCopy.position.whitepieces.PromotedKnightCount -= 1;
+                        }
+                        break;
+                    }
+                }
             }
         },
         'P' => {
@@ -358,4 +468,15 @@ test "capture black rook disables queenside castling" {
 
     const post_capture = captureblackpiece(c.A8, board);
     try std.testing.expectEqual(false, post_capture.position.canCastleBlackQueenside);
+}
+
+test "capture promoted white queen clears slot" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.promotePawn(0, 0, 'Q', c.E8) catch unreachable;
+    try std.testing.expectEqual(@as(u4, 1), board.position.whitepieces.PromotedQueenCount);
+
+    const post_capture = capturewhitepiece(c.E8, board);
+    try std.testing.expectEqual(@as(u4, 0), post_capture.position.whitepieces.PromotedQueenCount);
+    const piece = piecefromlocation(c.E8, post_capture);
+    try std.testing.expectEqual(piece.position, 0);
 }

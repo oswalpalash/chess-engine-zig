@@ -17,6 +17,24 @@ pub const Piece = struct {
     index: u8 = 0, // Track which instance of this piece type this is (0-based)
 };
 
+const MaxPromotions: usize = 8;
+
+inline fn pieceWithIndex(template: Piece, index: u8) Piece {
+    var result = template;
+    result.position = 0;
+    result.index = index;
+    return result;
+}
+
+fn initPieceArray(comptime template: Piece, comptime len: usize) [len]Piece {
+    var arr: [len]Piece = undefined;
+    comptime var i: usize = 0;
+    inline while (i < len) : (i += 1) {
+        arr[i] = pieceWithIndex(template, @intCast(i));
+    }
+    return arr;
+}
+
 pub const WhiteKing: Piece = Piece{ .color = 0, .value = 255, .representation = 'K', .stdval = 255, .position = 0x0, .index = 0 };
 pub const WhiteQueen: Piece = Piece{ .color = 0, .value = 9, .representation = 'Q', .stdval = 9, .position = 0x0, .index = 0 };
 pub const WhiteRook: Piece = Piece{ .color = 0, .value = 5, .representation = 'R', .stdval = 5, .position = 0x0, .index = 0 };
@@ -38,6 +56,14 @@ const WhitePieces = struct {
     Bishop: [2]Piece = [2]Piece{ WhiteBishop, WhiteBishop },
     Knight: [2]Piece = [2]Piece{ WhiteKnight, WhiteKnight },
     Pawn: [8]Piece = [8]Piece{ WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn },
+    PromotedQueen: [MaxPromotions]Piece = initPieceArray(WhiteQueen, MaxPromotions),
+    PromotedQueenCount: u4 = 0,
+    PromotedRook: [MaxPromotions]Piece = initPieceArray(WhiteRook, MaxPromotions),
+    PromotedRookCount: u4 = 0,
+    PromotedBishop: [MaxPromotions]Piece = initPieceArray(WhiteBishop, MaxPromotions),
+    PromotedBishopCount: u4 = 0,
+    PromotedKnight: [MaxPromotions]Piece = initPieceArray(WhiteKnight, MaxPromotions),
+    PromotedKnightCount: u4 = 0,
 };
 
 const BlackPieces = struct {
@@ -47,6 +73,14 @@ const BlackPieces = struct {
     Bishop: [2]Piece = [2]Piece{ BlackBishop, BlackBishop },
     Knight: [2]Piece = [2]Piece{ BlackKnight, BlackKnight },
     Pawn: [8]Piece = [8]Piece{ BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn },
+    PromotedQueen: [MaxPromotions]Piece = initPieceArray(BlackQueen, MaxPromotions),
+    PromotedQueenCount: u4 = 0,
+    PromotedRook: [MaxPromotions]Piece = initPieceArray(BlackRook, MaxPromotions),
+    PromotedRookCount: u4 = 0,
+    PromotedBishop: [MaxPromotions]Piece = initPieceArray(BlackBishop, MaxPromotions),
+    PromotedBishopCount: u4 = 0,
+    PromotedKnight: [MaxPromotions]Piece = initPieceArray(BlackKnight, MaxPromotions),
+    PromotedKnightCount: u4 = 0,
 };
 
 pub const Position = struct {
@@ -58,6 +92,118 @@ pub const Position = struct {
     canCastleBlackQueenside: bool = false,
     enPassantSquare: u64 = 0,
     sidetomove: u8 = 0, // 0 for white, 1 for black
+
+    fn updatePieceInSide(side: anytype, original: Piece, updated: Piece) bool {
+        inline for (std.meta.fields(@TypeOf(side.*))) |field| {
+            const field_ptr = &@field(side.*, field.name);
+            const FieldType = @TypeOf(field_ptr.*);
+            if (FieldType == Piece) {
+                if (field_ptr.*.position == original.position and field_ptr.*.representation == original.representation and field_ptr.*.index == original.index) {
+                    field_ptr.* = updated;
+                    return true;
+                }
+            } else switch (@typeInfo(FieldType)) {
+                .array => |array_info| {
+                    if (array_info.child == Piece) {
+                        inline for (0..array_info.len) |i| {
+                            if (field_ptr.*[i].position == original.position and field_ptr.*[i].representation == original.representation and field_ptr.*[i].index == original.index) {
+                                field_ptr.*[i] = updated;
+                                return true;
+                            }
+                        }
+                    }
+                },
+                else => {},
+            }
+        }
+        return false;
+    }
+
+    fn addPromotedPiece(array: *[MaxPromotions]Piece, count: *u4, piece: Piece) !void {
+        for (array.*, 0..) |entry, i| {
+            if (entry.position == 0) {
+                var stored = piece;
+                stored.index = @intCast(i);
+                array.*[i] = stored;
+                if (count.* < MaxPromotions) {
+                    count.* += 1;
+                }
+                return;
+            }
+        }
+        return error.OutOfPromotionSlots;
+    }
+
+    fn findPromotionTargets(self: *Position, color: u8, promotion: u8) struct {
+        array: *[MaxPromotions]Piece,
+        count: *u4,
+        template: Piece,
+    } {
+        const lower = std.ascii.toLower(promotion);
+        if (color == 0) {
+            return switch (lower) {
+                'q' => .{ .array = &self.whitepieces.PromotedQueen, .count = &self.whitepieces.PromotedQueenCount, .template = WhiteQueen },
+                'r' => .{ .array = &self.whitepieces.PromotedRook, .count = &self.whitepieces.PromotedRookCount, .template = WhiteRook },
+                'b' => .{ .array = &self.whitepieces.PromotedBishop, .count = &self.whitepieces.PromotedBishopCount, .template = WhiteBishop },
+                else => .{ .array = &self.whitepieces.PromotedKnight, .count = &self.whitepieces.PromotedKnightCount, .template = WhiteKnight },
+            };
+        } else {
+            return switch (lower) {
+                'q' => .{ .array = &self.blackpieces.PromotedQueen, .count = &self.blackpieces.PromotedQueenCount, .template = BlackQueen },
+                'r' => .{ .array = &self.blackpieces.PromotedRook, .count = &self.blackpieces.PromotedRookCount, .template = BlackRook },
+                'b' => .{ .array = &self.blackpieces.PromotedBishop, .count = &self.blackpieces.PromotedBishopCount, .template = BlackBishop },
+                else => .{ .array = &self.blackpieces.PromotedKnight, .count = &self.blackpieces.PromotedKnightCount, .template = BlackKnight },
+            };
+        }
+    }
+
+    pub fn updatePiece(self: *Position, original: Piece, updated: Piece) void {
+        if (original.color == 0) {
+            _ = updatePieceInSide(&self.whitepieces, original, updated);
+        } else if (original.color == 1) {
+            _ = updatePieceInSide(&self.blackpieces, original, updated);
+        }
+    }
+
+    pub fn promotePawn(self: *Position, color: u8, pawn_index: usize, promotion: u8, target_square: u64) !void {
+        const lower = std.ascii.toLower(promotion);
+        if (lower != 'q' and lower != 'r' and lower != 'b' and lower != 'n') {
+            return error.InvalidPromotionPiece;
+        }
+
+        if (color == 0) {
+            if (pawn_index >= self.whitepieces.Pawn.len) return error.InvalidPromotionPiece;
+            self.whitepieces.Pawn[pawn_index] = pieceWithIndex(WhitePawn, @intCast(pawn_index));
+        } else {
+            if (pawn_index >= self.blackpieces.Pawn.len) return error.InvalidPromotionPiece;
+            self.blackpieces.Pawn[pawn_index] = pieceWithIndex(BlackPawn, @intCast(pawn_index));
+        }
+
+        const target = self.findPromotionTargets(color, promotion);
+        var new_piece = target.template;
+        new_piece.position = target_square;
+        new_piece.color = color;
+        try addPromotedPiece(target.array, target.count, new_piece);
+        self.enPassantSquare = 0;
+    }
+    fn flipSide(pieces: anytype) void {
+        inline for (std.meta.fields(@TypeOf(pieces.*))) |field| {
+            const field_ptr = &@field(pieces.*, field.name);
+            const FieldType = @TypeOf(field_ptr.*);
+            if (FieldType == Piece) {
+                field_ptr.*.position = reverse(field_ptr.*.position);
+            } else switch (@typeInfo(FieldType)) {
+                .array => |array_info| {
+                    if (array_info.child == Piece) {
+                        inline for (0..array_info.len) |i| {
+                            field_ptr.*[i].position = reverse(field_ptr.*[i].position);
+                        }
+                    }
+                },
+                else => {},
+            }
+        }
+    }
 
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
@@ -139,162 +285,57 @@ pub const Position = struct {
     }
 
     pub fn flip(self: Position) Position {
-        var whitepieces: WhitePieces = self.whitepieces;
-        var blackpieces: BlackPieces = self.blackpieces;
-        whitepieces.King.position = reverse(whitepieces.King.position);
-        whitepieces.King.index = self.whitepieces.King.index;
-        whitepieces.Queen.position = reverse(whitepieces.Queen.position);
-        whitepieces.Queen.index = self.whitepieces.Queen.index;
-        whitepieces.Rook[0].position = reverse(whitepieces.Rook[0].position);
-        whitepieces.Rook[0].index = self.whitepieces.Rook[0].index;
-        whitepieces.Rook[1].position = reverse(whitepieces.Rook[1].position);
-        whitepieces.Rook[1].index = self.whitepieces.Rook[1].index;
-        whitepieces.Bishop[0].position = reverse(whitepieces.Bishop[0].position);
-        whitepieces.Bishop[0].index = self.whitepieces.Bishop[0].index;
-        whitepieces.Bishop[1].position = reverse(whitepieces.Bishop[1].position);
-        whitepieces.Bishop[1].index = self.whitepieces.Bishop[1].index;
-        whitepieces.Knight[0].position = reverse(whitepieces.Knight[0].position);
-        whitepieces.Knight[0].index = self.whitepieces.Knight[0].index;
-        whitepieces.Knight[1].position = reverse(whitepieces.Knight[1].position);
-        whitepieces.Knight[1].index = self.whitepieces.Knight[1].index;
-        whitepieces.Pawn[0].position = reverse(whitepieces.Pawn[0].position);
-        whitepieces.Pawn[0].index = self.whitepieces.Pawn[0].index;
-        whitepieces.Pawn[1].position = reverse(whitepieces.Pawn[1].position);
-        whitepieces.Pawn[1].index = self.whitepieces.Pawn[1].index;
-        whitepieces.Pawn[2].position = reverse(whitepieces.Pawn[2].position);
-        whitepieces.Pawn[2].index = self.whitepieces.Pawn[2].index;
-        whitepieces.Pawn[3].position = reverse(whitepieces.Pawn[3].position);
-        whitepieces.Pawn[3].index = self.whitepieces.Pawn[3].index;
-        whitepieces.Pawn[4].position = reverse(whitepieces.Pawn[4].position);
-        whitepieces.Pawn[4].index = self.whitepieces.Pawn[4].index;
-        whitepieces.Pawn[5].position = reverse(whitepieces.Pawn[5].position);
-        whitepieces.Pawn[5].index = self.whitepieces.Pawn[5].index;
-        whitepieces.Pawn[6].position = reverse(whitepieces.Pawn[6].position);
-        whitepieces.Pawn[6].index = self.whitepieces.Pawn[6].index;
-        whitepieces.Pawn[7].position = reverse(whitepieces.Pawn[7].position);
-        whitepieces.Pawn[7].index = self.whitepieces.Pawn[7].index;
-        blackpieces.King.position = reverse(blackpieces.King.position);
-        blackpieces.King.index = self.blackpieces.King.index;
-        blackpieces.Queen.position = reverse(blackpieces.Queen.position);
-        blackpieces.Queen.index = self.blackpieces.Queen.index;
-        blackpieces.Rook[0].position = reverse(blackpieces.Rook[0].position);
-        blackpieces.Rook[0].index = self.blackpieces.Rook[0].index;
-        blackpieces.Rook[1].position = reverse(blackpieces.Rook[1].position);
-        blackpieces.Rook[1].index = self.blackpieces.Rook[1].index;
-        blackpieces.Bishop[0].position = reverse(blackpieces.Bishop[0].position);
-        blackpieces.Bishop[0].index = self.blackpieces.Bishop[0].index;
-        blackpieces.Bishop[1].position = reverse(blackpieces.Bishop[1].position);
-        blackpieces.Bishop[1].index = self.blackpieces.Bishop[1].index;
-        blackpieces.Knight[0].position = reverse(blackpieces.Knight[0].position);
-        blackpieces.Knight[0].index = self.blackpieces.Knight[0].index;
-        blackpieces.Knight[1].position = reverse(blackpieces.Knight[1].position);
-        blackpieces.Knight[1].index = self.blackpieces.Knight[1].index;
-        blackpieces.Pawn[0].position = reverse(blackpieces.Pawn[0].position);
-        blackpieces.Pawn[0].index = self.blackpieces.Pawn[0].index;
-        blackpieces.Pawn[1].position = reverse(blackpieces.Pawn[1].position);
-        blackpieces.Pawn[1].index = self.blackpieces.Pawn[1].index;
-        blackpieces.Pawn[2].position = reverse(blackpieces.Pawn[2].position);
-        blackpieces.Pawn[2].index = self.blackpieces.Pawn[2].index;
-        blackpieces.Pawn[3].position = reverse(blackpieces.Pawn[3].position);
-        blackpieces.Pawn[3].index = self.blackpieces.Pawn[3].index;
-        blackpieces.Pawn[4].position = reverse(blackpieces.Pawn[4].position);
-        blackpieces.Pawn[4].index = self.blackpieces.Pawn[4].index;
-        blackpieces.Pawn[5].position = reverse(blackpieces.Pawn[5].position);
-        blackpieces.Pawn[5].index = self.blackpieces.Pawn[5].index;
-        blackpieces.Pawn[6].position = reverse(blackpieces.Pawn[6].position);
-        blackpieces.Pawn[6].index = self.blackpieces.Pawn[6].index;
-        blackpieces.Pawn[7].position = reverse(blackpieces.Pawn[7].position);
-        blackpieces.Pawn[7].index = self.blackpieces.Pawn[7].index;
-
-        return Position{
-            .whitepieces = whitepieces,
-            .blackpieces = blackpieces,
-            .canCastleWhiteKingside = self.canCastleWhiteKingside,
-            .canCastleWhiteQueenside = self.canCastleWhiteQueenside,
-            .canCastleBlackKingside = self.canCastleBlackKingside,
-            .canCastleBlackQueenside = self.canCastleBlackQueenside,
-            .enPassantSquare = reverse(self.enPassantSquare),
-            .sidetomove = self.sidetomove,
-        };
+        var result = self;
+        flipSide(&result.whitepieces);
+        flipSide(&result.blackpieces);
+        result.enPassantSquare = reverse(self.enPassantSquare);
+        result.sidetomove = 1 - self.sidetomove;
+        return result;
+    }
+    fn pieceAt(position: Position, mask: u64) Piece {
+        inline for (std.meta.fields(@TypeOf(position.whitepieces))) |field| {
+            const value = @field(position.whitepieces, field.name);
+            const FieldType = @TypeOf(value);
+            if (FieldType == Piece) {
+                if (value.position & mask != 0) return value;
+            } else switch (@typeInfo(FieldType)) {
+                .array => |array_info| {
+                    if (array_info.child == Piece) {
+                        for (value) |item| {
+                            if (item.position & mask != 0) return item;
+                        }
+                    }
+                },
+                else => {},
+            }
+        }
+        inline for (std.meta.fields(@TypeOf(position.blackpieces))) |field| {
+            const value = @field(position.blackpieces, field.name);
+            const FieldType = @TypeOf(value);
+            if (FieldType == Piece) {
+                if (value.position & mask != 0) return value;
+            } else switch (@typeInfo(FieldType)) {
+                .array => |array_info| {
+                    if (array_info.child == Piece) {
+                        for (value) |item| {
+                            if (item.position & mask != 0) return item;
+                        }
+                    }
+                },
+                else => {},
+            }
+        }
+        return Empty;
     }
 
     pub fn print(position: Position) [64]u8 {
-        var printBuffer: [64]u8 = undefined;
-        std.debug.print("\n", .{});
-        var i: u6 = 0;
+        var printBuffer = [_]u8{'.'} ** 64;
+        var i: usize = 0;
         while (i < printBuffer.len) : (i += 1) {
-            if (position.whitepieces.King.position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.King.representation;
-            } else if (position.whitepieces.Queen.position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Queen.representation;
-            } else if (position.whitepieces.Rook[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Rook[0].representation;
-            } else if (position.whitepieces.Rook[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Rook[1].representation;
-            } else if (position.whitepieces.Bishop[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Bishop[0].representation;
-            } else if (position.whitepieces.Bishop[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Bishop[1].representation;
-            } else if (position.whitepieces.Knight[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Knight[0].representation;
-            } else if (position.whitepieces.Knight[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Knight[1].representation;
-            } else if (position.whitepieces.Pawn[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[0].representation;
-            } else if (position.whitepieces.Pawn[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[1].representation;
-            } else if (position.whitepieces.Pawn[2].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[2].representation;
-            } else if (position.whitepieces.Pawn[3].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[3].representation;
-            } else if (position.whitepieces.Pawn[4].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[4].representation;
-            } else if (position.whitepieces.Pawn[5].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[5].representation;
-            } else if (position.whitepieces.Pawn[6].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[6].representation;
-            } else if (position.whitepieces.Pawn[7].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[7].representation;
-            } else if (position.blackpieces.King.position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.King.representation;
-            } else if (position.blackpieces.Queen.position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Queen.representation;
-            } else if (position.blackpieces.Rook[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Rook[0].representation;
-            } else if (position.blackpieces.Rook[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Rook[1].representation;
-            } else if (position.blackpieces.Bishop[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Bishop[0].representation;
-            } else if (position.blackpieces.Bishop[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Bishop[1].representation;
-            } else if (position.blackpieces.Knight[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Knight[0].representation;
-            } else if (position.blackpieces.Knight[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Knight[1].representation;
-            } else if (position.blackpieces.Pawn[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[0].representation;
-            } else if (position.blackpieces.Pawn[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[1].representation;
-            } else if (position.blackpieces.Pawn[2].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[2].representation;
-            } else if (position.blackpieces.Pawn[3].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[3].representation;
-            } else if (position.blackpieces.Pawn[4].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[4].representation;
-            } else if (position.blackpieces.Pawn[5].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[5].representation;
-            } else if (position.blackpieces.Pawn[6].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[6].representation;
-            } else if (position.blackpieces.Pawn[7].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[7].representation;
-            } else {
-                printBuffer[i] = Empty.representation;
-            }
-            if (i == BoardSize - 1) {
-                break;
-            }
+            const mask = (@as(u64, 1) << @intCast(i));
+            const piece = pieceAt(position, mask);
+            printBuffer[i] = piece.representation;
         }
-        // print the buffer in reverse order
         for (0..printBuffer.len) |index| {
             if (index % 8 == 0 and index != 0) {
                 std.debug.print("\n", .{});
@@ -369,36 +410,112 @@ pub fn parseFen(fen: []const u8) Position {
                         position.whitepieces.King.index = 0;
                     },
                     'Q' => {
-                        position.whitepieces.Queen.position |= bit;
-                        position.whitepieces.Queen.index = 0;
+                        if (position.whitepieces.Queen.position == 0) {
+                            position.whitepieces.Queen.position = bit;
+                            position.whitepieces.Queen.index = 0;
+                        } else {
+                            var placed = false;
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.whitepieces.PromotedQueen.len) : (promotedIndex += 1) {
+                                if (position.whitepieces.PromotedQueen[promotedIndex].position == 0) {
+                                    position.whitepieces.PromotedQueen[promotedIndex].position = bit;
+                                    position.whitepieces.PromotedQueen[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.whitepieces.PromotedQueenCount < MaxPromotions) {
+                                        position.whitepieces.PromotedQueenCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many white queens in FEN\n", .{});
+                            }
+                        }
                     },
                     'R' => {
+                        var placed = false;
                         var rookCount: u6 = 0;
                         while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
                             if (position.whitepieces.Rook[rookCount].position == 0) {
                                 position.whitepieces.Rook[rookCount].position = bit;
                                 position.whitepieces.Rook[rookCount].index = rookCount;
+                                placed = true;
                                 break;
+                            }
+                        }
+                        if (!placed) {
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.whitepieces.PromotedRook.len) : (promotedIndex += 1) {
+                                if (position.whitepieces.PromotedRook[promotedIndex].position == 0) {
+                                    position.whitepieces.PromotedRook[promotedIndex].position = bit;
+                                    position.whitepieces.PromotedRook[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.whitepieces.PromotedRookCount < MaxPromotions) {
+                                        position.whitepieces.PromotedRookCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many white rooks in FEN\n", .{});
                             }
                         }
                     },
                     'B' => {
+                        var placed = false;
                         var bishopCount: u6 = 0;
                         while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
                             if (position.whitepieces.Bishop[bishopCount].position == 0) {
                                 position.whitepieces.Bishop[bishopCount].position = bit;
                                 position.whitepieces.Bishop[bishopCount].index = bishopCount;
+                                placed = true;
                                 break;
+                            }
+                        }
+                        if (!placed) {
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.whitepieces.PromotedBishop.len) : (promotedIndex += 1) {
+                                if (position.whitepieces.PromotedBishop[promotedIndex].position == 0) {
+                                    position.whitepieces.PromotedBishop[promotedIndex].position = bit;
+                                    position.whitepieces.PromotedBishop[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.whitepieces.PromotedBishopCount < MaxPromotions) {
+                                        position.whitepieces.PromotedBishopCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many white bishops in FEN\n", .{});
                             }
                         }
                     },
                     'N' => {
+                        var placed = false;
                         var knightCount: u6 = 0;
                         while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
                             if (position.whitepieces.Knight[knightCount].position == 0) {
                                 position.whitepieces.Knight[knightCount].position = bit;
                                 position.whitepieces.Knight[knightCount].index = knightCount;
+                                placed = true;
                                 break;
+                            }
+                        }
+                        if (!placed) {
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.whitepieces.PromotedKnight.len) : (promotedIndex += 1) {
+                                if (position.whitepieces.PromotedKnight[promotedIndex].position == 0) {
+                                    position.whitepieces.PromotedKnight[promotedIndex].position = bit;
+                                    position.whitepieces.PromotedKnight[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.whitepieces.PromotedKnightCount < MaxPromotions) {
+                                        position.whitepieces.PromotedKnightCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many white knights in FEN\n", .{});
                             }
                         }
                     },
@@ -417,36 +534,112 @@ pub fn parseFen(fen: []const u8) Position {
                         position.blackpieces.King.index = 0;
                     },
                     'q' => {
-                        position.blackpieces.Queen.position |= bit;
-                        position.blackpieces.Queen.index = 0;
+                        if (position.blackpieces.Queen.position == 0) {
+                            position.blackpieces.Queen.position = bit;
+                            position.blackpieces.Queen.index = 0;
+                        } else {
+                            var placed = false;
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.blackpieces.PromotedQueen.len) : (promotedIndex += 1) {
+                                if (position.blackpieces.PromotedQueen[promotedIndex].position == 0) {
+                                    position.blackpieces.PromotedQueen[promotedIndex].position = bit;
+                                    position.blackpieces.PromotedQueen[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.blackpieces.PromotedQueenCount < MaxPromotions) {
+                                        position.blackpieces.PromotedQueenCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many black queens in FEN\n", .{});
+                            }
+                        }
                     },
                     'r' => {
+                        var placed = false;
                         var rookCount: u6 = 0;
                         while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
                             if (position.blackpieces.Rook[rookCount].position == 0) {
                                 position.blackpieces.Rook[rookCount].position = bit;
                                 position.blackpieces.Rook[rookCount].index = rookCount;
+                                placed = true;
                                 break;
+                            }
+                        }
+                        if (!placed) {
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.blackpieces.PromotedRook.len) : (promotedIndex += 1) {
+                                if (position.blackpieces.PromotedRook[promotedIndex].position == 0) {
+                                    position.blackpieces.PromotedRook[promotedIndex].position = bit;
+                                    position.blackpieces.PromotedRook[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.blackpieces.PromotedRookCount < MaxPromotions) {
+                                        position.blackpieces.PromotedRookCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many black rooks in FEN\n", .{});
                             }
                         }
                     },
                     'b' => {
+                        var placed = false;
                         var bishopCount: u6 = 0;
                         while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
                             if (position.blackpieces.Bishop[bishopCount].position == 0) {
                                 position.blackpieces.Bishop[bishopCount].position = bit;
                                 position.blackpieces.Bishop[bishopCount].index = bishopCount;
+                                placed = true;
                                 break;
+                            }
+                        }
+                        if (!placed) {
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.blackpieces.PromotedBishop.len) : (promotedIndex += 1) {
+                                if (position.blackpieces.PromotedBishop[promotedIndex].position == 0) {
+                                    position.blackpieces.PromotedBishop[promotedIndex].position = bit;
+                                    position.blackpieces.PromotedBishop[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.blackpieces.PromotedBishopCount < MaxPromotions) {
+                                        position.blackpieces.PromotedBishopCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many black bishops in FEN\n", .{});
                             }
                         }
                     },
                     'n' => {
+                        var placed = false;
                         var knightCount: u6 = 0;
                         while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
                             if (position.blackpieces.Knight[knightCount].position == 0) {
                                 position.blackpieces.Knight[knightCount].position = bit;
                                 position.blackpieces.Knight[knightCount].index = knightCount;
+                                placed = true;
                                 break;
+                            }
+                        }
+                        if (!placed) {
+                            var promotedIndex: u6 = 0;
+                            while (promotedIndex < position.blackpieces.PromotedKnight.len) : (promotedIndex += 1) {
+                                if (position.blackpieces.PromotedKnight[promotedIndex].position == 0) {
+                                    position.blackpieces.PromotedKnight[promotedIndex].position = bit;
+                                    position.blackpieces.PromotedKnight[promotedIndex].index = @intCast(promotedIndex);
+                                    if (position.blackpieces.PromotedKnightCount < MaxPromotions) {
+                                        position.blackpieces.PromotedKnightCount += 1;
+                                    }
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Too many black knights in FEN\n", .{});
                             }
                         }
                     },

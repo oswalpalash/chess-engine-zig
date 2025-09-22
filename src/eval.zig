@@ -30,14 +30,31 @@ pub fn evaluate(board: Board) i32 {
             score += getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, true);
         }
     }
+    for (board.position.whitepieces.PromotedKnight) |knight| {
+        if (knight.position != 0) {
+            score += @as(i32, knight.stdval) * 100;
+            score += getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, true);
+        }
+    }
     inline for (board.position.whitepieces.Bishop) |bishop| {
+        if (bishop.position != 0) score += @as(i32, bishop.stdval) * 100;
+    }
+    for (board.position.whitepieces.PromotedBishop) |bishop| {
         if (bishop.position != 0) score += @as(i32, bishop.stdval) * 100;
     }
     inline for (board.position.whitepieces.Rook) |rook| {
         if (rook.position != 0) score += @as(i32, rook.stdval) * 100;
     }
+    for (board.position.whitepieces.PromotedRook) |rook| {
+        if (rook.position != 0) score += @as(i32, rook.stdval) * 100;
+    }
     if (board.position.whitepieces.Queen.position != 0) {
         score += @as(i32, board.position.whitepieces.Queen.stdval) * 100;
+    }
+    for (board.position.whitepieces.PromotedQueen) |queen| {
+        if (queen.position != 0) {
+            score += @as(i32, queen.stdval) * 100;
+        }
     }
     if (board.position.whitepieces.King.position != 0) {
         score += @as(i32, board.position.whitepieces.King.stdval) * 100;
@@ -58,14 +75,31 @@ pub fn evaluate(board: Board) i32 {
             score -= getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, false);
         }
     }
+    for (board.position.blackpieces.PromotedKnight) |knight| {
+        if (knight.position != 0) {
+            score -= @as(i32, knight.stdval) * 100;
+            score -= getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, false);
+        }
+    }
     inline for (board.position.blackpieces.Bishop) |bishop| {
+        if (bishop.position != 0) score -= @as(i32, bishop.stdval) * 100;
+    }
+    for (board.position.blackpieces.PromotedBishop) |bishop| {
         if (bishop.position != 0) score -= @as(i32, bishop.stdval) * 100;
     }
     inline for (board.position.blackpieces.Rook) |rook| {
         if (rook.position != 0) score -= @as(i32, rook.stdval) * 100;
     }
+    for (board.position.blackpieces.PromotedRook) |rook| {
+        if (rook.position != 0) score -= @as(i32, rook.stdval) * 100;
+    }
     if (board.position.blackpieces.Queen.position != 0) {
         score -= @as(i32, board.position.blackpieces.Queen.stdval) * 100;
+    }
+    for (board.position.blackpieces.PromotedQueen) |queen| {
+        if (queen.position != 0) {
+            score -= @as(i32, queen.stdval) * 100;
+        }
     }
     if (board.position.blackpieces.King.position != 0) {
         score -= @as(i32, board.position.blackpieces.King.stdval) * 100;
@@ -270,6 +304,18 @@ fn countPieces(board: Board, white: bool) u32 {
         for (board.position.whitepieces.Rook) |rook| {
             if (rook.position != 0) count += 1;
         }
+        for (board.position.whitepieces.PromotedBishop) |bishop| {
+            if (bishop.position != 0) count += 1;
+        }
+        for (board.position.whitepieces.PromotedRook) |rook| {
+            if (rook.position != 0) count += 1;
+        }
+        for (board.position.whitepieces.PromotedKnight) |knight| {
+            if (knight.position != 0) count += 1;
+        }
+        for (board.position.whitepieces.PromotedQueen) |queen| {
+            if (queen.position != 0) count += 1;
+        }
         if (board.position.whitepieces.Queen.position != 0) count += 1;
         if (board.position.whitepieces.King.position != 0) count += 1;
     } else {
@@ -286,6 +332,18 @@ fn countPieces(board: Board, white: bool) u32 {
         for (board.position.blackpieces.Rook) |rook| {
             if (rook.position != 0) count += 1;
         }
+        for (board.position.blackpieces.PromotedBishop) |bishop| {
+            if (bishop.position != 0) count += 1;
+        }
+        for (board.position.blackpieces.PromotedRook) |rook| {
+            if (rook.position != 0) count += 1;
+        }
+        for (board.position.blackpieces.PromotedKnight) |knight| {
+            if (knight.position != 0) count += 1;
+        }
+        for (board.position.blackpieces.PromotedQueen) |queen| {
+            if (queen.position != 0) count += 1;
+        }
         if (board.position.blackpieces.Queen.position != 0) count += 1;
         if (board.position.blackpieces.King.position != 0) count += 1;
     }
@@ -298,6 +356,19 @@ test "evaluate initial position is balanced" {
     const score = evaluate(board);
     // The initial position might not be exactly 0 due to position evaluation
     try std.testing.expect(score >= -10 and score <= 10);
+}
+
+test "evaluate counts promoted pieces" {
+    var board = Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Pawn[0].position = c.E7;
+    const before = evaluate(board);
+
+    board.position.promotePawn(0, 0, 'Q', c.E8) catch unreachable;
+    const after = evaluate(board);
+
+    const pawn_bonus = getPiecePositionValue(c.E7, c.PAWN_POSITION_TABLE, true);
+    const expected_diff: i32 = @intCast(9 * 100 - (1 * 100 + pawn_bonus));
+    try std.testing.expectEqual(after - before, expected_diff);
 }
 
 test "evaluate position with extra white pawn" {
