@@ -569,9 +569,8 @@ pub fn parseFen(fen: []const u8) Position {
                 '8' => rankIndex = 7,
                 else => rankIndex = 0,
             }
-            const shift = rankIndex * 8 + fileIndex;
+            const shift: u6 = rankIndex * 8 + (7 - fileIndex);
             position.enPassantSquare = @as(u64, 1) << @as(u6, shift);
-            position.enPassantSquare = reverse(position.enPassantSquare); // Flip since we flip the whole position
         }
     }
 
@@ -688,6 +687,13 @@ test "parse complex fen with castling and en passant" {
 
     // Verify side to move
     try std.testing.expectEqual(pos.sidetomove, 0);
+}
+
+test "parse fen en passant square matches constant" {
+    const fenStr = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3";
+    const pos = parseFen(fenStr);
+
+    try std.testing.expectEqual(c.E3, pos.enPassantSquare);
 }
 
 test "parse fen with no castling rights" {
