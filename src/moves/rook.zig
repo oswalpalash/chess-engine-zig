@@ -10,6 +10,7 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     var index: usize = 0; // Initialize with a default value
 
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
+    const from_square = piece.position;
 
     // Find which rook we're moving
     if (piece.color == 0) {
@@ -61,8 +62,18 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
                 var newBoard = b.Board{ .position = board.position };
                 if (piece.color == 0) {
                     newBoard.position.whitepieces.Rook[index].position = newpos;
+                    if (from_square == c.A1) {
+                        newBoard.position.canCastleWhiteQueenside = false;
+                    } else if (from_square == c.H1) {
+                        newBoard.position.canCastleWhiteKingside = false;
+                    }
                 } else {
                     newBoard.position.blackpieces.Rook[index].position = newpos;
+                    if (from_square == c.A8) {
+                        newBoard.position.canCastleBlackQueenside = false;
+                    } else if (from_square == c.H8) {
+                        newBoard.position.canCastleBlackKingside = false;
+                    }
                 }
                 newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
@@ -78,8 +89,18 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
 
                     if (piece.color == 0) {
                         newBoard.position.whitepieces.Rook[index].position = newpos;
+                        if (from_square == c.A1) {
+                            newBoard.position.canCastleWhiteQueenside = false;
+                        } else if (from_square == c.H1) {
+                            newBoard.position.canCastleWhiteKingside = false;
+                        }
                     } else {
                         newBoard.position.blackpieces.Rook[index].position = newpos;
+                        if (from_square == c.A8) {
+                            newBoard.position.canCastleBlackQueenside = false;
+                        } else if (from_square == c.H8) {
+                            newBoard.position.canCastleBlackKingside = false;
+                        }
                     }
                     newBoard.position.sidetomove = next_side;
                     moves[possiblemoves] = newBoard;
@@ -156,4 +177,72 @@ test "ValidRookMoves for black rook at a8 in initial board" {
     // Based on our board setup, the black rook at A8 is stored in blackpieces.Rook[1]
     const moves = getValidRookMoves(board.position.blackpieces.Rook[1], board);
     try std.testing.expectEqual(moves.len, 0);
+}
+
+test "rook move clears white kingside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.whitepieces.Rook[1].position = c.H1;
+    board.position.canCastleWhiteKingside = true;
+
+    const moves = getValidRookMoves(board.position.whitepieces.Rook[1], board);
+    var found = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Rook[1].position == c.H2) {
+            found = true;
+            try std.testing.expectEqual(false, move.position.canCastleWhiteKingside);
+        }
+    }
+    try std.testing.expect(found);
+}
+
+test "rook move clears white queenside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.whitepieces.Rook[0].position = c.A1;
+    board.position.canCastleWhiteQueenside = true;
+
+    const moves = getValidRookMoves(board.position.whitepieces.Rook[0], board);
+    var found = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.Rook[0].position == c.A2) {
+            found = true;
+            try std.testing.expectEqual(false, move.position.canCastleWhiteQueenside);
+        }
+    }
+    try std.testing.expect(found);
+}
+
+test "rook move clears black kingside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E8;
+    board.position.blackpieces.Rook[1].position = c.H8;
+    board.position.canCastleBlackKingside = true;
+
+    const moves = getValidRookMoves(board.position.blackpieces.Rook[1], board);
+    var found = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Rook[1].position == c.H7) {
+            found = true;
+            try std.testing.expectEqual(false, move.position.canCastleBlackKingside);
+        }
+    }
+    try std.testing.expect(found);
+}
+
+test "rook move clears black queenside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.King.position = c.E8;
+    board.position.blackpieces.Rook[0].position = c.A8;
+    board.position.canCastleBlackQueenside = true;
+
+    const moves = getValidRookMoves(board.position.blackpieces.Rook[0], board);
+    var found = false;
+    for (moves) |move| {
+        if (move.position.blackpieces.Rook[0].position == c.A7) {
+            found = true;
+            try std.testing.expectEqual(false, move.position.canCastleBlackQueenside);
+        }
+    }
+    try std.testing.expect(found);
 }
