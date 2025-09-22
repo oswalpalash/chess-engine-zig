@@ -130,9 +130,19 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             if (boardCopy.position.blackpieces.Rook[0].position == loc) {
                 boardCopy.position.blackpieces.Rook[0].position = 0;
                 piece.position = 0;
+                if (loc == c.H8) {
+                    boardCopy.position.canCastleBlackKingside = false;
+                } else if (loc == c.A8) {
+                    boardCopy.position.canCastleBlackQueenside = false;
+                }
             } else if (boardCopy.position.blackpieces.Rook[1].position == loc) {
                 boardCopy.position.blackpieces.Rook[1].position = 0;
                 piece.position = 0;
+                if (loc == c.H8) {
+                    boardCopy.position.canCastleBlackKingside = false;
+                } else if (loc == c.A8) {
+                    boardCopy.position.canCastleBlackQueenside = false;
+                }
             }
         },
         'b' => {
@@ -242,9 +252,19 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             if (boardCopy.position.whitepieces.Rook[0].position == loc) {
                 boardCopy.position.whitepieces.Rook[0].position = 0;
                 piece.position = 0;
+                if (loc == c.A1) {
+                    boardCopy.position.canCastleWhiteQueenside = false;
+                } else if (loc == c.H1) {
+                    boardCopy.position.canCastleWhiteKingside = false;
+                }
             } else if (boardCopy.position.whitepieces.Rook[1].position == loc) {
                 boardCopy.position.whitepieces.Rook[1].position = 0;
                 piece.position = 0;
+                if (loc == c.A1) {
+                    boardCopy.position.canCastleWhiteQueenside = false;
+                } else if (loc == c.H1) {
+                    boardCopy.position.canCastleWhiteKingside = false;
+                }
             }
         },
         'B' => {
@@ -302,4 +322,40 @@ test "capture white pawn at e2 in initial board" {
     const board_mod = @import("../board.zig");
     const newboard = capturewhitepiece(consts.E2, board_mod.Board{ .position = board_mod.Position.init() });
     try std.testing.expectEqual(newboard.position.whitepieces.Pawn[4].position, 0);
+}
+
+test "capture white rook disables kingside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[1].position = c.H1;
+    board.position.canCastleWhiteKingside = true;
+
+    const post_capture = capturewhitepiece(c.H1, board);
+    try std.testing.expectEqual(false, post_capture.position.canCastleWhiteKingside);
+}
+
+test "capture white rook disables queenside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Rook[0].position = c.A1;
+    board.position.canCastleWhiteQueenside = true;
+
+    const post_capture = capturewhitepiece(c.A1, board);
+    try std.testing.expectEqual(false, post_capture.position.canCastleWhiteQueenside);
+}
+
+test "capture black rook disables kingside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Rook[1].position = c.H8;
+    board.position.canCastleBlackKingside = true;
+
+    const post_capture = captureblackpiece(c.H8, board);
+    try std.testing.expectEqual(false, post_capture.position.canCastleBlackKingside);
+}
+
+test "capture black rook disables queenside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.blackpieces.Rook[0].position = c.A8;
+    board.position.canCastleBlackQueenside = true;
+
+    const post_capture = captureblackpiece(c.A8, board);
+    try std.testing.expectEqual(false, post_capture.position.canCastleBlackQueenside);
 }
