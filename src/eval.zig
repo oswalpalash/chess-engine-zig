@@ -177,8 +177,9 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
     const MoveScore = struct { move: Board, score: i32 };
 
     // Create a list of moves with their scores for sorting
-    var move_scores = std.ArrayList(MoveScore).init(std.heap.page_allocator);
-    defer move_scores.deinit();
+    const allocator = std.heap.page_allocator;
+    var move_scores = std.ArrayList(MoveScore).empty;
+    defer move_scores.deinit(allocator);
 
     // First, evaluate all moves with a shallow search to get initial scores
     for (moves) |move| {
@@ -215,7 +216,7 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
         }
 
         // Add the move and its score to our list
-        move_scores.append(.{ .move = move, .score = score }) catch continue;
+        move_scores.append(allocator, .{ .move = move, .score = score }) catch continue;
     }
 
     // Sort moves by score (descending)
