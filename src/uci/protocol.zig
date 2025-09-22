@@ -71,6 +71,18 @@ pub const UciProtocol = struct {
         };
     }
 
+    fn infof(self: *UciProtocol, comptime fmt: []const u8, args: anytype) !void {
+        const msg = try std.fmt.allocPrint(self.allocator, "info string " ++ fmt, args);
+        errdefer self.allocator.free(msg);
+        try self.allocated_strings.append(self.allocator, msg);
+        try self.respond(msg);
+    }
+
+    fn debugInfo(self: *UciProtocol, comptime fmt: []const u8, args: anytype) !void {
+        if (!self.debug_mode) return;
+        try self.infof(fmt, args);
+    }
+
     fn chooseBestMove(self: *UciProtocol) !?b.Board {
         var search_depth: u8 = 1;
         if (self.skill_level > 5 and self.skill_level <= 10) {
@@ -78,11 +90,7 @@ pub const UciProtocol = struct {
         } else if (self.skill_level > 10) {
             search_depth = 3;
         }
-        if (self.debug_mode) {
-            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with depth {d}", .{search_depth});
-            try self.allocated_strings.append(self.allocator, debug_msg);
-            try self.respond(debug_msg);
-        }
+        try self.debugInfo("Searching with depth {d}", .{search_depth});
         if (e.findBestMove(self.current_board, search_depth)) |best_move| {
             return best_move;
         } else {
@@ -98,22 +106,20 @@ pub const UciProtocol = struct {
         return moves[std.crypto.random.int(u32) % moves.len];
     }
 
-    pub fn parsePositionLine(line: []const u8, allocator: std.mem.Allocator) !b.Board {
+    fn parsePositionLine(self: *UciProtocol, line: []const u8) !b.Board {
         var board = b.Board{ .position = b.Position.init() };
         var iter = std.mem.splitScalar(u8, line, ' ');
         _ = iter.next();
-        std.debug.print("\nInitial position:\n", .{});
-        _ = board.print();
         if (iter.next()) |pos_type| {
             if (std.mem.eql(u8, pos_type, "startpos")) {
                 board = b.Board{ .position = b.Position.init() };
             } else if (std.mem.eql(u8, pos_type, "fen")) {
                 var fen = std.ArrayList(u8){};
-                defer fen.deinit(allocator);
+                defer fen.deinit(self.allocator);
                 while (iter.next()) |part| {
                     if (std.mem.eql(u8, part, "moves")) break;
-                    try fen.appendSlice(allocator, part);
-                    try fen.append(allocator, ' ');
+                    try fen.appendSlice(self.allocator, part);
+                    try fen.append(self.allocator, ' ');
                 }
                 if (fen.items.len > 0) {
                     board = b.Board{ .position = b.parseFen(fen.items) };
@@ -128,12 +134,10 @@ pub const UciProtocol = struct {
                 }
                 if (found_moves) {
                     move_count += 1;
-                    std.debug.print("\nProcessing move {d}: {s}\n", .{ move_count, token });
+                    try self.debugInfo("Processing move {d}: {s}", .{ move_count, token });
                     const move = try m.parseUciMove(token);
                     board = try m.applyMove(board, move);
-                    std.debug.print("After move {d}:\n", .{move_count});
-                    _ = board.print();
-                    std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
+                    try self.debugInfo("Side to move after move {d}: {d}", .{ move_count, board.position.sidetomove });
                 }
             }
         }
@@ -403,10 +407,8 @@ pub const UciProtocol = struct {
                 }
             },
             .position => {
-                if (self.debug_mode) {
-                    try self.respond(line);
-                }
-                self.current_board = try UciProtocol.parsePositionLine(line, self.allocator);
+                try self.debugInfo("Received position command: {s}", .{line});
+                self.current_board = try self.parsePositionLine(line);
             },
             .go => {
                 self.search_in_progress = true;
@@ -476,18 +478,32 @@ pub const UciProtocol = struct {
                 }
             },
             .ucinewgame => {
-                if (self.debug_mode) {
-                    try self.respond("Received ucinewgame command. Will be implemented in future.");
-                }
+                try self.debugInfo("Received ucinewgame command. Will be implemented in future.", .{});
                 self.current_board = b.Board{ .position = b.Position.init() };
             },
-            .quit => {
-                if (self.debug_mode) {
-                    try self.respond("Goodbye!");
+            .debug => {
+                var iter = std.mem.splitScalar(u8, line, ' ');
+                _ = iter.next();
+                if (iter.next()) |state| {
+                    if (std.mem.eql(u8, state, "on")) {
+                        self.debug_mode = true;
+                        try self.infof("Debug mode enabled", .{});
+                    } else if (std.mem.eql(u8, state, "off")) {
+                        self.debug_mode = false;
+                        // debugInfo would not emit after turning off, so respond directly.
+                        try self.infof("Debug mode disabled", .{});
+                    } else {
+                        try self.infof("Unknown debug argument: {s}", .{state});
+                    }
+                } else {
+                    try self.infof("Debug command missing state", .{});
                 }
             },
+            .quit => {
+                try self.debugInfo("Goodbye!", .{});
+            },
             else => {
-                try self.respond(line);
+                try self.debugInfo("Ignoring unsupported command: {s}", .{line});
             },
         }
     }
