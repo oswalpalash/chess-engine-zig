@@ -10,30 +10,6 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
 
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
 
-    // Find the correct index for the knight
-    var index: u8 = 0;
-    if (piece.color == 0) {
-        // White knight
-        if (board.position.whitepieces.Knight[0].position == piece.position) {
-            index = 0;
-        } else if (board.position.whitepieces.Knight[1].position == piece.position) {
-            index = 1;
-        } else {
-            // Knight not found, return empty array
-            return moves[0..0];
-        }
-    } else {
-        // Black knight
-        if (board.position.blackpieces.Knight[0].position == piece.position) {
-            index = 0;
-        } else if (board.position.blackpieces.Knight[1].position == piece.position) {
-            index = 1;
-        } else {
-            // Knight not found, return empty array
-            return moves[0..0];
-        }
-    }
-
     // Define all possible knight move shifts
     // These represent the 8 possible L-shaped moves a knight can make
     const knightShifts = [_]struct { shift: i8, mask: u64 }{
@@ -66,11 +42,9 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
         if (bitmap & newpos == 0) {
             // Empty square - add move
             var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Knight[index].position = newpos;
-            } else {
-                newBoard.position.blackpieces.Knight[index].position = newpos;
-            }
+            var newknight = piece;
+            newknight.position = newpos;
+            newBoard.position.updatePiece(piece, newknight);
             newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
@@ -84,11 +58,9 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
                 else
                     board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
 
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Knight[index].position = newpos;
-                } else {
-                    newBoard.position.blackpieces.Knight[index].position = newpos;
-                }
+                var newknight = piece;
+                newknight.position = newpos;
+                newBoard.position.updatePiece(piece, newknight);
                 newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;

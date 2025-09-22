@@ -8,7 +8,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: u6 = 0;
-    var index: u64 = 0;
+    var index: usize = 0;
 
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
 
@@ -47,26 +47,22 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     }
 
     if (bitmap & oneSquareForward == 0) {
-        if ((piece.color == 0 and currentRow < 7) or (piece.color == 1 and currentRow > 2)) {
+        if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
+            const promotions = if (piece.color == 0) [_]u8{ 'Q', 'R', 'B', 'N' } else [_]u8{ 'q', 'r', 'b', 'n' };
+            for (promotions) |promotion| {
+                var newBoard = b.Board{ .position = board.position };
+                newBoard.position.promotePawn(piece.color, index, promotion, oneSquareForward) catch continue;
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
+                possiblemoves += 1;
+            }
+        } else if ((piece.color == 0 and currentRow < 7) or (piece.color == 1 and currentRow > 2)) {
             // Regular move
             var newBoard = b.Board{ .position = board.position };
             if (piece.color == 0) {
                 newBoard.position.whitepieces.Pawn[index].position = oneSquareForward;
             } else {
                 newBoard.position.blackpieces.Pawn[index].position = oneSquareForward;
-            }
-            newBoard.position.sidetomove = next_side;
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
-        } else if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
-            // Promotion
-            var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Pawn[index].position = oneSquareForward;
-                newBoard.position.whitepieces.Pawn[index].representation = 'Q';
-            } else {
-                newBoard.position.blackpieces.Pawn[index].position = oneSquareForward;
-                newBoard.position.blackpieces.Pawn[index].representation = 'q';
             }
             newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
@@ -117,30 +113,31 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         if (bitmap & leftCapture != 0) {
             const targetPiece = board_helpers.piecefromlocation(leftCapture, board);
             if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0)
+                const capturedBoard = if (piece.color == 0)
                     board_helpers.captureblackpiece(leftCapture, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(leftCapture, b.Board{ .position = board.position });
 
                 if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
-                    // Promotion on capture
-                    if (piece.color == 0) {
-                        newBoard.position.whitepieces.Pawn[index].position = leftCapture;
-                        newBoard.position.whitepieces.Pawn[index].representation = 'Q';
-                    } else {
-                        newBoard.position.blackpieces.Pawn[index].position = leftCapture;
-                        newBoard.position.blackpieces.Pawn[index].representation = 'q';
+                    const promotions = if (piece.color == 0) [_]u8{ 'Q', 'R', 'B', 'N' } else [_]u8{ 'q', 'r', 'b', 'n' };
+                    for (promotions) |promotion| {
+                        var newBoard = capturedBoard;
+                        newBoard.position.promotePawn(piece.color, index, promotion, leftCapture) catch continue;
+                        newBoard.position.sidetomove = next_side;
+                        moves[possiblemoves] = newBoard;
+                        possiblemoves += 1;
                     }
                 } else {
+                    var newBoard = capturedBoard;
                     if (piece.color == 0) {
                         newBoard.position.whitepieces.Pawn[index].position = leftCapture;
                     } else {
                         newBoard.position.blackpieces.Pawn[index].position = leftCapture;
                     }
+                    newBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
                 }
-                newBoard.position.sidetomove = next_side;
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
             }
         } else if (leftCapture == board.position.enPassantSquare) {
             // En passant capture to the left
@@ -170,30 +167,31 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
         if (bitmap & rightCapture != 0) {
             const targetPiece = board_helpers.piecefromlocation(rightCapture, board);
             if (targetPiece.color != piece.color) {
-                var newBoard = if (piece.color == 0)
+                const capturedBoard = if (piece.color == 0)
                     board_helpers.captureblackpiece(rightCapture, b.Board{ .position = board.position })
                 else
                     board_helpers.capturewhitepiece(rightCapture, b.Board{ .position = board.position });
 
                 if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
-                    // Promotion on capture
-                    if (piece.color == 0) {
-                        newBoard.position.whitepieces.Pawn[index].position = rightCapture;
-                        newBoard.position.whitepieces.Pawn[index].representation = 'Q';
-                    } else {
-                        newBoard.position.blackpieces.Pawn[index].position = rightCapture;
-                        newBoard.position.blackpieces.Pawn[index].representation = 'q';
+                    const promotions = if (piece.color == 0) [_]u8{ 'Q', 'R', 'B', 'N' } else [_]u8{ 'q', 'r', 'b', 'n' };
+                    for (promotions) |promotion| {
+                        var newBoard = capturedBoard;
+                        newBoard.position.promotePawn(piece.color, index, promotion, rightCapture) catch continue;
+                        newBoard.position.sidetomove = next_side;
+                        moves[possiblemoves] = newBoard;
+                        possiblemoves += 1;
                     }
                 } else {
+                    var newBoard = capturedBoard;
                     if (piece.color == 0) {
                         newBoard.position.whitepieces.Pawn[index].position = rightCapture;
                     } else {
                         newBoard.position.blackpieces.Pawn[index].position = rightCapture;
                     }
+                    newBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
                 }
-                newBoard.position.sidetomove = next_side;
-                moves[possiblemoves] = newBoard;
-                possiblemoves += 1;
             }
         } else if (rightCapture == board.position.enPassantSquare) {
             // En passant capture to the right
@@ -231,7 +229,19 @@ test "getValidPawnMoves from e7 in empty board" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Pawn[3].position = c.E7;
     const moves = getValidPawnMoves(board.position.whitepieces.Pawn[3], board);
-    try std.testing.expectEqual(moves.len, 1);
+    try std.testing.expectEqual(moves.len, 4);
+
+    const expected = [_]u8{ 'Q', 'R', 'B', 'N' };
+    var found = [_]bool{ false, false, false, false };
+    for (moves) |move| {
+        try std.testing.expectEqual(move.position.whitepieces.Pawn[3].position, 0);
+        const promoted = board_helpers.piecefromlocation(c.E8, move);
+        try std.testing.expect(promoted.position != 0);
+        const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+        try std.testing.expect(idx != null);
+        found[idx.?] = true;
+    }
+    for (found) |flag| try std.testing.expect(flag);
 }
 
 test "getValidPawnMoves for black pawn from e7 in start position" {
@@ -244,8 +254,19 @@ test "getValidPawnMoves for black pawn from e2 in empty board" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.blackpieces.Pawn[3].position = c.E2;
     const moves = getValidPawnMoves(board.position.blackpieces.Pawn[3], board);
-    try std.testing.expectEqual(moves.len, 1); // One move to e1 with promotion
-    try std.testing.expectEqual(moves[0].position.blackpieces.Pawn[3].representation, 'q');
+    try std.testing.expectEqual(moves.len, 4);
+
+    const expected = [_]u8{ 'q', 'r', 'b', 'n' };
+    var found = [_]bool{ false, false, false, false };
+    for (moves) |move| {
+        try std.testing.expectEqual(move.position.blackpieces.Pawn[3].position, 0);
+        const promoted = board_helpers.piecefromlocation(c.E1, move);
+        try std.testing.expect(promoted.position != 0);
+        const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+        try std.testing.expect(idx != null);
+        found[idx.?] = true;
+    }
+    for (found) |flag| try std.testing.expect(flag);
 }
 
 test "getValidPawnMoves for black pawn capture" {
@@ -287,25 +308,50 @@ test "getValidPawnMoves for black pawn promotion on capture" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.blackpieces.Pawn[3].position = c.E2;
     board.position.whitepieces.Pawn[2].position = c.D1;
-    const moves = getValidPawnMoves(board.position.blackpieces.Pawn[3], board);
 
-    var foundPromotionCapture = false;
+    const moves = getValidPawnMoves(board.position.blackpieces.Pawn[3], board);
+    try std.testing.expectEqual(moves.len, 8);
+
+    const expected = [_]u8{ 'q', 'r', 'b', 'n' };
+    var capture_found = [_]bool{ false, false, false, false };
+    var forward_found = [_]bool{ false, false, false, false };
     for (moves) |move| {
-        if (move.position.blackpieces.Pawn[3].position == c.D1) {
-            foundPromotionCapture = true;
+        try std.testing.expectEqual(move.position.blackpieces.Pawn[3].position, 0);
+        const target_capture = board_helpers.piecefromlocation(c.D1, move);
+        if (target_capture.position != 0 and target_capture.color == 1) {
+            const promoted = target_capture;
+            const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+            try std.testing.expect(idx != null);
+            capture_found[idx.?] = true;
             try std.testing.expectEqual(move.position.whitepieces.Pawn[2].position, 0);
-            try std.testing.expectEqual(move.position.blackpieces.Pawn[3].representation, 'q');
+        } else {
+            const promoted = board_helpers.piecefromlocation(c.E1, move);
+            const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+            try std.testing.expect(idx != null);
+            forward_found[idx.?] = true;
         }
     }
-    try std.testing.expect(foundPromotionCapture);
+    for (capture_found) |flag| try std.testing.expect(flag);
+    for (forward_found) |flag| try std.testing.expect(flag);
 }
 
 test "getValidPawnMoves promotion on reaching 8th rank" {
     var board = b.Board{ .position = b.Position.emptyboard() };
     board.position.whitepieces.Pawn[0].position = c.E7;
     const moves = getValidPawnMoves(board.position.whitepieces.Pawn[0], board);
-    try std.testing.expectEqual(moves.len, 1);
-    try std.testing.expectEqual(moves[0].position.whitepieces.Pawn[0].representation, 'Q');
+    try std.testing.expectEqual(moves.len, 4);
+
+    const expected = [_]u8{ 'Q', 'R', 'B', 'N' };
+    var found = [_]bool{ false, false, false, false };
+    for (moves) |move| {
+        try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+        const promoted = board_helpers.piecefromlocation(c.E8, move);
+        try std.testing.expect(promoted.position != 0);
+        const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+        try std.testing.expect(idx != null);
+        found[idx.?] = true;
+    }
+    for (found) |flag| try std.testing.expect(flag);
 }
 
 test "getValidPawnMoves promotion on capture" {
@@ -313,15 +359,29 @@ test "getValidPawnMoves promotion on capture" {
     board.position.whitepieces.Pawn[0].position = c.E7;
     board.position.blackpieces.Pawn[0].position = c.F8;
     const moves = getValidPawnMoves(board.position.whitepieces.Pawn[0], board);
-    try std.testing.expectEqual(moves.len, 2); // One forward promotion, one capture promotion
-    var foundCapture = false;
+    try std.testing.expectEqual(moves.len, 8);
+
+    const expected = [_]u8{ 'Q', 'R', 'B', 'N' };
+    var capture_found = [_]bool{ false, false, false, false };
+    var forward_found = [_]bool{ false, false, false, false };
     for (moves) |move| {
-        if (move.position.blackpieces.Pawn[0].position == 0) {
-            foundCapture = true;
-            try std.testing.expectEqual(move.position.whitepieces.Pawn[0].representation, 'Q');
+        try std.testing.expectEqual(move.position.whitepieces.Pawn[0].position, 0);
+        const target_capture = board_helpers.piecefromlocation(c.F8, move);
+        if (target_capture.position != 0 and target_capture.color == 0) {
+            const promoted = target_capture;
+            const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+            try std.testing.expect(idx != null);
+            capture_found[idx.?] = true;
+            try std.testing.expectEqual(move.position.blackpieces.Pawn[0].position, 0);
+        } else {
+            const promoted = board_helpers.piecefromlocation(c.E8, move);
+            const idx = std.mem.indexOfScalar(u8, &expected, promoted.representation);
+            try std.testing.expect(idx != null);
+            forward_found[idx.?] = true;
         }
     }
-    try std.testing.expect(foundCapture);
+    for (capture_found) |flag| try std.testing.expect(flag);
+    for (forward_found) |flag| try std.testing.expect(flag);
 }
 
 test "getValidPawnMoves en passant capture" {

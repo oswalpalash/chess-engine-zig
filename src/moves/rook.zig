@@ -7,27 +7,8 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
-    var index: usize = 0; // Initialize with a default value
-
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
     const from_square = piece.position;
-
-    // Find which rook we're moving
-    if (piece.color == 0) {
-        for (board.position.whitepieces.Rook, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    } else {
-        for (board.position.blackpieces.Rook, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    }
 
     const row: u64 = board_helpers.rowfrombitmap(piece.position);
     const col: u64 = board_helpers.colfrombitmap(piece.position);
@@ -60,15 +41,16 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
             // Check if square is empty
             if (bitmap & newpos == 0) {
                 var newBoard = b.Board{ .position = board.position };
+                var newrook = piece;
+                newrook.position = newpos;
+                newBoard.position.updatePiece(piece, newrook);
                 if (piece.color == 0) {
-                    newBoard.position.whitepieces.Rook[index].position = newpos;
                     if (from_square == c.A1) {
                         newBoard.position.canCastleWhiteQueenside = false;
                     } else if (from_square == c.H1) {
                         newBoard.position.canCastleWhiteKingside = false;
                     }
                 } else {
-                    newBoard.position.blackpieces.Rook[index].position = newpos;
                     if (from_square == c.A8) {
                         newBoard.position.canCastleBlackQueenside = false;
                     } else if (from_square == c.H8) {
@@ -82,28 +64,30 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
                 // Square is occupied - check if it's an enemy piece
                 const targetPiece = board_helpers.piecefromlocation(newpos, board);
                 if (targetPiece.color != piece.color) {
-                    var newBoard = if (piece.color == 0)
+                    const newBoard = if (piece.color == 0)
                         board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
                     else
                         board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
 
+                    var movedBoard = newBoard;
+                    var newrook = piece;
+                    newrook.position = newpos;
+                    movedBoard.position.updatePiece(piece, newrook);
                     if (piece.color == 0) {
-                        newBoard.position.whitepieces.Rook[index].position = newpos;
                         if (from_square == c.A1) {
-                            newBoard.position.canCastleWhiteQueenside = false;
+                            movedBoard.position.canCastleWhiteQueenside = false;
                         } else if (from_square == c.H1) {
-                            newBoard.position.canCastleWhiteKingside = false;
+                            movedBoard.position.canCastleWhiteKingside = false;
                         }
                     } else {
-                        newBoard.position.blackpieces.Rook[index].position = newpos;
                         if (from_square == c.A8) {
-                            newBoard.position.canCastleBlackQueenside = false;
+                            movedBoard.position.canCastleBlackQueenside = false;
                         } else if (from_square == c.H8) {
-                            newBoard.position.canCastleBlackKingside = false;
+                            movedBoard.position.canCastleBlackKingside = false;
                         }
                     }
-                    newBoard.position.sidetomove = next_side;
-                    moves[possiblemoves] = newBoard;
+                    movedBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = movedBoard;
                     possiblemoves += 1;
                 }
                 break; // Stop checking this direction after hitting any piece

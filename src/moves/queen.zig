@@ -28,26 +28,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -65,26 +59,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -102,26 +90,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -139,26 +121,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -177,26 +153,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -214,26 +184,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -251,26 +215,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
@@ -287,24 +245,20 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            moves[possiblemoves].position.updatePiece(queen_piece, newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
             testpiece = board_helpers.piecefromlocation(newpos, board);
             if (testpiece.color != queen_piece.color) {
                 newqueen.position = newpos;
-                if (queen_piece.color == 0) {
-                    moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
-                } else {
-                    moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
-                }
+                var newBoard = if (queen_piece.color == 0)
+                    board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position })
+                else
+                    board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
+                newBoard.position.updatePiece(queen_piece, newqueen);
+                newBoard.position.sidetomove = next_side;
+                moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
             break;
