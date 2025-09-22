@@ -9,6 +9,17 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
     // Get the king's position based on color
     const kingPosition = if (isWhite) board.position.whitepieces.King.position else board.position.blackpieces.King.position;
 
+    const knightShifts = [_]struct { shift: i8, mask: u64 }{
+        .{ .shift = 6, .mask = 0xFCFCFCFCFCFCFCFC }, // Up 1, Left 2 (not from a,b files)
+        .{ .shift = 10, .mask = 0x3F3F3F3F3F3F3F3F }, // Up 1, Right 2 (not from g,h files)
+        .{ .shift = 15, .mask = 0xFEFEFEFEFEFEFEFE }, // Up 2, Left 1 (not from a file)
+        .{ .shift = 17, .mask = 0x7F7F7F7F7F7F7F7F }, // Up 2, Right 1 (not from h file)
+        .{ .shift = -6, .mask = 0x3F3F3F3F3F3F3F3F }, // Down 1, Right 2 (not from g,h files)
+        .{ .shift = -10, .mask = 0xFCFCFCFCFCFCFCFC }, // Down 1, Left 2 (not from a,b files)
+        .{ .shift = -15, .mask = 0x7F7F7F7F7F7F7F7F }, // Down 2, Right 1 (not from h file)
+        .{ .shift = -17, .mask = 0xFEFEFEFEFEFEFEFE }, // Down 2, Left 1 (not from a file)
+    };
+
     // For each enemy piece, check if it can capture the king
     // For white king in check, check all black pieces
     if (isWhite) {
@@ -28,18 +39,17 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (knight.position == 0) continue;
             // Knight moves are special - check all possible knight moves from king position
             // and see if they intersect with enemy knight position
-            const knightMoves = [8]u64{
-                kingPosition << 6, // Up 1, Left 2
-                kingPosition << 10, // Up 1, Right 2
-                kingPosition << 15, // Up 2, Left 1
-                kingPosition << 17, // Up 2, Right 1
-                kingPosition >> 6, // Down 1, Right 2
-                kingPosition >> 10, // Down 1, Left 2
-                kingPosition >> 15, // Down 2, Right 1
-                kingPosition >> 17, // Down 2, Left 1
-            };
-            for (knightMoves) |move| {
-                if (move == knight.position) {
+            for (knightShifts) |move| {
+                if (kingPosition & move.mask == 0) continue;
+
+                const candidate = if (move.shift > 0)
+                    kingPosition << @as(u6, @intCast(move.shift))
+                else
+                    kingPosition >> @as(u6, @intCast(-move.shift));
+
+                if (candidate == 0) continue;
+
+                if (candidate == knight.position) {
                     return true;
                 }
             }
@@ -101,18 +111,17 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             if (knight.position == 0) continue;
             // Knight moves are special - check all possible knight moves from king position
             // and see if they intersect with enemy knight position
-            const knightMoves = [8]u64{
-                kingPosition << 6, // Up 1, Left 2
-                kingPosition << 10, // Up 1, Right 2
-                kingPosition << 15, // Up 2, Left 1
-                kingPosition << 17, // Up 2, Right 1
-                kingPosition >> 6, // Down 1, Right 2
-                kingPosition >> 10, // Down 1, Left 2
-                kingPosition >> 15, // Down 2, Right 1
-                kingPosition >> 17, // Down 2, Left 1
-            };
-            for (knightMoves) |move| {
-                if (move == knight.position) {
+            for (knightShifts) |move| {
+                if (kingPosition & move.mask == 0) continue;
+
+                const candidate = if (move.shift > 0)
+                    kingPosition << @as(u6, @intCast(move.shift))
+                else
+                    kingPosition >> @as(u6, @intCast(-move.shift));
+
+                if (candidate == 0) continue;
+
+                if (candidate == knight.position) {
                     return true;
                 }
             }
@@ -225,6 +234,70 @@ test "isCheck - blocked check is not check" {
     // Place white pawn on e2 blocking the check
     board.position.whitepieces.Pawn[4].position = c.E2;
     try std.testing.expect(!isCheck(board, true));
+}
+
+test "isCheck - white corner kings ignore wraparound knights" {
+    const cases = [_]struct { king: u64, knight: u64 }{
+        .{ .king = c.A1, .knight = c.G1 },
+        .{ .king = c.H1, .knight = c.B1 },
+        .{ .king = c.A8, .knight = c.G8 },
+        .{ .king = c.H8, .knight = c.B8 },
+    };
+
+    for (cases) |case| {
+        var board = b.Board{ .position = b.Position.emptyboard() };
+        board.position.whitepieces.King.position = case.king;
+        board.position.blackpieces.Knight[0].position = case.knight;
+        try std.testing.expect(!isCheck(board, true));
+    }
+}
+
+test "isCheck - white corner kings detect knight attacks" {
+    const cases = [_]struct { king: u64, knight: u64 }{
+        .{ .king = c.A1, .knight = c.B3 },
+        .{ .king = c.H1, .knight = c.F2 },
+        .{ .king = c.A8, .knight = c.B6 },
+        .{ .king = c.H8, .knight = c.F7 },
+    };
+
+    for (cases) |case| {
+        var board = b.Board{ .position = b.Position.emptyboard() };
+        board.position.whitepieces.King.position = case.king;
+        board.position.blackpieces.Knight[0].position = case.knight;
+        try std.testing.expect(isCheck(board, true));
+    }
+}
+
+test "isCheck - black corner kings ignore wraparound knights" {
+    const cases = [_]struct { king: u64, knight: u64 }{
+        .{ .king = c.A1, .knight = c.G1 },
+        .{ .king = c.H1, .knight = c.B1 },
+        .{ .king = c.A8, .knight = c.G8 },
+        .{ .king = c.H8, .knight = c.B8 },
+    };
+
+    for (cases) |case| {
+        var board = b.Board{ .position = b.Position.emptyboard() };
+        board.position.blackpieces.King.position = case.king;
+        board.position.whitepieces.Knight[0].position = case.knight;
+        try std.testing.expect(!isCheck(board, false));
+    }
+}
+
+test "isCheck - black corner kings detect knight attacks" {
+    const cases = [_]struct { king: u64, knight: u64 }{
+        .{ .king = c.A1, .knight = c.B3 },
+        .{ .king = c.H1, .knight = c.F2 },
+        .{ .king = c.A8, .knight = c.B6 },
+        .{ .king = c.H8, .knight = c.F7 },
+    };
+
+    for (cases) |case| {
+        var board = b.Board{ .position = b.Position.emptyboard() };
+        board.position.blackpieces.King.position = case.king;
+        board.position.whitepieces.Knight[0].position = case.knight;
+        try std.testing.expect(isCheck(board, false));
+    }
 }
 
 // isCheckmate determines if the given board position is checkmate
