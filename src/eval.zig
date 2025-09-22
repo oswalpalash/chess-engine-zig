@@ -505,6 +505,17 @@ test "minimax finds a move in checkmate position" {
     }
 }
 
+test "minimax awards checkmate score when white can mate immediately" {
+    var board = Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.Queen.position = c.H7;
+    board.position.whitepieces.Rook[0].position = c.G1;
+    board.position.blackpieces.King.position = c.H8;
+    board.position.sidetomove = 0; // White to move
+
+    const score = minimax(board, 2, -INFINITY_SCORE, INFINITY_SCORE, true);
+    try std.testing.expectEqual(CHECKMATE_SCORE, score);
+}
+
 test "evaluate considers piece position" {
     // Create two boards with the same material but different piece positions
     var board1 = Board{ .position = b.Position.emptyboard() };
