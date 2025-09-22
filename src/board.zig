@@ -7,6 +7,31 @@ const c = @import("consts.zig");
 
 pub const BoardSize: u8 = 64;
 
+fn defaultPromotedPieces(comptime color: u8, comptime repr: u8, comptime stdval: u8) [8]Piece {
+    var pieces: [8]Piece = undefined;
+    inline for (0..pieces.len) |i| {
+        pieces[i] = Piece{
+            .color = color,
+            .value = stdval,
+            .representation = repr,
+            .current = 0,
+            .stdval = stdval,
+            .position = 0,
+            .index = @intCast(i),
+        };
+    }
+    return pieces;
+}
+
+fn representationForBit(pieces: []const Piece, bit: u64) ?u8 {
+    for (pieces) |piece| {
+        if (piece.position & bit != 0) {
+            return piece.representation;
+        }
+    }
+    return null;
+}
+
 pub const Piece = struct {
     color: u8,
     value: u8,
@@ -38,6 +63,10 @@ const WhitePieces = struct {
     Bishop: [2]Piece = [2]Piece{ WhiteBishop, WhiteBishop },
     Knight: [2]Piece = [2]Piece{ WhiteKnight, WhiteKnight },
     Pawn: [8]Piece = [8]Piece{ WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn },
+    PromotedQueen: [8]Piece = defaultPromotedPieces(0, 'Q', 9),
+    PromotedRook: [8]Piece = defaultPromotedPieces(0, 'R', 5),
+    PromotedBishop: [8]Piece = defaultPromotedPieces(0, 'B', 3),
+    PromotedKnight: [8]Piece = defaultPromotedPieces(0, 'N', 3),
 };
 
 const BlackPieces = struct {
@@ -47,6 +76,10 @@ const BlackPieces = struct {
     Bishop: [2]Piece = [2]Piece{ BlackBishop, BlackBishop },
     Knight: [2]Piece = [2]Piece{ BlackKnight, BlackKnight },
     Pawn: [8]Piece = [8]Piece{ BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn },
+    PromotedQueen: [8]Piece = defaultPromotedPieces(1, 'q', 9),
+    PromotedRook: [8]Piece = defaultPromotedPieces(1, 'r', 5),
+    PromotedBishop: [8]Piece = defaultPromotedPieces(1, 'b', 3),
+    PromotedKnight: [8]Piece = defaultPromotedPieces(1, 'n', 3),
 };
 
 pub const Position = struct {
@@ -173,6 +206,22 @@ pub const Position = struct {
         whitepieces.Pawn[6].index = self.whitepieces.Pawn[6].index;
         whitepieces.Pawn[7].position = reverse(whitepieces.Pawn[7].position);
         whitepieces.Pawn[7].index = self.whitepieces.Pawn[7].index;
+        for (whitepieces.PromotedQueen[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.whitepieces.PromotedQueen[idx].index;
+        }
+        for (whitepieces.PromotedRook[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.whitepieces.PromotedRook[idx].index;
+        }
+        for (whitepieces.PromotedBishop[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.whitepieces.PromotedBishop[idx].index;
+        }
+        for (whitepieces.PromotedKnight[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.whitepieces.PromotedKnight[idx].index;
+        }
         blackpieces.King.position = reverse(blackpieces.King.position);
         blackpieces.King.index = self.blackpieces.King.index;
         blackpieces.Queen.position = reverse(blackpieces.Queen.position);
@@ -205,6 +254,22 @@ pub const Position = struct {
         blackpieces.Pawn[6].index = self.blackpieces.Pawn[6].index;
         blackpieces.Pawn[7].position = reverse(blackpieces.Pawn[7].position);
         blackpieces.Pawn[7].index = self.blackpieces.Pawn[7].index;
+        for (blackpieces.PromotedQueen[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.blackpieces.PromotedQueen[idx].index;
+        }
+        for (blackpieces.PromotedRook[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.blackpieces.PromotedRook[idx].index;
+        }
+        for (blackpieces.PromotedBishop[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.blackpieces.PromotedBishop[idx].index;
+        }
+        for (blackpieces.PromotedKnight[0..], 0..) |*piece, idx| {
+            piece.position = reverse(piece.position);
+            piece.index = self.blackpieces.PromotedKnight[idx].index;
+        }
 
         return Position{
             .whitepieces = whitepieces,
@@ -223,71 +288,49 @@ pub const Position = struct {
         std.debug.print("\n", .{});
         var i: u6 = 0;
         while (i < printBuffer.len) : (i += 1) {
-            if (position.whitepieces.King.position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.King.representation;
-            } else if (position.whitepieces.Queen.position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Queen.representation;
-            } else if (position.whitepieces.Rook[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Rook[0].representation;
-            } else if (position.whitepieces.Rook[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Rook[1].representation;
-            } else if (position.whitepieces.Bishop[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Bishop[0].representation;
-            } else if (position.whitepieces.Bishop[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Bishop[1].representation;
-            } else if (position.whitepieces.Knight[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Knight[0].representation;
-            } else if (position.whitepieces.Knight[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Knight[1].representation;
-            } else if (position.whitepieces.Pawn[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[0].representation;
-            } else if (position.whitepieces.Pawn[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[1].representation;
-            } else if (position.whitepieces.Pawn[2].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[2].representation;
-            } else if (position.whitepieces.Pawn[3].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[3].representation;
-            } else if (position.whitepieces.Pawn[4].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[4].representation;
-            } else if (position.whitepieces.Pawn[5].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[5].representation;
-            } else if (position.whitepieces.Pawn[6].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[6].representation;
-            } else if (position.whitepieces.Pawn[7].position >> i & 1 == 1) {
-                printBuffer[i] = position.whitepieces.Pawn[7].representation;
-            } else if (position.blackpieces.King.position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.King.representation;
-            } else if (position.blackpieces.Queen.position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Queen.representation;
-            } else if (position.blackpieces.Rook[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Rook[0].representation;
-            } else if (position.blackpieces.Rook[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Rook[1].representation;
-            } else if (position.blackpieces.Bishop[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Bishop[0].representation;
-            } else if (position.blackpieces.Bishop[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Bishop[1].representation;
-            } else if (position.blackpieces.Knight[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Knight[0].representation;
-            } else if (position.blackpieces.Knight[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Knight[1].representation;
-            } else if (position.blackpieces.Pawn[0].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[0].representation;
-            } else if (position.blackpieces.Pawn[1].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[1].representation;
-            } else if (position.blackpieces.Pawn[2].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[2].representation;
-            } else if (position.blackpieces.Pawn[3].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[3].representation;
-            } else if (position.blackpieces.Pawn[4].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[4].representation;
-            } else if (position.blackpieces.Pawn[5].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[5].representation;
-            } else if (position.blackpieces.Pawn[6].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[6].representation;
-            } else if (position.blackpieces.Pawn[7].position >> i & 1 == 1) {
-                printBuffer[i] = position.blackpieces.Pawn[7].representation;
-            } else {
+            const bit = (@as(u64, 1) << i);
+            var assigned = false;
+            const white_groups = [_][]const Piece{
+                &[_]Piece{ position.whitepieces.King },
+                &[_]Piece{ position.whitepieces.Queen },
+                position.whitepieces.Rook[0..],
+                position.whitepieces.Bishop[0..],
+                position.whitepieces.Knight[0..],
+                position.whitepieces.Pawn[0..],
+                position.whitepieces.PromotedQueen[0..],
+                position.whitepieces.PromotedRook[0..],
+                position.whitepieces.PromotedBishop[0..],
+                position.whitepieces.PromotedKnight[0..],
+            };
+            inline for (white_groups) |group| {
+                if (representationForBit(group, bit)) |repr| {
+                    printBuffer[i] = repr;
+                    assigned = true;
+                    break;
+                }
+            }
+            if (!assigned) {
+                const black_groups = [_][]const Piece{
+                    &[_]Piece{ position.blackpieces.King },
+                    &[_]Piece{ position.blackpieces.Queen },
+                    position.blackpieces.Rook[0..],
+                    position.blackpieces.Bishop[0..],
+                    position.blackpieces.Knight[0..],
+                    position.blackpieces.Pawn[0..],
+                    position.blackpieces.PromotedQueen[0..],
+                    position.blackpieces.PromotedRook[0..],
+                    position.blackpieces.PromotedBishop[0..],
+                    position.blackpieces.PromotedKnight[0..],
+                };
+                inline for (black_groups) |group| {
+                    if (representationForBit(group, bit)) |repr| {
+                        printBuffer[i] = repr;
+                        assigned = true;
+                        break;
+                    }
+                }
+            }
+            if (!assigned) {
                 printBuffer[i] = Empty.representation;
             }
             if (i == BoardSize - 1) {
@@ -369,37 +412,97 @@ pub fn parseFen(fen: []const u8) Position {
                         position.whitepieces.King.index = 0;
                     },
                     'Q' => {
-                        position.whitepieces.Queen.position |= bit;
-                        position.whitepieces.Queen.index = 0;
+                        if (position.whitepieces.Queen.position == 0) {
+                            position.whitepieces.Queen.position = bit;
+                            position.whitepieces.Queen.index = 0;
+                        } else {
+                            var placed = false;
+                            for (&position.whitepieces.PromotedQueen, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Warning: ran out of slots for white promoted queens while parsing FEN\n", .{});
+                            }
+                        }
                     },
                     'R' => {
+                        var placed = false;
                         var rookCount: u6 = 0;
                         while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
                             if (position.whitepieces.Rook[rookCount].position == 0) {
                                 position.whitepieces.Rook[rookCount].position = bit;
                                 position.whitepieces.Rook[rookCount].index = rookCount;
+                                placed = true;
                                 break;
                             }
                         }
+                        if (!placed) {
+                            for (&position.whitepieces.PromotedRook, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!placed) {
+                            std.debug.print("Warning: ran out of slots for white promoted rooks while parsing FEN\n", .{});
+                        }
                     },
                     'B' => {
+                        var placed = false;
                         var bishopCount: u6 = 0;
                         while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
                             if (position.whitepieces.Bishop[bishopCount].position == 0) {
                                 position.whitepieces.Bishop[bishopCount].position = bit;
                                 position.whitepieces.Bishop[bishopCount].index = bishopCount;
+                                placed = true;
                                 break;
                             }
                         }
+                        if (!placed) {
+                            for (&position.whitepieces.PromotedBishop, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!placed) {
+                            std.debug.print("Warning: ran out of slots for white promoted bishops while parsing FEN\n", .{});
+                        }
                     },
                     'N' => {
+                        var placed = false;
                         var knightCount: u6 = 0;
                         while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
                             if (position.whitepieces.Knight[knightCount].position == 0) {
                                 position.whitepieces.Knight[knightCount].position = bit;
                                 position.whitepieces.Knight[knightCount].index = knightCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            for (&position.whitepieces.PromotedKnight, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!placed) {
+                            std.debug.print("Warning: ran out of slots for white promoted knights while parsing FEN\n", .{});
                         }
                     },
                     'P' => {
@@ -417,37 +520,97 @@ pub fn parseFen(fen: []const u8) Position {
                         position.blackpieces.King.index = 0;
                     },
                     'q' => {
-                        position.blackpieces.Queen.position |= bit;
-                        position.blackpieces.Queen.index = 0;
+                        if (position.blackpieces.Queen.position == 0) {
+                            position.blackpieces.Queen.position = bit;
+                            position.blackpieces.Queen.index = 0;
+                        } else {
+                            var placed = false;
+                            for (&position.blackpieces.PromotedQueen, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (!placed) {
+                                std.debug.print("Warning: ran out of slots for black promoted queens while parsing FEN\n", .{});
+                            }
+                        }
                     },
                     'r' => {
+                        var placed = false;
                         var rookCount: u6 = 0;
                         while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
                             if (position.blackpieces.Rook[rookCount].position == 0) {
                                 position.blackpieces.Rook[rookCount].position = bit;
                                 position.blackpieces.Rook[rookCount].index = rookCount;
+                                placed = true;
                                 break;
                             }
                         }
+                        if (!placed) {
+                            for (&position.blackpieces.PromotedRook, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!placed) {
+                            std.debug.print("Warning: ran out of slots for black promoted rooks while parsing FEN\n", .{});
+                        }
                     },
                     'b' => {
+                        var placed = false;
                         var bishopCount: u6 = 0;
                         while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
                             if (position.blackpieces.Bishop[bishopCount].position == 0) {
                                 position.blackpieces.Bishop[bishopCount].position = bit;
                                 position.blackpieces.Bishop[bishopCount].index = bishopCount;
+                                placed = true;
                                 break;
                             }
                         }
+                        if (!placed) {
+                            for (&position.blackpieces.PromotedBishop, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!placed) {
+                            std.debug.print("Warning: ran out of slots for black promoted bishops while parsing FEN\n", .{});
+                        }
                     },
                     'n' => {
+                        var placed = false;
                         var knightCount: u6 = 0;
                         while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
                             if (position.blackpieces.Knight[knightCount].position == 0) {
                                 position.blackpieces.Knight[knightCount].position = bit;
                                 position.blackpieces.Knight[knightCount].index = knightCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            for (&position.blackpieces.PromotedKnight, 0..) |*slot, idx| {
+                                if (slot.position == 0) {
+                                    slot.position = bit;
+                                    slot.index = @intCast(idx);
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!placed) {
+                            std.debug.print("Warning: ran out of slots for black promoted knights while parsing FEN\n", .{});
                         }
                     },
                     'p' => {

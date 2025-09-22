@@ -5,6 +5,8 @@ const b = @import("../board.zig");
 const c = @import("../consts.zig");
 const std = @import("std");
 
+pub const PromotionError = error{ InvalidPromotionType, NoPromotionSlots };
+
 pub fn bitmapfromboard(board: b.Board) u64 {
     var bitmap: u64 = 0;
     const cpiece = b.Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0 };
@@ -28,6 +30,109 @@ pub fn bitmapfromboard(board: b.Board) u64 {
         }
     }
     return bitmap;
+}
+
+pub fn movePiece(position: *b.Position, piece: b.Piece, new_pos: u64) void {
+    if (piece.color == 0) {
+        inline for (std.meta.fields(@TypeOf(position.whitepieces))) |field| {
+            const field_ptr = &@field(position.whitepieces, field.name);
+            if (@TypeOf(field_ptr.*) == b.Piece) {
+                if (field_ptr.position == piece.position) {
+                    field_ptr.position = new_pos;
+                    return;
+                }
+            } else if (@TypeOf(field_ptr.*) == [2]b.Piece or @TypeOf(field_ptr.*) == [8]b.Piece) {
+                for (field_ptr.*[0..], 0..) |*entry, idx| {
+                    if (entry.position == piece.position) {
+                        entry.position = new_pos;
+                        entry.index = @intCast(idx);
+                        return;
+                    }
+                }
+            }
+        }
+    } else {
+        inline for (std.meta.fields(@TypeOf(position.blackpieces))) |field| {
+            const field_ptr = &@field(position.blackpieces, field.name);
+            if (@TypeOf(field_ptr.*) == b.Piece) {
+                if (field_ptr.position == piece.position) {
+                    field_ptr.position = new_pos;
+                    return;
+                }
+            } else if (@TypeOf(field_ptr.*) == [2]b.Piece or @TypeOf(field_ptr.*) == [8]b.Piece) {
+                for (field_ptr.*[0..], 0..) |*entry, idx| {
+                    if (entry.position == piece.position) {
+                        entry.position = new_pos;
+                        entry.index = @intCast(idx);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn addPromotedPiece(position: *b.Position, color: u8, promotion: u8, pos: u64) PromotionError!void {
+    const normalized = std.ascii.toLower(promotion);
+    const stdval: u8 = switch (normalized) {
+        'q' => 9,
+        'r' => 5,
+        'b' => 3,
+        'n' => 3,
+        else => return PromotionError.InvalidPromotionType,
+    };
+
+    if (color == 0) {
+        const rep = std.ascii.toUpper(normalized);
+        const slots = switch (normalized) {
+            'q' => &position.whitepieces.PromotedQueen,
+            'r' => &position.whitepieces.PromotedRook,
+            'b' => &position.whitepieces.PromotedBishop,
+            'n' => &position.whitepieces.PromotedKnight,
+            else => unreachable,
+        };
+
+        for (slots.*[0..], 0..) |*slot, idx| {
+            if (slot.position == 0) {
+                slot.* = b.Piece{
+                    .color = color,
+                    .value = stdval,
+                    .representation = rep,
+                    .current = 0,
+                    .stdval = stdval,
+                    .position = pos,
+                    .index = @intCast(idx),
+                };
+                return;
+            }
+        }
+    } else {
+        const rep = normalized;
+        const slots = switch (normalized) {
+            'q' => &position.blackpieces.PromotedQueen,
+            'r' => &position.blackpieces.PromotedRook,
+            'b' => &position.blackpieces.PromotedBishop,
+            'n' => &position.blackpieces.PromotedKnight,
+            else => unreachable,
+        };
+
+        for (slots.*[0..], 0..) |*slot, idx| {
+            if (slot.position == 0) {
+                slot.* = b.Piece{
+                    .color = color,
+                    .value = stdval,
+                    .representation = rep,
+                    .current = 0,
+                    .stdval = stdval,
+                    .position = pos,
+                    .index = @intCast(idx),
+                };
+                return;
+            }
+        }
+    }
+
+    return PromotionError.NoPromotionSlots;
 }
 
 test "bitmap of initial board" {
@@ -123,7 +228,16 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             piece.position = 0;
         },
         'q' => {
-            boardCopy.position.blackpieces.Queen.position = 0;
+            if (boardCopy.position.blackpieces.Queen.position == loc) {
+                boardCopy.position.blackpieces.Queen.position = 0;
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedQueen) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        break;
+                    }
+                }
+            }
             piece.position = 0;
         },
         'r' => {
@@ -143,6 +257,14 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
                 } else if (loc == c.A8) {
                     boardCopy.position.canCastleBlackQueenside = false;
                 }
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedRook) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        piece.position = 0;
+                        break;
+                    }
+                }
             }
         },
         'b' => {
@@ -152,6 +274,14 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.blackpieces.Bishop[1].position == loc) {
                 boardCopy.position.blackpieces.Bishop[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedBishop) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        piece.position = 0;
+                        break;
+                    }
+                }
             }
         },
         'n' => {
@@ -161,6 +291,14 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.blackpieces.Knight[1].position == loc) {
                 boardCopy.position.blackpieces.Knight[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.blackpieces.PromotedKnight) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        piece.position = 0;
+                        break;
+                    }
+                }
             }
         },
         'p' => {
@@ -245,7 +383,16 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             piece.position = 0;
         },
         'Q' => {
-            boardCopy.position.whitepieces.Queen.position = 0;
+            if (boardCopy.position.whitepieces.Queen.position == loc) {
+                boardCopy.position.whitepieces.Queen.position = 0;
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedQueen) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        break;
+                    }
+                }
+            }
             piece.position = 0;
         },
         'R' => {
@@ -265,6 +412,14 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
                 } else if (loc == c.H1) {
                     boardCopy.position.canCastleWhiteKingside = false;
                 }
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedRook) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        piece.position = 0;
+                        break;
+                    }
+                }
             }
         },
         'B' => {
@@ -274,6 +429,14 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.whitepieces.Bishop[1].position == loc) {
                 boardCopy.position.whitepieces.Bishop[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedBishop) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        piece.position = 0;
+                        break;
+                    }
+                }
             }
         },
         'N' => {
@@ -283,6 +446,14 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.whitepieces.Knight[1].position == loc) {
                 boardCopy.position.whitepieces.Knight[1].position = 0;
                 piece.position = 0;
+            } else {
+                for (&boardCopy.position.whitepieces.PromotedKnight) |*slot| {
+                    if (slot.position == loc) {
+                        slot.position = 0;
+                        piece.position = 0;
+                        break;
+                    }
+                }
             }
         },
         'P' => {

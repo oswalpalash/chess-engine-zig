@@ -54,6 +54,23 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
                 }
             }
         }
+        for (board.position.blackpieces.PromotedKnight) |knight| {
+            if (knight.position == 0) continue;
+            for (knightShifts) |move| {
+                if (kingPosition & move.mask == 0) continue;
+
+                const candidate = if (move.shift > 0)
+                    kingPosition << @as(u6, @intCast(move.shift))
+                else
+                    kingPosition >> @as(u6, @intCast(-move.shift));
+
+                if (candidate == 0) continue;
+
+                if (candidate == knight.position) {
+                    return true;
+                }
+            }
+        }
 
         // Check black bishops
         for (board.position.blackpieces.Bishop) |bishop| {
@@ -64,6 +81,15 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
                 if (move.position.blackpieces.Bishop[0].position == kingPosition or
                     move.position.blackpieces.Bishop[1].position == kingPosition)
                 {
+                    return true;
+                }
+            }
+        }
+        for (board.position.blackpieces.PromotedBishop) |bishop| {
+            if (bishop.position == 0) continue;
+            const moves = m.getValidBishopMoves(bishop, board);
+            for (moves) |move| {
+                if (move.position.blackpieces.PromotedBishop[bishop.index].position == kingPosition) {
                     return true;
                 }
             }
@@ -82,6 +108,15 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
                 }
             }
         }
+        for (board.position.blackpieces.PromotedRook) |rook| {
+            if (rook.position == 0) continue;
+            const moves = m.getValidRookMoves(rook, board);
+            for (moves) |move| {
+                if (move.position.blackpieces.PromotedRook[rook.index].position == kingPosition) {
+                    return true;
+                }
+            }
+        }
 
         // Check black queen
         if (board.position.blackpieces.Queen.position != 0) {
@@ -89,6 +124,15 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             for (moves) |move| {
                 // Check if any of the queen's valid moves can reach the king's position
                 if (move.position.blackpieces.Queen.position == kingPosition) {
+                    return true;
+                }
+            }
+        }
+        for (board.position.blackpieces.PromotedQueen) |queen| {
+            if (queen.position == 0) continue;
+            const moves = m.ValidQueenMoves(queen, board);
+            for (moves) |move| {
+                if (move.position.blackpieces.PromotedQueen[queen.index].position == kingPosition) {
                     return true;
                 }
             }
@@ -126,6 +170,23 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
                 }
             }
         }
+        for (board.position.whitepieces.PromotedKnight) |knight| {
+            if (knight.position == 0) continue;
+            for (knightShifts) |move| {
+                if (kingPosition & move.mask == 0) continue;
+
+                const candidate = if (move.shift > 0)
+                    kingPosition << @as(u6, @intCast(move.shift))
+                else
+                    kingPosition >> @as(u6, @intCast(-move.shift));
+
+                if (candidate == 0) continue;
+
+                if (candidate == knight.position) {
+                    return true;
+                }
+            }
+        }
 
         // Check white bishops
         for (board.position.whitepieces.Bishop) |bishop| {
@@ -136,6 +197,15 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
                 if (move.position.whitepieces.Bishop[0].position == kingPosition or
                     move.position.whitepieces.Bishop[1].position == kingPosition)
                 {
+                    return true;
+                }
+            }
+        }
+        for (board.position.whitepieces.PromotedBishop) |bishop| {
+            if (bishop.position == 0) continue;
+            const moves = m.getValidBishopMoves(bishop, board);
+            for (moves) |move| {
+                if (move.position.whitepieces.PromotedBishop[bishop.index].position == kingPosition) {
                     return true;
                 }
             }
@@ -154,6 +224,15 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
                 }
             }
         }
+        for (board.position.whitepieces.PromotedRook) |rook| {
+            if (rook.position == 0) continue;
+            const moves = m.getValidRookMoves(rook, board);
+            for (moves) |move| {
+                if (move.position.whitepieces.PromotedRook[rook.index].position == kingPosition) {
+                    return true;
+                }
+            }
+        }
 
         // Check white queen
         if (board.position.whitepieces.Queen.position != 0) {
@@ -161,6 +240,15 @@ pub fn isCheck(board: b.Board, isWhite: bool) bool {
             for (moves) |move| {
                 // Check if any of the queen's valid moves can reach the king's position
                 if (move.position.whitepieces.Queen.position == kingPosition) {
+                    return true;
+                }
+            }
+        }
+        for (board.position.whitepieces.PromotedQueen) |queen| {
+            if (queen.position == 0) continue;
+            const moves = m.ValidQueenMoves(queen, board);
+            for (moves) |move| {
+                if (move.position.whitepieces.PromotedQueen[queen.index].position == kingPosition) {
                     return true;
                 }
             }

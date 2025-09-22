@@ -7,27 +7,9 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
-    var index: usize = 0; // Initialize with a default value
 
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
     const from_square = piece.position;
-
-    // Find which rook we're moving
-    if (piece.color == 0) {
-        for (board.position.whitepieces.Rook, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    } else {
-        for (board.position.blackpieces.Rook, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    }
 
     const row: u64 = board_helpers.rowfrombitmap(piece.position);
     const col: u64 = board_helpers.colfrombitmap(piece.position);
@@ -61,20 +43,19 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
             if (bitmap & newpos == 0) {
                 var newBoard = b.Board{ .position = board.position };
                 if (piece.color == 0) {
-                    newBoard.position.whitepieces.Rook[index].position = newpos;
                     if (from_square == c.A1) {
                         newBoard.position.canCastleWhiteQueenside = false;
                     } else if (from_square == c.H1) {
                         newBoard.position.canCastleWhiteKingside = false;
                     }
                 } else {
-                    newBoard.position.blackpieces.Rook[index].position = newpos;
                     if (from_square == c.A8) {
                         newBoard.position.canCastleBlackQueenside = false;
                     } else if (from_square == c.H8) {
                         newBoard.position.canCastleBlackKingside = false;
                     }
                 }
+                board_helpers.movePiece(&newBoard.position, piece, newpos);
                 newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
@@ -88,20 +69,19 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
                         board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
 
                     if (piece.color == 0) {
-                        newBoard.position.whitepieces.Rook[index].position = newpos;
                         if (from_square == c.A1) {
                             newBoard.position.canCastleWhiteQueenside = false;
                         } else if (from_square == c.H1) {
                             newBoard.position.canCastleWhiteKingside = false;
                         }
                     } else {
-                        newBoard.position.blackpieces.Rook[index].position = newpos;
                         if (from_square == c.A8) {
                             newBoard.position.canCastleBlackQueenside = false;
                         } else if (from_square == c.H8) {
                             newBoard.position.canCastleBlackKingside = false;
                         }
                     }
+                    board_helpers.movePiece(&newBoard.position, piece, newpos);
                     newBoard.position.sidetomove = next_side;
                     moves[possiblemoves] = newBoard;
                     possiblemoves += 1;
