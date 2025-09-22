@@ -101,11 +101,11 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
 
     // Calculate capture positions based on color and column constraints
     if (piece.color == 0) {
-        leftCapture = if (currentCol > 1) piece.position << 7 else 0;
-        rightCapture = if (currentCol < 8) piece.position << 9 else 0;
+        leftCapture = if (currentCol > 1) piece.position << 9 else 0;
+        rightCapture = if (currentCol < 8) piece.position << 7 else 0;
     } else {
-        leftCapture = if (currentCol < 8) piece.position >> 7 else 0;
-        rightCapture = if (currentCol > 1) piece.position >> 9 else 0;
+        leftCapture = if (currentCol < 8) piece.position >> 9 else 0;
+        rightCapture = if (currentCol > 1) piece.position >> 7 else 0;
     }
 
     // Check left capture

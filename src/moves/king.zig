@@ -1,6 +1,7 @@
 const b = @import("../board.zig");
 const c = @import("../consts.zig");
 const board_helpers = @import("../utils/board_helpers.zig");
+const attacks = @import("../utils/attacks.zig");
 const std = @import("std");
 
 fn canShiftForward(shift: u6, row: u64, col: u64) bool {
@@ -158,45 +159,109 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
         }
     }
 
+    const king_attacked_by_enemy = attacks.isSquareAttacked(&board, piece.position, piece.color == 1);
+
     // Add castling moves for white king (kingside) if available
-    if (piece.color == 0 and board.position.canCastleWhiteKingside and piece.position == c.E1 and
+    if (piece.color == 0 and !king_attacked_by_enemy and board.position.canCastleWhiteKingside and piece.position == c.E1 and
         board.position.whitepieces.Rook[1].position == c.H1)
     {
-        // Check if squares F1 and G1 are empty
-        if ((bitmap & c.F1) == 0 and (bitmap & c.G1) == 0) {
-            var castledKing = piece;
-            castledKing.position = c.G1; // king moves two squares towards rook
-            var newBoard = board;
-            newBoard.position.whitepieces.King = castledKing;
-            // Update kingside rook: from H1 to F1
-            newBoard.position.whitepieces.Rook[1].position = c.F1;
-            // Remove castling right
-            newBoard.position.canCastleWhiteKingside = false;
-            newBoard.position.canCastleWhiteQueenside = false;
-            newBoard.position.sidetomove = next_side;
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
+        if ((bitmap & (c.F1 | c.G1)) == 0) {
+            var intermediate = board;
+            intermediate.position.whitepieces.King.position = c.F1;
+            if (!attacks.isSquareAttacked(&intermediate, c.F1, false)) {
+                intermediate = board;
+                intermediate.position.whitepieces.King.position = c.G1;
+                if (!attacks.isSquareAttacked(&intermediate, c.G1, false)) {
+                    var castledKing = piece;
+                    castledKing.position = c.G1;
+                    var newBoard = board;
+                    newBoard.position.whitepieces.King = castledKing;
+                    newBoard.position.whitepieces.Rook[1].position = c.F1;
+                    newBoard.position.canCastleWhiteKingside = false;
+                    newBoard.position.canCastleWhiteQueenside = false;
+                    newBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
+                }
+            }
+        }
+    }
+
+    // Add castling moves for white king (queenside) if available
+    if (piece.color == 0 and !king_attacked_by_enemy and board.position.canCastleWhiteQueenside and piece.position == c.E1 and
+        board.position.whitepieces.Rook[0].position == c.A1)
+    {
+        if ((bitmap & (c.D1 | c.C1 | c.B1)) == 0) {
+            var intermediate = board;
+            intermediate.position.whitepieces.King.position = c.D1;
+            if (!attacks.isSquareAttacked(&intermediate, c.D1, false)) {
+                intermediate = board;
+                intermediate.position.whitepieces.King.position = c.C1;
+                if (!attacks.isSquareAttacked(&intermediate, c.C1, false)) {
+                    var castledKing = piece;
+                    castledKing.position = c.C1;
+                    var newBoard = board;
+                    newBoard.position.whitepieces.King = castledKing;
+                    newBoard.position.whitepieces.Rook[0].position = c.D1;
+                    newBoard.position.canCastleWhiteKingside = false;
+                    newBoard.position.canCastleWhiteQueenside = false;
+                    newBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
+                }
+            }
         }
     }
 
     // Add castling moves for black king (kingside) if available
-    if (piece.color == 1 and board.position.canCastleBlackKingside and piece.position == c.E8 and
+    if (piece.color == 1 and !king_attacked_by_enemy and board.position.canCastleBlackKingside and piece.position == c.E8 and
         board.position.blackpieces.Rook[1].position == c.H8)
     {
-        // Check if squares F8 and G8 are empty
-        if ((bitmap & c.F8) == 0 and (bitmap & c.G8) == 0) {
-            var castledKing = piece;
-            castledKing.position = c.G8; // king moves two squares towards rook
-            var newBoard = board;
-            newBoard.position.blackpieces.King = castledKing;
-            // Update kingside rook: from H8 to F8
-            newBoard.position.blackpieces.Rook[1].position = c.F8;
-            // Remove castling right
-            newBoard.position.canCastleBlackKingside = false;
-            newBoard.position.canCastleBlackQueenside = false;
-            newBoard.position.sidetomove = next_side;
-            moves[possiblemoves] = newBoard;
-            possiblemoves += 1;
+        if ((bitmap & (c.F8 | c.G8)) == 0) {
+            var intermediate = board;
+            intermediate.position.blackpieces.King.position = c.F8;
+            if (!attacks.isSquareAttacked(&intermediate, c.F8, true)) {
+                intermediate = board;
+                intermediate.position.blackpieces.King.position = c.G8;
+                if (!attacks.isSquareAttacked(&intermediate, c.G8, true)) {
+                    var castledKing = piece;
+                    castledKing.position = c.G8;
+                    var newBoard = board;
+                    newBoard.position.blackpieces.King = castledKing;
+                    newBoard.position.blackpieces.Rook[1].position = c.F8;
+                    newBoard.position.canCastleBlackKingside = false;
+                    newBoard.position.canCastleBlackQueenside = false;
+                    newBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
+                }
+            }
+        }
+    }
+
+    // Add castling moves for black king (queenside) if available
+    if (piece.color == 1 and !king_attacked_by_enemy and board.position.canCastleBlackQueenside and piece.position == c.E8 and
+        board.position.blackpieces.Rook[0].position == c.A8)
+    {
+        if ((bitmap & (c.D8 | c.C8 | c.B8)) == 0) {
+            var intermediate = board;
+            intermediate.position.blackpieces.King.position = c.D8;
+            if (!attacks.isSquareAttacked(&intermediate, c.D8, true)) {
+                intermediate = board;
+                intermediate.position.blackpieces.King.position = c.C8;
+                if (!attacks.isSquareAttacked(&intermediate, c.C8, true)) {
+                    var castledKing = piece;
+                    castledKing.position = c.C8;
+                    var newBoard = board;
+                    newBoard.position.blackpieces.King = castledKing;
+                    newBoard.position.blackpieces.Rook[0].position = c.D8;
+                    newBoard.position.canCastleBlackKingside = false;
+                    newBoard.position.canCastleBlackQueenside = false;
+                    newBoard.position.sidetomove = next_side;
+                    moves[possiblemoves] = newBoard;
+                    possiblemoves += 1;
+                }
+            }
         }
     }
 
@@ -319,6 +384,43 @@ test "getValidKingMoves for black king with castling" {
         }
     }
     try std.testing.expect(castlingFound);
+}
+
+test "getValidKingMoves for white king with queenside castling" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.whitepieces.Rook[0].position = c.A1;
+    board.position.whitepieces.Rook[1].position = 0;
+    board.position.canCastleWhiteQueenside = true;
+
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+
+    var castlingFound = false;
+    for (moves) |move| {
+        if (move.position.whitepieces.King.position == c.C1 and
+            move.position.whitepieces.Rook[0].position == c.D1)
+        {
+            castlingFound = true;
+            try std.testing.expectEqual(move.position.canCastleWhiteQueenside, false);
+            try std.testing.expectEqual(move.position.canCastleWhiteKingside, false);
+        }
+    }
+    try std.testing.expect(castlingFound);
+}
+
+test "castling blocked when transit square attacked" {
+    var board = b.Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.whitepieces.Rook[1].position = c.H1;
+    board.position.canCastleWhiteKingside = true;
+    board.position.blackpieces.Rook[0].position = c.F8;
+
+    const moves = getValidKingMoves(board.position.whitepieces.King, board);
+
+    for (moves) |move| {
+        try std.testing.expect(move.position.whitepieces.King.position != c.G1 or
+            move.position.whitepieces.Rook[1].position != c.F1);
+    }
 }
 
 test "castling requires rook on start square" {
