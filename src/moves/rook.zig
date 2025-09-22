@@ -3,31 +3,31 @@ const c = @import("../consts.zig");
 const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
+fn placeRook(board: *b.Board, piece: b.Piece) void {
+    var updated = piece;
+    const idx: usize = @intCast(piece.index);
+    if (piece.color == 0) {
+        if (piece.is_promoted) {
+            board.position.whitepieces.Promoted.Rook[idx] = updated;
+        } else {
+            board.position.whitepieces.Rook[idx] = updated;
+        }
+    } else {
+        if (piece.is_promoted) {
+            board.position.blackpieces.Promoted.Rook[idx] = updated;
+        } else {
+            board.position.blackpieces.Rook[idx] = updated;
+        }
+    }
+}
+
 pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
-    var index: usize = 0; // Initialize with a default value
 
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
     const from_square = piece.position;
-
-    // Find which rook we're moving
-    if (piece.color == 0) {
-        for (board.position.whitepieces.Rook, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    } else {
-        for (board.position.blackpieces.Rook, 0..) |item, loopidx| {
-            if (item.position == piece.position) {
-                index = loopidx;
-                break;
-            }
-        }
-    }
 
     const row: u64 = board_helpers.rowfrombitmap(piece.position);
     const col: u64 = board_helpers.colfrombitmap(piece.position);
@@ -60,21 +60,24 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
             // Check if square is empty
             if (bitmap & newpos == 0) {
                 var newBoard = b.Board{ .position = board.position };
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Rook[index].position = newpos;
-                    if (from_square == c.A1) {
-                        newBoard.position.canCastleWhiteQueenside = false;
-                    } else if (from_square == c.H1) {
-                        newBoard.position.canCastleWhiteKingside = false;
-                    }
-                } else {
-                    newBoard.position.blackpieces.Rook[index].position = newpos;
-                    if (from_square == c.A8) {
-                        newBoard.position.canCastleBlackQueenside = false;
-                    } else if (from_square == c.H8) {
-                        newBoard.position.canCastleBlackKingside = false;
+                var moved = piece;
+                moved.position = newpos;
+                if (!piece.is_promoted) {
+                    if (piece.color == 0) {
+                        if (from_square == c.A1) {
+                            newBoard.position.canCastleWhiteQueenside = false;
+                        } else if (from_square == c.H1) {
+                            newBoard.position.canCastleWhiteKingside = false;
+                        }
+                    } else {
+                        if (from_square == c.A8) {
+                            newBoard.position.canCastleBlackQueenside = false;
+                        } else if (from_square == c.H8) {
+                            newBoard.position.canCastleBlackKingside = false;
+                        }
                     }
                 }
+                placeRook(&newBoard, moved);
                 newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
@@ -87,21 +90,24 @@ pub fn getValidRookMoves(piece: b.Piece, board: b.Board) []b.Board {
                     else
                         board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
 
-                    if (piece.color == 0) {
-                        newBoard.position.whitepieces.Rook[index].position = newpos;
-                        if (from_square == c.A1) {
-                            newBoard.position.canCastleWhiteQueenside = false;
-                        } else if (from_square == c.H1) {
-                            newBoard.position.canCastleWhiteKingside = false;
-                        }
-                    } else {
-                        newBoard.position.blackpieces.Rook[index].position = newpos;
-                        if (from_square == c.A8) {
-                            newBoard.position.canCastleBlackQueenside = false;
-                        } else if (from_square == c.H8) {
-                            newBoard.position.canCastleBlackKingside = false;
+                    var moved = piece;
+                    moved.position = newpos;
+                    if (!piece.is_promoted) {
+                        if (piece.color == 0) {
+                            if (from_square == c.A1) {
+                                newBoard.position.canCastleWhiteQueenside = false;
+                            } else if (from_square == c.H1) {
+                                newBoard.position.canCastleWhiteKingside = false;
+                            }
+                        } else {
+                            if (from_square == c.A8) {
+                                newBoard.position.canCastleBlackQueenside = false;
+                            } else if (from_square == c.H8) {
+                                newBoard.position.canCastleBlackKingside = false;
+                            }
                         }
                     }
+                    placeRook(&newBoard, moved);
                     newBoard.position.sidetomove = next_side;
                     moves[possiblemoves] = newBoard;
                     possiblemoves += 1;

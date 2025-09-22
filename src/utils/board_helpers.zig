@@ -5,28 +5,70 @@ const b = @import("../board.zig");
 const c = @import("../consts.zig");
 const std = @import("std");
 
+fn accumulatePieces(bitmap: *u64, value: anytype) void {
+    const T = @TypeOf(value);
+    if (T == b.Piece) {
+        bitmap.* |= value.position;
+        return;
+    }
+    switch (@typeInfo(T)) {
+        .Struct => |info| {
+            inline for (info.fields) |field| {
+                accumulatePieces(bitmap, @field(value, field.name));
+            }
+        },
+        .Array => {
+            for (value) |item| {
+                accumulatePieces(bitmap, item);
+            }
+        },
+        else => {},
+    }
+}
+
+fn findPiece(value: anytype, location: u64) ?b.Piece {
+    const T = @TypeOf(value);
+    if (T == b.Piece) {
+        return if (value.position == location) value else null;
+    }
+    switch (@typeInfo(T)) {
+        .Struct => |info| {
+            inline for (info.fields) |field| {
+                if (findPiece(@field(value, field.name), location)) |piece| {
+                    return piece;
+                }
+            }
+        },
+        .Array => {
+            for (value) |item| {
+                if (findPiece(item, location)) |piece| {
+                    return piece;
+                }
+            }
+        },
+        else => {},
+    }
+    return null;
+}
+
+fn clearPromotedPiece(array: *[b.MaxPromotions]b.Piece, loc: u64) bool {
+    var idx: usize = 0;
+    while (idx < b.MaxPromotions) : (idx += 1) {
+        const piece = &array.*[idx];
+        if (piece.position == loc) {
+            piece.position = 0;
+            piece.is_promoted = false;
+            piece.index = @intCast(idx);
+            return true;
+        }
+    }
+    return false;
+}
+
 pub fn bitmapfromboard(board: b.Board) u64 {
     var bitmap: u64 = 0;
-    const cpiece = b.Piece{ .color = 0, .value = 1, .representation = 'P', .stdval = 1, .position = 0 };
-    _ = cpiece;
-    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
-            bitmap |= (@as(piece.type, @field(board.position.whitepieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
-        }
-    }
-    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
-            bitmap |= (@as(piece.type, @field(board.position.blackpieces, piece.name))).position;
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                bitmap |= item.position;
-            }
-        }
-    }
+    accumulatePieces(&bitmap, board.position.whitepieces);
+    accumulatePieces(&bitmap, board.position.blackpieces);
     return bitmap;
 }
 
@@ -38,34 +80,13 @@ test "bitmap of initial board" {
 }
 
 pub fn piecefromlocation(location: u64, board: b.Board) b.Piece {
-    // iterate through all pieces of each colour to find which piece position matches the location
-    inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (b.Piece)) {
-            if ((@as(piece.type, @field(board.position.whitepieces, piece.name))).position == location) {
-                return (@as(piece.type, @field(board.position.whitepieces, piece.name)));
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.whitepieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
-                }
-            }
-        }
+    if (findPiece(board.position.whitepieces, location)) |piece| {
+        return piece;
     }
-    inline for (std.meta.fields(@TypeOf(board.position.blackpieces))) |piece| {
-        if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == (b.Piece)) {
-            if ((@as(piece.type, @field(board.position.blackpieces, piece.name))).position == location) {
-                return (@as(piece.type, @field(board.position.blackpieces, piece.name)));
-            }
-        } else if (@TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([2]b.Piece) or @TypeOf(@as(piece.type, @field(board.position.blackpieces, piece.name))) == ([8]b.Piece)) {
-            for (@as(piece.type, @field(board.position.blackpieces, piece.name))) |item| {
-                if (item.position == location) {
-                    return item;
-                }
-            }
-        }
+    if (findPiece(board.position.blackpieces, location)) |piece| {
+        return piece;
     }
-    return b.Piece{ .color = 0, .value = 0, .representation = '.', .stdval = 0, .position = 0 };
+    return b.Piece{ .color = 2, .value = 0, .representation = '.', .stdval = 0, .position = 0, .index = 0, .is_promoted = false };
 }
 
 test "piece from location" {
@@ -123,8 +144,12 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             piece.position = 0;
         },
         'q' => {
-            boardCopy.position.blackpieces.Queen.position = 0;
-            piece.position = 0;
+            if (boardCopy.position.blackpieces.Queen.position == loc) {
+                boardCopy.position.blackpieces.Queen.position = 0;
+                piece.position = 0;
+            } else if (clearPromotedPiece(&boardCopy.position.blackpieces.Promoted.Queen, loc)) {
+                piece.position = 0;
+            }
         },
         'r' => {
             if (boardCopy.position.blackpieces.Rook[0].position == loc) {
@@ -143,6 +168,8 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
                 } else if (loc == c.A8) {
                     boardCopy.position.canCastleBlackQueenside = false;
                 }
+            } else if (clearPromotedPiece(&boardCopy.position.blackpieces.Promoted.Rook, loc)) {
+                piece.position = 0;
             }
         },
         'b' => {
@@ -152,6 +179,8 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.blackpieces.Bishop[1].position == loc) {
                 boardCopy.position.blackpieces.Bishop[1].position = 0;
                 piece.position = 0;
+            } else if (clearPromotedPiece(&boardCopy.position.blackpieces.Promoted.Bishop, loc)) {
+                piece.position = 0;
             }
         },
         'n' => {
@@ -160,6 +189,8 @@ pub fn captureblackpiece(loc: u64, board: b.Board) b.Board {
                 piece.position = 0;
             } else if (boardCopy.position.blackpieces.Knight[1].position == loc) {
                 boardCopy.position.blackpieces.Knight[1].position = 0;
+                piece.position = 0;
+            } else if (clearPromotedPiece(&boardCopy.position.blackpieces.Promoted.Knight, loc)) {
                 piece.position = 0;
             }
         },
@@ -245,8 +276,12 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             piece.position = 0;
         },
         'Q' => {
-            boardCopy.position.whitepieces.Queen.position = 0;
-            piece.position = 0;
+            if (boardCopy.position.whitepieces.Queen.position == loc) {
+                boardCopy.position.whitepieces.Queen.position = 0;
+                piece.position = 0;
+            } else if (clearPromotedPiece(&boardCopy.position.whitepieces.Promoted.Queen, loc)) {
+                piece.position = 0;
+            }
         },
         'R' => {
             if (boardCopy.position.whitepieces.Rook[0].position == loc) {
@@ -265,6 +300,8 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
                 } else if (loc == c.H1) {
                     boardCopy.position.canCastleWhiteKingside = false;
                 }
+            } else if (clearPromotedPiece(&boardCopy.position.whitepieces.Promoted.Rook, loc)) {
+                piece.position = 0;
             }
         },
         'B' => {
@@ -274,6 +311,8 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
             } else if (boardCopy.position.whitepieces.Bishop[1].position == loc) {
                 boardCopy.position.whitepieces.Bishop[1].position = 0;
                 piece.position = 0;
+            } else if (clearPromotedPiece(&boardCopy.position.whitepieces.Promoted.Bishop, loc)) {
+                piece.position = 0;
             }
         },
         'N' => {
@@ -282,6 +321,8 @@ pub fn capturewhitepiece(loc: u64, board: b.Board) b.Board {
                 piece.position = 0;
             } else if (boardCopy.position.whitepieces.Knight[1].position == loc) {
                 boardCopy.position.whitepieces.Knight[1].position = 0;
+                piece.position = 0;
+            } else if (clearPromotedPiece(&boardCopy.position.whitepieces.Promoted.Knight, loc)) {
                 piece.position = 0;
             }
         },

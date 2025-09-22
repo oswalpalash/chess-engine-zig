@@ -15,6 +15,50 @@ pub const Piece = struct {
     stdval: u8 = 0,
     position: u64 = 0,
     index: u8 = 0, // Track which instance of this piece type this is (0-based)
+    is_promoted: bool = false,
+};
+
+pub const MaxPromotions: usize = 8;
+
+const PromotedPieces = struct {
+    Queen: [MaxPromotions]Piece,
+    Rook: [MaxPromotions]Piece,
+    Bishop: [MaxPromotions]Piece,
+    Knight: [MaxPromotions]Piece,
+
+    fn init(color: u8) PromotedPieces {
+        var promoted = PromotedPieces{
+            .Queen = undefined,
+            .Rook = undefined,
+            .Bishop = undefined,
+            .Knight = undefined,
+        };
+
+        inline for (0..MaxPromotions) |i| {
+            const idx: u8 = @intCast(i);
+            promoted.Queen[i] = if (color == 0) WhiteQueen else BlackQueen;
+            promoted.Queen[i].position = 0;
+            promoted.Queen[i].index = idx;
+            promoted.Queen[i].is_promoted = false;
+
+            promoted.Rook[i] = if (color == 0) WhiteRook else BlackRook;
+            promoted.Rook[i].position = 0;
+            promoted.Rook[i].index = idx;
+            promoted.Rook[i].is_promoted = false;
+
+            promoted.Bishop[i] = if (color == 0) WhiteBishop else BlackBishop;
+            promoted.Bishop[i].position = 0;
+            promoted.Bishop[i].index = idx;
+            promoted.Bishop[i].is_promoted = false;
+
+            promoted.Knight[i] = if (color == 0) WhiteKnight else BlackKnight;
+            promoted.Knight[i].position = 0;
+            promoted.Knight[i].index = idx;
+            promoted.Knight[i].is_promoted = false;
+        }
+
+        return promoted;
+    }
 };
 
 pub const WhiteKing: Piece = Piece{ .color = 0, .value = 255, .representation = 'K', .stdval = 255, .position = 0x0, .index = 0 };
@@ -38,6 +82,7 @@ const WhitePieces = struct {
     Bishop: [2]Piece = [2]Piece{ WhiteBishop, WhiteBishop },
     Knight: [2]Piece = [2]Piece{ WhiteKnight, WhiteKnight },
     Pawn: [8]Piece = [8]Piece{ WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn },
+    Promoted: PromotedPieces = PromotedPieces.init(0),
 };
 
 const BlackPieces = struct {
@@ -47,6 +92,7 @@ const BlackPieces = struct {
     Bishop: [2]Piece = [2]Piece{ BlackBishop, BlackBishop },
     Knight: [2]Piece = [2]Piece{ BlackKnight, BlackKnight },
     Pawn: [8]Piece = [8]Piece{ BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn },
+    Promoted: PromotedPieces = PromotedPieces.init(1),
 };
 
 pub const Position = struct {
@@ -62,6 +108,8 @@ pub const Position = struct {
     pub fn init() Position {
         var whitepieces: WhitePieces = WhitePieces{};
         var blackpieces: BlackPieces = BlackPieces{};
+        whitepieces.Promoted = PromotedPieces.init(0);
+        blackpieces.Promoted = PromotedPieces.init(1);
         whitepieces.King.position = c.E1;
         whitepieces.King.index = 0;
         whitepieces.Queen.position = c.D1;
@@ -124,7 +172,7 @@ pub const Position = struct {
     }
 
     pub fn emptyboard() Position {
-        return Position{
+        var position = Position{
             .whitepieces = WhitePieces{},
             .blackpieces = BlackPieces{},
 
@@ -136,6 +184,34 @@ pub const Position = struct {
             .enPassantSquare = 0,
             .sidetomove = 0, // White to move by default
         };
+
+        position.whitepieces.King.index = 0;
+        position.whitepieces.Queen.index = 0;
+        position.blackpieces.King.index = 0;
+        position.blackpieces.Queen.index = 0;
+
+        inline for (0..position.whitepieces.Rook.len) |i| {
+            const idx: u8 = @intCast(i);
+            position.whitepieces.Rook[i].index = idx;
+            position.blackpieces.Rook[i].index = idx;
+        }
+        inline for (0..position.whitepieces.Bishop.len) |i| {
+            const idx: u8 = @intCast(i);
+            position.whitepieces.Bishop[i].index = idx;
+            position.blackpieces.Bishop[i].index = idx;
+        }
+        inline for (0..position.whitepieces.Knight.len) |i| {
+            const idx: u8 = @intCast(i);
+            position.whitepieces.Knight[i].index = idx;
+            position.blackpieces.Knight[i].index = idx;
+        }
+        inline for (0..position.whitepieces.Pawn.len) |i| {
+            const idx: u8 = @intCast(i);
+            position.whitepieces.Pawn[i].index = idx;
+            position.blackpieces.Pawn[i].index = idx;
+        }
+
+        return position;
     }
 
     pub fn flip(self: Position) Position {
@@ -173,6 +249,26 @@ pub const Position = struct {
         whitepieces.Pawn[6].index = self.whitepieces.Pawn[6].index;
         whitepieces.Pawn[7].position = reverse(whitepieces.Pawn[7].position);
         whitepieces.Pawn[7].index = self.whitepieces.Pawn[7].index;
+        for (0..MaxPromotions) |idx| {
+            var piece = &whitepieces.Promoted.Queen[idx];
+            piece.* = self.whitepieces.Promoted.Queen[idx];
+            piece.position = reverse(piece.position);
+        }
+        for (0..MaxPromotions) |idx| {
+            var piece = &whitepieces.Promoted.Rook[idx];
+            piece.* = self.whitepieces.Promoted.Rook[idx];
+            piece.position = reverse(piece.position);
+        }
+        for (0..MaxPromotions) |idx| {
+            var piece = &whitepieces.Promoted.Bishop[idx];
+            piece.* = self.whitepieces.Promoted.Bishop[idx];
+            piece.position = reverse(piece.position);
+        }
+        for (0..MaxPromotions) |idx| {
+            var piece = &whitepieces.Promoted.Knight[idx];
+            piece.* = self.whitepieces.Promoted.Knight[idx];
+            piece.position = reverse(piece.position);
+        }
         blackpieces.King.position = reverse(blackpieces.King.position);
         blackpieces.King.index = self.blackpieces.King.index;
         blackpieces.Queen.position = reverse(blackpieces.Queen.position);
@@ -205,6 +301,26 @@ pub const Position = struct {
         blackpieces.Pawn[6].index = self.blackpieces.Pawn[6].index;
         blackpieces.Pawn[7].position = reverse(blackpieces.Pawn[7].position);
         blackpieces.Pawn[7].index = self.blackpieces.Pawn[7].index;
+        for (0..MaxPromotions) |idx| {
+            var piece = &blackpieces.Promoted.Queen[idx];
+            piece.* = self.blackpieces.Promoted.Queen[idx];
+            piece.position = reverse(piece.position);
+        }
+        for (0..MaxPromotions) |idx| {
+            var piece = &blackpieces.Promoted.Rook[idx];
+            piece.* = self.blackpieces.Promoted.Rook[idx];
+            piece.position = reverse(piece.position);
+        }
+        for (0..MaxPromotions) |idx| {
+            var piece = &blackpieces.Promoted.Bishop[idx];
+            piece.* = self.blackpieces.Promoted.Bishop[idx];
+            piece.position = reverse(piece.position);
+        }
+        for (0..MaxPromotions) |idx| {
+            var piece = &blackpieces.Promoted.Knight[idx];
+            piece.* = self.blackpieces.Promoted.Knight[idx];
+            piece.position = reverse(piece.position);
+        }
 
         return Position{
             .whitepieces = whitepieces,
@@ -216,6 +332,35 @@ pub const Position = struct {
             .enPassantSquare = reverse(self.enPassantSquare),
             .sidetomove = self.sidetomove,
         };
+    }
+
+    fn promotedMatch(promoted: PromotedPieces, bit_index: u6, buffer: *u8) bool {
+        const mask = (@as(u64, 1) << bit_index);
+        for (promoted.Queen) |piece| {
+            if (piece.position & mask != 0) {
+                buffer.* = piece.representation;
+                return true;
+            }
+        }
+        for (promoted.Rook) |piece| {
+            if (piece.position & mask != 0) {
+                buffer.* = piece.representation;
+                return true;
+            }
+        }
+        for (promoted.Bishop) |piece| {
+            if (piece.position & mask != 0) {
+                buffer.* = piece.representation;
+                return true;
+            }
+        }
+        for (promoted.Knight) |piece| {
+            if (piece.position & mask != 0) {
+                buffer.* = piece.representation;
+                return true;
+            }
+        }
+        return false;
     }
 
     pub fn print(position: Position) [64]u8 {
@@ -239,7 +384,7 @@ pub const Position = struct {
                 printBuffer[i] = position.whitepieces.Knight[0].representation;
             } else if (position.whitepieces.Knight[1].position >> i & 1 == 1) {
                 printBuffer[i] = position.whitepieces.Knight[1].representation;
-            } else if (position.whitepieces.Pawn[0].position >> i & 1 == 1) {
+            } else if (promotedMatch(position.whitepieces.Promoted, i, &printBuffer[i])) {} else if (position.whitepieces.Pawn[0].position >> i & 1 == 1) {
                 printBuffer[i] = position.whitepieces.Pawn[0].representation;
             } else if (position.whitepieces.Pawn[1].position >> i & 1 == 1) {
                 printBuffer[i] = position.whitepieces.Pawn[1].representation;
@@ -271,7 +416,7 @@ pub const Position = struct {
                 printBuffer[i] = position.blackpieces.Knight[0].representation;
             } else if (position.blackpieces.Knight[1].position >> i & 1 == 1) {
                 printBuffer[i] = position.blackpieces.Knight[1].representation;
-            } else if (position.blackpieces.Pawn[0].position >> i & 1 == 1) {
+            } else if (promotedMatch(position.blackpieces.Promoted, i, &printBuffer[i])) {} else if (position.blackpieces.Pawn[0].position >> i & 1 == 1) {
                 printBuffer[i] = position.blackpieces.Pawn[0].representation;
             } else if (position.blackpieces.Pawn[1].position >> i & 1 == 1) {
                 printBuffer[i] = position.blackpieces.Pawn[1].representation;
@@ -303,6 +448,49 @@ pub const Position = struct {
         }
         std.debug.print("\n", .{});
         return printBuffer;
+    }
+
+    fn assignPromoted(array: *[MaxPromotions]Piece, destination: u64, template: Piece) void {
+        var idx: usize = 0;
+        while (idx < MaxPromotions) : (idx += 1) {
+            const slot = &array.*[idx];
+            if (slot.position == 0) {
+                var piece = template;
+                piece.position = destination;
+                piece.index = @intCast(idx);
+                piece.is_promoted = true;
+                slot.* = piece;
+                return;
+            }
+        }
+        @panic("No available slot for promoted piece");
+    }
+
+    pub fn addPromotedPiece(self: *Position, color: u8, promotion: u8, destination: u64) void {
+        const lower = std.ascii.toLower(promotion);
+        var promoted = if (color == 0) &self.whitepieces.Promoted else &self.blackpieces.Promoted;
+        switch (lower) {
+            'q' => assignPromoted(&promoted.Queen, destination, if (color == 0) WhiteQueen else BlackQueen),
+            'r' => assignPromoted(&promoted.Rook, destination, if (color == 0) WhiteRook else BlackRook),
+            'b' => assignPromoted(&promoted.Bishop, destination, if (color == 0) WhiteBishop else BlackBishop),
+            'n' => assignPromoted(&promoted.Knight, destination, if (color == 0) WhiteKnight else BlackKnight),
+            else => @panic("Invalid promotion piece"),
+        }
+    }
+
+    pub fn clearPawnSlot(self: *Position, color: u8, index: usize) void {
+        const idx: u8 = @intCast(index);
+        if (color == 0) {
+            var pawn = WhitePawn;
+            pawn.position = 0;
+            pawn.index = idx;
+            self.whitepieces.Pawn[index] = pawn;
+        } else {
+            var pawn = BlackPawn;
+            pawn.position = 0;
+            pawn.index = idx;
+            self.blackpieces.Pawn[index] = pawn;
+        }
     }
 };
 
@@ -369,37 +557,56 @@ pub fn parseFen(fen: []const u8) Position {
                         position.whitepieces.King.index = 0;
                     },
                     'Q' => {
-                        position.whitepieces.Queen.position |= bit;
-                        position.whitepieces.Queen.index = 0;
+                        if (position.whitepieces.Queen.position == 0) {
+                            position.whitepieces.Queen.position = bit;
+                            position.whitepieces.Queen.index = 0;
+                        } else {
+                            position.addPromotedPiece(0, 'q', bit);
+                        }
                     },
                     'R' => {
                         var rookCount: u6 = 0;
+                        var placed = false;
                         while (rookCount < position.whitepieces.Rook.len) : (rookCount += 1) {
                             if (position.whitepieces.Rook[rookCount].position == 0) {
                                 position.whitepieces.Rook[rookCount].position = bit;
                                 position.whitepieces.Rook[rookCount].index = rookCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            position.addPromotedPiece(0, 'r', bit);
                         }
                     },
                     'B' => {
                         var bishopCount: u6 = 0;
+                        var placed = false;
                         while (bishopCount < position.whitepieces.Bishop.len) : (bishopCount += 1) {
                             if (position.whitepieces.Bishop[bishopCount].position == 0) {
                                 position.whitepieces.Bishop[bishopCount].position = bit;
                                 position.whitepieces.Bishop[bishopCount].index = bishopCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            position.addPromotedPiece(0, 'b', bit);
                         }
                     },
                     'N' => {
                         var knightCount: u6 = 0;
+                        var placed = false;
                         while (knightCount < position.whitepieces.Knight.len) : (knightCount += 1) {
                             if (position.whitepieces.Knight[knightCount].position == 0) {
                                 position.whitepieces.Knight[knightCount].position = bit;
                                 position.whitepieces.Knight[knightCount].index = knightCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            position.addPromotedPiece(0, 'n', bit);
                         }
                     },
                     'P' => {
@@ -417,37 +624,56 @@ pub fn parseFen(fen: []const u8) Position {
                         position.blackpieces.King.index = 0;
                     },
                     'q' => {
-                        position.blackpieces.Queen.position |= bit;
-                        position.blackpieces.Queen.index = 0;
+                        if (position.blackpieces.Queen.position == 0) {
+                            position.blackpieces.Queen.position = bit;
+                            position.blackpieces.Queen.index = 0;
+                        } else {
+                            position.addPromotedPiece(1, 'q', bit);
+                        }
                     },
                     'r' => {
                         var rookCount: u6 = 0;
+                        var placed = false;
                         while (rookCount < position.blackpieces.Rook.len) : (rookCount += 1) {
                             if (position.blackpieces.Rook[rookCount].position == 0) {
                                 position.blackpieces.Rook[rookCount].position = bit;
                                 position.blackpieces.Rook[rookCount].index = rookCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            position.addPromotedPiece(1, 'r', bit);
                         }
                     },
                     'b' => {
                         var bishopCount: u6 = 0;
+                        var placed = false;
                         while (bishopCount < position.blackpieces.Bishop.len) : (bishopCount += 1) {
                             if (position.blackpieces.Bishop[bishopCount].position == 0) {
                                 position.blackpieces.Bishop[bishopCount].position = bit;
                                 position.blackpieces.Bishop[bishopCount].index = bishopCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            position.addPromotedPiece(1, 'b', bit);
                         }
                     },
                     'n' => {
                         var knightCount: u6 = 0;
+                        var placed = false;
                         while (knightCount < position.blackpieces.Knight.len) : (knightCount += 1) {
                             if (position.blackpieces.Knight[knightCount].position == 0) {
                                 position.blackpieces.Knight[knightCount].position = bit;
                                 position.blackpieces.Knight[knightCount].index = knightCount;
+                                placed = true;
                                 break;
                             }
+                        }
+                        if (!placed) {
+                            position.addPromotedPiece(1, 'n', bit);
                         }
                     },
                     'p' => {
@@ -807,7 +1033,7 @@ test "piece indices are set correctly in initial position" {
     try std.testing.expectEqual(pos.whitepieces.Knight[0].index, 0);
     try std.testing.expectEqual(pos.whitepieces.Knight[1].index, 1);
     for (0..8) |i| {
-        try std.testing.expectEqual(pos.whitepieces.Pawn[i].index, i);
+        try std.testing.expectEqual(pos.whitepieces.Pawn[i].index, @as(u8, @intCast(i)));
     }
 
     // Test black pieces
@@ -820,7 +1046,7 @@ test "piece indices are set correctly in initial position" {
     try std.testing.expectEqual(pos.blackpieces.Knight[0].index, 0);
     try std.testing.expectEqual(pos.blackpieces.Knight[1].index, 1);
     for (0..8) |i| {
-        try std.testing.expectEqual(pos.blackpieces.Pawn[i].index, i);
+        try std.testing.expectEqual(pos.blackpieces.Pawn[i].index, @as(u8, @intCast(i)));
     }
 }
 
@@ -838,7 +1064,7 @@ test "piece indices are preserved in FEN parsing" {
     try std.testing.expectEqual(pos.whitepieces.Knight[0].index, 0);
     try std.testing.expectEqual(pos.whitepieces.Knight[1].index, 1);
     for (0..8) |i| {
-        try std.testing.expectEqual(pos.whitepieces.Pawn[i].index, i);
+        try std.testing.expectEqual(pos.whitepieces.Pawn[i].index, @as(u8, @intCast(i)));
     }
 
     // Test black pieces
@@ -851,7 +1077,7 @@ test "piece indices are preserved in FEN parsing" {
     try std.testing.expectEqual(pos.blackpieces.Knight[0].index, 0);
     try std.testing.expectEqual(pos.blackpieces.Knight[1].index, 1);
     for (0..8) |i| {
-        try std.testing.expectEqual(pos.blackpieces.Pawn[i].index, i);
+        try std.testing.expectEqual(pos.blackpieces.Pawn[i].index, @as(u8, @intCast(i)));
     }
 }
 

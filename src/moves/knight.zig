@@ -3,36 +3,30 @@ const c = @import("../consts.zig");
 const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
+fn placeKnight(board: *b.Board, piece: b.Piece) void {
+    var updated = piece;
+    const idx: usize = @intCast(piece.index);
+    if (piece.color == 0) {
+        if (piece.is_promoted) {
+            board.position.whitepieces.Promoted.Knight[idx] = updated;
+        } else {
+            board.position.whitepieces.Knight[idx] = updated;
+        }
+    } else {
+        if (piece.is_promoted) {
+            board.position.blackpieces.Promoted.Knight[idx] = updated;
+        } else {
+            board.position.blackpieces.Knight[idx] = updated;
+        }
+    }
+}
+
 pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
 
     const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
-
-    // Find the correct index for the knight
-    var index: u8 = 0;
-    if (piece.color == 0) {
-        // White knight
-        if (board.position.whitepieces.Knight[0].position == piece.position) {
-            index = 0;
-        } else if (board.position.whitepieces.Knight[1].position == piece.position) {
-            index = 1;
-        } else {
-            // Knight not found, return empty array
-            return moves[0..0];
-        }
-    } else {
-        // Black knight
-        if (board.position.blackpieces.Knight[0].position == piece.position) {
-            index = 0;
-        } else if (board.position.blackpieces.Knight[1].position == piece.position) {
-            index = 1;
-        } else {
-            // Knight not found, return empty array
-            return moves[0..0];
-        }
-    }
 
     // Define all possible knight move shifts
     // These represent the 8 possible L-shaped moves a knight can make
@@ -66,11 +60,9 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
         if (bitmap & newpos == 0) {
             // Empty square - add move
             var newBoard = b.Board{ .position = board.position };
-            if (piece.color == 0) {
-                newBoard.position.whitepieces.Knight[index].position = newpos;
-            } else {
-                newBoard.position.blackpieces.Knight[index].position = newpos;
-            }
+            var moved = piece;
+            moved.position = newpos;
+            placeKnight(&newBoard, moved);
             newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
@@ -84,11 +76,9 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
                 else
                     board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
 
-                if (piece.color == 0) {
-                    newBoard.position.whitepieces.Knight[index].position = newpos;
-                } else {
-                    newBoard.position.blackpieces.Knight[index].position = newpos;
-                }
+                var moved = piece;
+                moved.position = newpos;
+                placeKnight(&newBoard, moved);
                 newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;

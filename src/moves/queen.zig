@@ -3,6 +3,24 @@ const c = @import("../consts.zig");
 const board_helpers = @import("../utils/board_helpers.zig");
 const std = @import("std");
 
+fn placeQueen(board: *b.Board, piece: b.Piece) void {
+    var updated = piece;
+    const idx: usize = @intCast(piece.index);
+    if (piece.color == 0) {
+        if (piece.is_promoted) {
+            board.position.whitepieces.Promoted.Queen[idx] = updated;
+        } else {
+            board.position.whitepieces.Queen = updated;
+        }
+    } else {
+        if (piece.is_promoted) {
+            board.position.blackpieces.Promoted.Queen[idx] = updated;
+        } else {
+            board.position.blackpieces.Queen = updated;
+        }
+    }
+}
+
 pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
     const bitmap: u64 = board_helpers.bitmapfromboard(board);
     var moves: [256]b.Board = undefined;
@@ -28,11 +46,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -41,13 +55,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -65,11 +77,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -78,13 +86,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -102,11 +108,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -115,13 +117,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -139,11 +139,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -152,13 +148,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -177,11 +171,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -190,13 +180,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -214,11 +202,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -227,13 +211,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -251,11 +233,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
             moves[possiblemoves].position.sidetomove = next_side;
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -264,13 +242,11 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.sidetomove = next_side;
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                moves[possiblemoves].position.sidetomove = next_side;
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;
@@ -287,11 +263,7 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
             // Empty square
             newqueen.position = newpos;
             moves[possiblemoves] = b.Board{ .position = board.position };
-            if (queen_piece.color == 0) {
-                moves[possiblemoves].position.whitepieces.Queen = newqueen;
-            } else {
-                moves[possiblemoves].position.blackpieces.Queen = newqueen;
-            }
+            placeQueen(&moves[possiblemoves], newqueen);
             possiblemoves += 1;
         } else {
             // Check for capture
@@ -300,11 +272,10 @@ pub fn getValidQueenMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newqueen.position = newpos;
                 if (queen_piece.color == 0) {
                     moves[possiblemoves] = board_helpers.captureblackpiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.whitepieces.Queen = newqueen;
                 } else {
                     moves[possiblemoves] = board_helpers.capturewhitepiece(newpos, b.Board{ .position = board.position });
-                    moves[possiblemoves].position.blackpieces.Queen = newqueen;
                 }
+                placeQueen(&moves[possiblemoves], newqueen);
                 possiblemoves += 1;
             }
             break;

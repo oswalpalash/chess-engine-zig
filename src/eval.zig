@@ -30,14 +30,31 @@ pub fn evaluate(board: Board) i32 {
             score += getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, true);
         }
     }
+    inline for (board.position.whitepieces.Promoted.Knight) |knight| {
+        if (knight.position != 0 and knight.is_promoted) {
+            score += @as(i32, knight.stdval) * 100;
+            score += getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, true);
+        }
+    }
     inline for (board.position.whitepieces.Bishop) |bishop| {
         if (bishop.position != 0) score += @as(i32, bishop.stdval) * 100;
+    }
+    inline for (board.position.whitepieces.Promoted.Bishop) |bishop| {
+        if (bishop.position != 0 and bishop.is_promoted) score += @as(i32, bishop.stdval) * 100;
     }
     inline for (board.position.whitepieces.Rook) |rook| {
         if (rook.position != 0) score += @as(i32, rook.stdval) * 100;
     }
+    inline for (board.position.whitepieces.Promoted.Rook) |rook| {
+        if (rook.position != 0 and rook.is_promoted) score += @as(i32, rook.stdval) * 100;
+    }
     if (board.position.whitepieces.Queen.position != 0) {
         score += @as(i32, board.position.whitepieces.Queen.stdval) * 100;
+    }
+    inline for (board.position.whitepieces.Promoted.Queen) |queen| {
+        if (queen.position != 0 and queen.is_promoted) {
+            score += @as(i32, queen.stdval) * 100;
+        }
     }
     if (board.position.whitepieces.King.position != 0) {
         score += @as(i32, board.position.whitepieces.King.stdval) * 100;
@@ -58,14 +75,31 @@ pub fn evaluate(board: Board) i32 {
             score -= getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, false);
         }
     }
+    inline for (board.position.blackpieces.Promoted.Knight) |knight| {
+        if (knight.position != 0 and knight.is_promoted) {
+            score -= @as(i32, knight.stdval) * 100;
+            score -= getPiecePositionValue(knight.position, c.KNIGHT_POSITION_TABLE, false);
+        }
+    }
     inline for (board.position.blackpieces.Bishop) |bishop| {
         if (bishop.position != 0) score -= @as(i32, bishop.stdval) * 100;
+    }
+    inline for (board.position.blackpieces.Promoted.Bishop) |bishop| {
+        if (bishop.position != 0 and bishop.is_promoted) score -= @as(i32, bishop.stdval) * 100;
     }
     inline for (board.position.blackpieces.Rook) |rook| {
         if (rook.position != 0) score -= @as(i32, rook.stdval) * 100;
     }
+    inline for (board.position.blackpieces.Promoted.Rook) |rook| {
+        if (rook.position != 0 and rook.is_promoted) score -= @as(i32, rook.stdval) * 100;
+    }
     if (board.position.blackpieces.Queen.position != 0) {
         score -= @as(i32, board.position.blackpieces.Queen.stdval) * 100;
+    }
+    inline for (board.position.blackpieces.Promoted.Queen) |queen| {
+        if (queen.position != 0 and queen.is_promoted) {
+            score -= @as(i32, queen.stdval) * 100;
+        }
     }
     if (board.position.blackpieces.King.position != 0) {
         score -= @as(i32, board.position.blackpieces.King.stdval) * 100;
@@ -317,6 +351,17 @@ test "evaluate position with extra white queen" {
     board.position = pos;
     const score = evaluate(board);
     try std.testing.expect(score >= 900); // Queen value is at least 900
+}
+
+test "evaluate counts promoted pieces" {
+    var board = Board{ .position = b.Position.emptyboard() };
+    board.position.whitepieces.King.position = c.E1;
+    board.position.blackpieces.King.position = c.E8;
+    board.position.clearPawnSlot(0, 0);
+    board.position.addPromotedPiece(0, 'q', c.A7);
+
+    const score = evaluate(board);
+    try std.testing.expectEqual(@as(i32, 900), score);
 }
 
 test "evaluate position with missing white king" {
