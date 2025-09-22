@@ -29,6 +29,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
     var possiblemoves: usize = 0;
     var king: b.Piece = piece;
     var dummypiece: b.Piece = undefined;
+    const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
     const directional_kingshifts = [4]u6{ 1, 7, 8, 9 };
     const king_row = board_helpers.rowfrombitmap(piece.position);
     const king_col = board_helpers.colfrombitmap(piece.position);
@@ -59,6 +60,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.King.position = king.position;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -78,6 +80,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                         } else {
                             newBoard.position.blackpieces.King.position = king.position;
                         }
+                        newBoard.position.sidetomove = next_side;
                         moves[possiblemoves] = newBoard;
                         possiblemoves += 1;
                     }
@@ -110,6 +113,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.King.position = king.position;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -129,6 +133,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
                         } else {
                             newBoard.position.blackpieces.King.position = king.position;
                         }
+                        newBoard.position.sidetomove = next_side;
                         moves[possiblemoves] = newBoard;
                         possiblemoves += 1;
                     }
@@ -149,6 +154,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             newBoard.position.whitepieces.Rook[1].position = c.F1;
             // Remove castling right
             newBoard.position.canCastleWhiteKingside = false;
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         }
@@ -166,6 +172,7 @@ pub fn getValidKingMoves(piece: b.Piece, board: b.Board) []b.Board {
             newBoard.position.blackpieces.Rook[1].position = c.F8;
             // Remove castling right
             newBoard.position.canCastleBlackKingside = false;
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         }

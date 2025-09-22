@@ -8,6 +8,8 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
     var possiblemoves: usize = 0;
     var index: usize = 0;
 
+    const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
+
     // Find which bishop we're moving
     if (piece.color == 0) {
         for (board.position.whitepieces.Bishop, 0..) |item, loopidx| {
@@ -46,6 +48,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.Bishop[index].position = newpos;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -61,6 +64,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                 } else {
                     newBoard.position.blackpieces.Bishop[index].position = newpos;
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -82,6 +86,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.Bishop[index].position = newpos;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -96,6 +101,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                 } else {
                     newBoard.position.blackpieces.Bishop[index].position = newpos;
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -117,6 +123,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.Bishop[index].position = newpos;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -131,6 +138,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                 } else {
                     newBoard.position.blackpieces.Bishop[index].position = newpos;
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -152,6 +160,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.Bishop[index].position = newpos;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -166,6 +175,7 @@ pub fn getValidBishopMoves(piece: b.Piece, board: b.Board) []b.Board {
                 } else {
                     newBoard.position.blackpieces.Bishop[index].position = newpos;
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
