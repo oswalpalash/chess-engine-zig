@@ -178,7 +178,7 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
 
     // Create a list of moves with their scores for sorting
     const allocator = std.heap.page_allocator;
-    var move_scores = std.ArrayList(MoveScore).empty;
+    var move_scores = std.ArrayListUnmanaged(MoveScore){};
     defer move_scores.deinit(allocator);
 
     // First, evaluate all moves with a shallow search to get initial scores

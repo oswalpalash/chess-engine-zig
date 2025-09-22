@@ -8,6 +8,8 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
     var moves: [256]b.Board = undefined;
     var possiblemoves: usize = 0;
 
+    const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
+
     // Find the correct index for the knight
     var index: u8 = 0;
     if (piece.color == 0) {
@@ -69,6 +71,7 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.Knight[index].position = newpos;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else {
@@ -86,6 +89,7 @@ pub fn getValidKnightMoves(piece: b.Piece, board: b.Board) []b.Board {
                 } else {
                     newBoard.position.blackpieces.Knight[index].position = newpos;
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }

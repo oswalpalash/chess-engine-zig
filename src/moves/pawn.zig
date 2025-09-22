@@ -10,6 +10,8 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
     var possiblemoves: u6 = 0;
     var index: u64 = 0;
 
+    const next_side: u8 = if (board.position.sidetomove == 0) 1 else 0;
+
     // Find which pawn we're moving
     if (piece.color == 0) {
         for (board.position.whitepieces.Pawn, 0..) |item, loopidx| {
@@ -53,6 +55,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
             } else {
                 newBoard.position.blackpieces.Pawn[index].position = oneSquareForward;
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         } else if ((piece.color == 0 and currentRow == 7) or (piece.color == 1 and currentRow == 2)) {
@@ -65,6 +68,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newBoard.position.blackpieces.Pawn[index].position = oneSquareForward;
                 newBoard.position.blackpieces.Pawn[index].representation = 'q';
             }
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         }
@@ -88,6 +92,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                     newBoard.position.blackpieces.Pawn[index].position = twoSquareForward;
                     newBoard.position.enPassantSquare = oneSquareForward;
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -133,6 +138,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                         newBoard.position.blackpieces.Pawn[index].position = leftCapture;
                     }
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -153,6 +159,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newBoard = board_helpers.capturewhitepiece(capturedPawnPos, newBoard);
             }
             newBoard.position.enPassantSquare = 0; // Clear en passant square
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         }
@@ -184,6 +191,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                         newBoard.position.blackpieces.Pawn[index].position = rightCapture;
                     }
                 }
+                newBoard.position.sidetomove = next_side;
                 moves[possiblemoves] = newBoard;
                 possiblemoves += 1;
             }
@@ -204,6 +212,7 @@ pub fn getValidPawnMoves(piece: b.Piece, board: b.Board) []b.Board {
                 newBoard = board_helpers.capturewhitepiece(capturedPawnPos, newBoard);
             }
             newBoard.position.enPassantSquare = 0; // Clear en passant square
+            newBoard.position.sidetomove = next_side;
             moves[possiblemoves] = newBoard;
             possiblemoves += 1;
         }
