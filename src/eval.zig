@@ -3,6 +3,7 @@ const b = @import("board.zig");
 const m = @import("moves.zig");
 const s = @import("state.zig");
 const c = @import("consts.zig");
+const debug = @import("utils/debug.zig");
 const Board = b.Board;
 const Piece = b.Piece;
 
@@ -572,8 +573,8 @@ test "minimax finds a move in checkmate position" {
 
     // Print the move for debugging
     if (best_move) |move| {
-        std.debug.print("\nRook position in best move: {}\n", .{move.position.whitepieces.Rook[0].position});
-        std.debug.print("Queen position in best move: {}\n", .{move.position.whitepieces.Queen.position});
+        debug.print("\nRook position in best move: {}\n", .{move.position.whitepieces.Rook[0].position});
+        debug.print("Queen position in best move: {}\n", .{move.position.whitepieces.Queen.position});
     }
 }
 

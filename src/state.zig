@@ -3,6 +3,7 @@ const c = @import("consts.zig");
 const m = @import("moves.zig");
 const attacks = @import("utils/attacks.zig");
 const std = @import("std");
+const debug = @import("utils/debug.zig");
 
 // isCheck determines if the given board position has the king in check
 // It does this by checking if any enemy piece can capture the king in the next move
@@ -361,17 +362,17 @@ test "isCheckmate - Scholar's Mate position" {
     const board = b.Board{ .position = b.parseFen(fen) };
 
     // Print the board state
-    std.debug.print("\nScholar's Mate position:\n", .{});
+    debug.print("\nScholar's Mate position:\n", .{});
     _ = board.print();
-    std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
+    debug.print("Side to move: {d}\n", .{board.position.sidetomove});
 
     // Check if black is in check
     const blackInCheck = isCheck(board, false);
-    std.debug.print("Black in check: {}\n", .{blackInCheck});
+    debug.print("Black in check: {}\n", .{blackInCheck});
 
     // Check if black is in checkmate
     const blackInCheckmate = isCheckmate(board, false);
-    std.debug.print("Black in checkmate: {}\n", .{blackInCheckmate});
+    debug.print("Black in checkmate: {}\n", .{blackInCheckmate});
 
     try std.testing.expect(blackInCheck);
     // This position is not actually a checkmate, so we don't expect blackInCheckmate to be true
