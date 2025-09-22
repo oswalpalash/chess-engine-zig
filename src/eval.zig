@@ -177,8 +177,14 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
     const MoveScore = struct { move: Board, score: i32 };
 
     // Create a list of moves with their scores for sorting
-    var move_scores = std.ArrayList(MoveScore).init(std.heap.page_allocator);
-    defer move_scores.deinit();
+    const allocator = std.heap.page_allocator;
+    var move_scores = allocator.alloc(MoveScore, moves.len) catch {
+        // If allocation fails, fall back to the first legal move
+        return moves[0];
+    };
+    defer allocator.free(move_scores);
+
+    var move_scores_len: usize = 0;
 
     // First, evaluate all moves with a shallow search to get initial scores
     for (moves) |move| {
@@ -215,11 +221,13 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
         }
 
         // Add the move and its score to our list
-        move_scores.append(.{ .move = move, .score = score }) catch continue;
+        move_scores[move_scores_len] = .{ .move = move, .score = score };
+        move_scores_len += 1;
     }
 
     // Sort moves by score (descending)
-    std.mem.sort(MoveScore, move_scores.items, {}, struct {
+    const scored_moves = move_scores[0..move_scores_len];
+    std.mem.sort(MoveScore, scored_moves, {}, struct {
         fn compare(_: void, a: MoveScore, b_move: MoveScore) bool {
             return a.score > b_move.score;
         }
@@ -227,22 +235,22 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
 
     // Now perform the full minimax search on the sorted moves
     var bestScore: i32 = -INFINITY_SCORE;
-    var bestMoveIndex: usize = 0;
     const maximizingPlayer = board.position.sidetomove == 0; // White is maximizing
 
-    for (move_scores.items, 0..) |move_data, i| {
+    var bestMove: ?Board = null;
+    for (scored_moves) |move_data| {
         // For each move, evaluate the resulting position
         const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer);
 
         // Update best move if we found a better one
         if (score > bestScore) {
             bestScore = score;
-            bestMoveIndex = i;
+            bestMove = move_data.move;
         }
     }
 
-    if (move_scores.items.len > 0) {
-        return move_scores.items[bestMoveIndex].move;
+    if (bestMove) {
+        return bestMove.?;
     } else if (moves.len > 0) {
         // Fallback if move scoring failed
         return moves[0];

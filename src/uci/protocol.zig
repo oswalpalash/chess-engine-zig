@@ -12,10 +12,10 @@ pub const ENGINE_AUTHOR = "Palash";
 pub const UciProtocol = struct {
     allocator: std.mem.Allocator,
     debug_mode: bool = false,
-    test_writer: ?std.ArrayList(u8).Writer = null,
+    test_writer: ?std.ArrayListUnmanaged(u8).Writer = null,
     current_board: b.Board = b.Board{ .position = b.Position.init() },
     search_in_progress: bool = false,
-    allocated_strings: std.ArrayList([]u8) = undefined,
+    allocated_strings: std.ArrayListUnmanaged([]u8) = .{},
     move_overhead: u32 = 10,
     threads: u32 = 1,
     debug_log_file: []const u8 = "",
@@ -45,7 +45,7 @@ pub const UciProtocol = struct {
             .test_writer = null,
             .current_board = b.Board{ .position = b.Position.init() },
             .search_in_progress = false,
-            .allocated_strings = std.ArrayList([]u8).init(allocator),
+            .allocated_strings = .{},
             .move_overhead = 10,
             .threads = 1,
             .debug_log_file = "",
@@ -80,7 +80,7 @@ pub const UciProtocol = struct {
         }
         if (self.debug_mode) {
             const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with depth {d}", .{search_depth});
-            try self.allocated_strings.append(debug_msg);
+            try self.allocated_strings.append(self.allocator, debug_msg);
             try self.respond(debug_msg);
         }
         if (e.findBestMove(self.current_board, search_depth)) |best_move| {
@@ -108,15 +108,16 @@ pub const UciProtocol = struct {
             if (std.mem.eql(u8, pos_type, "startpos")) {
                 board = b.Board{ .position = b.Position.init() };
             } else if (std.mem.eql(u8, pos_type, "fen")) {
-                var fen = std.ArrayList(u8).init(allocator);
-                defer fen.deinit();
+                var fen = std.ArrayListUnmanaged(u8){};
+                defer fen.deinit(allocator);
                 while (iter.next()) |part| {
                     if (std.mem.eql(u8, part, "moves")) break;
-                    try fen.writer().writeAll(part);
-                    try fen.writer().writeByte(' ');
+                    try fen.appendSlice(allocator, part);
+                    try fen.append(allocator, ' ');
                 }
-                if (fen.items.len > 0) {
-                    board = b.Board{ .position = b.parseFen(fen.items) };
+                const fen_items = fen.items;
+                if (fen_items.len > 0) {
+                    board = b.Board{ .position = b.parseFen(fen_items) };
                 }
             }
             var found_moves = false;
@@ -429,7 +430,7 @@ pub const UciProtocol = struct {
                     const search_time = end_time - start_time;
                     const score = e.evaluate(new_board);
                     const info_msg = try std.fmt.allocPrint(self.allocator, "info depth {d} score cp {d} time {d}", .{ max_depth, score, search_time });
-                    try self.allocated_strings.append(info_msg);
+                    try self.allocated_strings.append(self.allocator, info_msg);
                     try self.respond(info_msg);
                     const move = helpers.moveToUci(self.current_board, new_board);
                     var move_str: [10]u8 = undefined;
@@ -517,6 +518,6 @@ pub const UciProtocol = struct {
         for (self.allocated_strings.items) |str| {
             self.allocator.free(str);
         }
-        self.allocated_strings.deinit();
+        self.allocated_strings.deinit(self.allocator);
     }
 };
