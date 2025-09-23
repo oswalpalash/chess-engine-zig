@@ -13,10 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: goto-bus-stop/setup-zig@v2
+        with:
+          zig-version: 0.15.1
       - run: zig test src/lib.zig
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: goto-bus-stop/setup-zig@v2
+        with:
+          zig-version: 0.15.1
       - run: zig fmt --check src
