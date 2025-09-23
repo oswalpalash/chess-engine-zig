@@ -1,5 +1,6 @@
 const std = @import("std");
 const c = @import("consts.zig");
+const debug = @import("utils/debug.zig");
 // Board Representation
 
 // Board is a 64, bit integer. Each bit represents a square on the board.
@@ -338,11 +339,11 @@ pub const Position = struct {
         }
         for (0..printBuffer.len) |index| {
             if (index % 8 == 0 and index != 0) {
-                std.debug.print("\n", .{});
+                debug.print("\n", .{});
             }
-            std.debug.print("{c}", .{printBuffer[printBuffer.len - 1 - index]});
+            debug.print("{c}", .{printBuffer[printBuffer.len - 1 - index]});
         }
-        std.debug.print("\n", .{});
+        debug.print("\n", .{});
         return printBuffer;
     }
 };
@@ -386,7 +387,7 @@ pub fn parseFen(fen: []const u8) Position {
     const first_token = tokens.next();
     if (first_token == null) {
         // Invalid: no piece placement
-        std.debug.print("FEN string empty or invalid piece placement\n", .{});
+        debug.print("FEN string empty or invalid piece placement\n", .{});
         return Position.emptyboard();
     }
 
@@ -428,7 +429,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many white queens in FEN\n", .{});
+                                debug.print("Too many white queens in FEN\n", .{});
                             }
                         }
                     },
@@ -457,7 +458,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many white rooks in FEN\n", .{});
+                                debug.print("Too many white rooks in FEN\n", .{});
                             }
                         }
                     },
@@ -486,7 +487,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many white bishops in FEN\n", .{});
+                                debug.print("Too many white bishops in FEN\n", .{});
                             }
                         }
                     },
@@ -515,7 +516,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many white knights in FEN\n", .{});
+                                debug.print("Too many white knights in FEN\n", .{});
                             }
                         }
                     },
@@ -552,7 +553,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many black queens in FEN\n", .{});
+                                debug.print("Too many black queens in FEN\n", .{});
                             }
                         }
                     },
@@ -581,7 +582,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many black rooks in FEN\n", .{});
+                                debug.print("Too many black rooks in FEN\n", .{});
                             }
                         }
                     },
@@ -610,7 +611,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many black bishops in FEN\n", .{});
+                                debug.print("Too many black bishops in FEN\n", .{});
                             }
                         }
                     },
@@ -639,7 +640,7 @@ pub fn parseFen(fen: []const u8) Position {
                                 }
                             }
                             if (!placed) {
-                                std.debug.print("Too many black knights in FEN\n", .{});
+                                debug.print("Too many black knights in FEN\n", .{});
                             }
                         }
                     },
@@ -691,7 +692,7 @@ pub fn parseFen(fen: []const u8) Position {
     const second_token = tokens.next();
     if (second_token == null) {
         // Invalid: no side to move
-        std.debug.print("FEN string missing side to move\n", .{});
+        debug.print("FEN string missing side to move\n", .{});
     } else {
         // Parse side to move
         const sideToMove = second_token.?;
@@ -812,11 +813,11 @@ test "fen to board" {
     // (@as(piece.type, @field(board.position.whitepieces, piece.name))).position
     inline for (std.meta.fields(@TypeOf(board.position.whitepieces))) |piece| {
         if (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == (Piece)) {
-            std.debug.print("Comparing {s} {}\n", .{ piece.name, @as(u64, @field(board.position.whitepieces, piece.name).position) });
+            debug.print("Comparing {s} {}\n", .{ piece.name, @as(u64, @field(board.position.whitepieces, piece.name).position) });
             try std.testing.expectEqual(@as(u64, @field(board.position.whitepieces, piece.name).position), @as(u64, @field(board2.position.whitepieces, piece.name).position));
         } else if ((@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([2]Piece)) or (@TypeOf(@as(piece.type, @field(board.position.whitepieces, piece.name))) == ([8]Piece))) {
             inline for (0..@as(piece.type, @field(board.position.whitepieces, piece.name)).len) |i| {
-                std.debug.print("Comparing {s} {} {}\n", .{ piece.name, i, @as(u64, @field(board.position.whitepieces, piece.name)[i].position) });
+                debug.print("Comparing {s} {} {}\n", .{ piece.name, i, @as(u64, @field(board.position.whitepieces, piece.name)[i].position) });
                 try std.testing.expectEqual(@as(u64, @field(board.position.whitepieces, piece.name)[i].position), @as(u64, @field(board2.position.whitepieces, piece.name)[i].position));
             }
         }

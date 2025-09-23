@@ -8,6 +8,7 @@ const knight = @import("moves/knight.zig");
 const bishop = @import("moves/bishop.zig");
 const queen = @import("moves/queen.zig");
 const king = @import("moves/king.zig");
+const debug = @import("utils/debug.zig");
 
 // Import the reverse function from board.zig
 const reverse = b.reverse;
@@ -1037,14 +1038,14 @@ test "debug knight move sequence" {
         Move{ .from = c.G8, .to = c.F6, .promotion_piece = null }, // black knight
     };
 
-    std.debug.print("\nInitial position:\n", .{});
+    debug.print("\nInitial position:\n", .{});
     _ = board.print();
 
     for (moves, 0..) |move, i| {
         board = try applyMove(board, move);
-        std.debug.print("\nAfter move {d}:\n", .{i + 1});
+        debug.print("\nAfter move {d}:\n", .{i + 1});
         _ = board.print();
-        std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
+        debug.print("Side to move: {d}\n", .{board.position.sidetomove});
     }
 }
 

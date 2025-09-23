@@ -71,19 +71,41 @@ pub const UciProtocol = struct {
         };
     }
 
-    fn chooseBestMove(self: *UciProtocol) !?b.Board {
+    fn infof(self: *UciProtocol, comptime fmt: []const u8, args: anytype) !void {
+        const msg = try std.fmt.allocPrint(self.allocator, "info string " ++ fmt, args);
+        errdefer self.allocator.free(msg);
+        try self.allocated_strings.append(self.allocator, msg);
+        try self.respond(msg);
+    }
+
+    fn debugInfo(self: *UciProtocol, comptime fmt: []const u8, args: anytype) !void {
+        if (!self.debug_mode) return;
+        try self.infof(fmt, args);
+    }
+
+    fn determineSearchDepth(self: *UciProtocol, limit_depth: u8) u8 {
         var search_depth: u8 = 1;
         if (self.skill_level > 5 and self.skill_level <= 10) {
             search_depth = 2;
         } else if (self.skill_level > 10) {
             search_depth = 3;
         }
-        if (self.debug_mode) {
-            const debug_msg = try std.fmt.allocPrint(self.allocator, "info string Searching with depth {d}", .{search_depth});
-            try self.allocated_strings.append(self.allocator, debug_msg);
-            try self.respond(debug_msg);
+
+        if (limit_depth != 0) {
+            search_depth = @min(search_depth, limit_depth);
         }
-        if (e.findBestMove(self.current_board, search_depth)) |best_move| {
+
+        if (search_depth == 0) {
+            search_depth = 1;
+        }
+
+        return search_depth;
+    }
+
+    fn chooseBestMove(self: *UciProtocol, limit_depth: u8, search: ?*e.SearchState) !?b.Board {
+        const search_depth = self.determineSearchDepth(limit_depth);
+        try self.debugInfo("Searching with depth {d}", .{search_depth});
+        if (e.findBestMove(self.current_board, search_depth, search)) |best_move| {
             return best_move;
         } else {
             return self.chooseRandomMove();
@@ -98,22 +120,20 @@ pub const UciProtocol = struct {
         return moves[std.crypto.random.int(u32) % moves.len];
     }
 
-    pub fn parsePositionLine(line: []const u8, allocator: std.mem.Allocator) !b.Board {
+    fn parsePositionLine(self: *UciProtocol, line: []const u8) !b.Board {
         var board = b.Board{ .position = b.Position.init() };
         var iter = std.mem.splitScalar(u8, line, ' ');
         _ = iter.next();
-        std.debug.print("\nInitial position:\n", .{});
-        _ = board.print();
         if (iter.next()) |pos_type| {
             if (std.mem.eql(u8, pos_type, "startpos")) {
                 board = b.Board{ .position = b.Position.init() };
             } else if (std.mem.eql(u8, pos_type, "fen")) {
                 var fen = std.ArrayList(u8){};
-                defer fen.deinit(allocator);
+                defer fen.deinit(self.allocator);
                 while (iter.next()) |part| {
                     if (std.mem.eql(u8, part, "moves")) break;
-                    try fen.appendSlice(allocator, part);
-                    try fen.append(allocator, ' ');
+                    try fen.appendSlice(self.allocator, part);
+                    try fen.append(self.allocator, ' ');
                 }
                 if (fen.items.len > 0) {
                     board = b.Board{ .position = b.parseFen(fen.items) };
@@ -128,12 +148,10 @@ pub const UciProtocol = struct {
                 }
                 if (found_moves) {
                     move_count += 1;
-                    std.debug.print("\nProcessing move {d}: {s}\n", .{ move_count, token });
+                    try self.debugInfo("Processing move {d}: {s}", .{ move_count, token });
                     const move = try m.parseUciMove(token);
                     board = try m.applyMove(board, move);
-                    std.debug.print("After move {d}:\n", .{move_count});
-                    _ = board.print();
-                    std.debug.print("Side to move: {d}\n", .{board.position.sidetomove});
+                    try self.debugInfo("Side to move after move {d}: {d}", .{ move_count, board.position.sidetomove });
                 }
             }
         }
@@ -403,32 +421,119 @@ pub const UciProtocol = struct {
                 }
             },
             .position => {
-                if (self.debug_mode) {
-                    try self.respond(line);
-                }
-                self.current_board = try UciProtocol.parsePositionLine(line, self.allocator);
+                try self.debugInfo("Received position command: {s}", .{line});
+                self.current_board = try self.parsePositionLine(line);
             },
             .go => {
                 self.search_in_progress = true;
-                var max_depth: u8 = 3;
                 var iter = std.mem.splitScalar(u8, line, ' ');
                 _ = iter.next();
-                while (iter.next()) |param| {
+
+                var depth_override: ?u8 = null;
+                var movetime: ?u64 = null;
+                var wtime: ?u64 = null;
+                var btime: ?u64 = null;
+                var winc: ?u64 = null;
+                var binc: ?u64 = null;
+                var moves_to_go: ?u32 = null;
+                var ponder_flag = false;
+                var infinite = false;
+
+                while (iter.next()) |raw_param| {
+                    const param = std.mem.trimRight(u8, raw_param, "\r");
                     if (std.mem.eql(u8, param, "depth")) {
-                        if (iter.next()) |depth_str| {
+                        if (iter.next()) |raw_value| {
+                            const depth_str = std.mem.trimRight(u8, raw_value, "\r");
                             if (std.fmt.parseInt(u8, depth_str, 10)) |depth| {
-                                max_depth = @min(depth, 5);
-                            } else |_| {}
+                                depth_override = depth;
+                            } else |_| {
+                                if (self.debug_mode) try self.respond("info string Invalid depth value");
+                            }
+                        }
+                    } else if (std.mem.eql(u8, param, "movetime")) {
+                        if (iter.next()) |raw_value| {
+                            const time_str = std.mem.trimRight(u8, raw_value, "\r");
+                            if (std.fmt.parseInt(u64, time_str, 10)) |time_ms| {
+                                movetime = time_ms;
+                            } else |_| {
+                                if (self.debug_mode) try self.respond("info string Invalid movetime value");
+                            }
+                        }
+                    } else if (std.mem.eql(u8, param, "wtime")) {
+                        if (iter.next()) |raw_value| {
+                            const value_str = std.mem.trimRight(u8, raw_value, "\r");
+                            wtime = std.fmt.parseInt(u64, value_str, 10) catch wtime;
+                        }
+                    } else if (std.mem.eql(u8, param, "btime")) {
+                        if (iter.next()) |raw_value| {
+                            const value_str = std.mem.trimRight(u8, raw_value, "\r");
+                            btime = std.fmt.parseInt(u64, value_str, 10) catch btime;
+                        }
+                    } else if (std.mem.eql(u8, param, "winc")) {
+                        if (iter.next()) |raw_value| {
+                            const value_str = std.mem.trimRight(u8, raw_value, "\r");
+                            winc = std.fmt.parseInt(u64, value_str, 10) catch winc;
+                        }
+                    } else if (std.mem.eql(u8, param, "binc")) {
+                        if (iter.next()) |raw_value| {
+                            const value_str = std.mem.trimRight(u8, raw_value, "\r");
+                            binc = std.fmt.parseInt(u64, value_str, 10) catch binc;
+                        }
+                    } else if (std.mem.eql(u8, param, "movestogo")) {
+                        if (iter.next()) |raw_value| {
+                            const value_str = std.mem.trimRight(u8, raw_value, "\r");
+                            moves_to_go = std.fmt.parseInt(u32, value_str, 10) catch moves_to_go;
+                        }
+                    } else if (std.mem.eql(u8, param, "ponder")) {
+                        ponder_flag = true;
+                    } else if (std.mem.eql(u8, param, "infinite")) {
+                        infinite = true;
+                    }
+                }
+
+                if (ponder_flag) {
+                    self.ponder = true;
+                }
+
+                const depth_limit = depth_override orelse 3;
+                const reported_depth = self.determineSearchDepth(depth_limit);
+
+                try self.respond("info string Starting search");
+                const start_time = std.time.milliTimestamp();
+                var search_state = e.SearchState{};
+
+                if (!infinite) {
+                    const overhead = @as(u64, self.move_overhead);
+                    if (movetime) |time_ms| {
+                        const effective = if (time_ms > overhead) time_ms - overhead else 0;
+                        const casted = std.math.cast(i128, effective) orelse std.math.maxInt(i128);
+                        search_state.deadline = start_time + casted;
+                    } else {
+                        const side_time = if (self.current_board.position.sidetomove == 0) wtime else btime;
+                        if (side_time) |remaining| {
+                            const increment = if (self.current_board.position.sidetomove == 0) winc else binc;
+                            var allocation = remaining;
+                            if (moves_to_go) |mtg| {
+                                if (mtg > 0) {
+                                    allocation = remaining / mtg;
+                                }
+                            } else if (remaining > 0) {
+                                allocation = remaining / 30;
+                            }
+                            if (increment) |inc| allocation += inc;
+                            const effective = if (allocation > overhead) allocation - overhead else 0;
+                            const casted = std.math.cast(i128, effective) orelse std.math.maxInt(i128);
+                            search_state.deadline = start_time + casted;
                         }
                     }
                 }
-                try self.respond("info string Starting search");
-                const start_time = std.time.milliTimestamp();
-                if (try self.chooseBestMove()) |new_board| {
+
+                if (try self.chooseBestMove(depth_limit, &search_state)) |new_board| {
                     const end_time = std.time.milliTimestamp();
-                    const search_time = end_time - start_time;
+                    const raw_time = end_time - start_time;
+                    const search_time = if (raw_time < 0) 0 else raw_time;
                     const score = e.evaluate(new_board);
-                    const info_msg = try std.fmt.allocPrint(self.allocator, "info depth {d} score cp {d} time {d}", .{ max_depth, score, search_time });
+                    const info_msg = try std.fmt.allocPrint(self.allocator, "info depth {d} score cp {d} time {d}", .{ reported_depth, score, search_time });
                     try self.allocated_strings.append(self.allocator, info_msg);
                     try self.respond(info_msg);
                     const move = helpers.moveToUci(self.current_board, new_board);
@@ -454,7 +559,7 @@ pub const UciProtocol = struct {
             .stop => {
                 if (self.search_in_progress) {
                     self.search_in_progress = false;
-                    if (try self.chooseBestMove()) |new_board| {
+                    if (try self.chooseBestMove(3, null)) |new_board| {
                         const move = helpers.moveToUci(self.current_board, new_board);
                         var move_str: [10]u8 = undefined;
                         var move_len: usize = 4;
@@ -476,18 +581,32 @@ pub const UciProtocol = struct {
                 }
             },
             .ucinewgame => {
-                if (self.debug_mode) {
-                    try self.respond("Received ucinewgame command. Will be implemented in future.");
-                }
+                try self.debugInfo("Received ucinewgame command. Will be implemented in future.", .{});
                 self.current_board = b.Board{ .position = b.Position.init() };
             },
-            .quit => {
-                if (self.debug_mode) {
-                    try self.respond("Goodbye!");
+            .debug => {
+                var iter = std.mem.splitScalar(u8, line, ' ');
+                _ = iter.next();
+                if (iter.next()) |state| {
+                    if (std.mem.eql(u8, state, "on")) {
+                        self.debug_mode = true;
+                        try self.infof("Debug mode enabled", .{});
+                    } else if (std.mem.eql(u8, state, "off")) {
+                        self.debug_mode = false;
+                        // debugInfo would not emit after turning off, so respond directly.
+                        try self.infof("Debug mode disabled", .{});
+                    } else {
+                        try self.infof("Unknown debug argument: {s}", .{state});
+                    }
+                } else {
+                    try self.infof("Debug command missing state", .{});
                 }
             },
+            .quit => {
+                try self.debugInfo("Goodbye!", .{});
+            },
             else => {
-                try self.respond(line);
+                try self.debugInfo("Ignoring unsupported command: {s}", .{line});
             },
         }
     }

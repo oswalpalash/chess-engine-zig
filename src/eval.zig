@@ -3,6 +3,7 @@ const b = @import("board.zig");
 const m = @import("moves.zig");
 const s = @import("state.zig");
 const c = @import("consts.zig");
+const debug = @import("utils/debug.zig");
 const Board = b.Board;
 const Piece = b.Piece;
 
@@ -10,6 +11,22 @@ const Piece = b.Piece;
 pub const MAX_DEPTH = 3;
 pub const INFINITY_SCORE: i32 = 1000000;
 pub const CHECKMATE_SCORE: i32 = 900000;
+
+pub const SearchState = struct {
+    deadline: ?i128 = null,
+    stop_requested: bool = false,
+
+    pub fn shouldStop(self: *SearchState) bool {
+        if (self.stop_requested) return true;
+        if (self.deadline) |deadline| {
+            if (std.time.milliTimestamp() >= deadline) {
+                self.stop_requested = true;
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 pub fn evaluate(board: Board) i32 {
     var score: i32 = 0;
@@ -150,7 +167,20 @@ fn getPiecePositionValue(position: u64, table: [64]i32, is_white: bool) i32 {
 
 /// Minimax algorithm with alpha-beta pruning
 /// Returns the best score for the current position
-pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer: bool) i32 {
+pub fn minimax(
+    board: Board,
+    depth: u8,
+    alpha: i32,
+    beta: i32,
+    maximizingPlayer: bool,
+    search: ?*SearchState,
+) i32 {
+    if (search) |state| {
+        if (state.shouldStop()) {
+            return evaluate(board);
+        }
+    }
+
     // Base case: if we've reached the maximum depth or the game is over
     if (depth == 0) {
         return evaluate(board);
@@ -171,10 +201,20 @@ pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer:
 
     if (maximizingPlayer) {
         var value: i32 = -INFINITY_SCORE;
+        var explored_move = false;
         for (moves) |move| {
+            if (search) |state| {
+                if (state.shouldStop()) break;
+            }
+
             // Recursively evaluate the position
-            const eval_score = minimax(move, depth - 1, alpha, beta, false);
+            const eval_score = minimax(move, depth - 1, alpha, beta, false, search);
+            explored_move = true;
             value = @max(value, eval_score);
+
+            if (search) |state| {
+                if (state.shouldStop()) break;
+            }
 
             // Alpha-beta pruning
             const new_alpha = @max(alpha, value);
@@ -182,13 +222,26 @@ pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer:
                 break; // Beta cutoff
             }
         }
+        if (!explored_move) {
+            return evaluate(board);
+        }
         return value;
     } else {
         var value: i32 = INFINITY_SCORE;
+        var explored_move = false;
         for (moves) |move| {
+            if (search) |state| {
+                if (state.shouldStop()) break;
+            }
+
             // Recursively evaluate the position
-            const eval_score = minimax(move, depth - 1, alpha, beta, true);
+            const eval_score = minimax(move, depth - 1, alpha, beta, true, search);
+            explored_move = true;
             value = @min(value, eval_score);
+
+            if (search) |state| {
+                if (state.shouldStop()) break;
+            }
 
             // Alpha-beta pruning
             const new_beta = @min(beta, value);
@@ -196,12 +249,15 @@ pub fn minimax(board: Board, depth: u8, alpha: i32, beta: i32, maximizingPlayer:
                 break; // Alpha cutoff
             }
         }
+        if (!explored_move) {
+            return evaluate(board);
+        }
         return value;
     }
 }
 
 /// Find the best move using the minimax algorithm
-pub fn findBestMove(board: Board, depth: u8) ?Board {
+pub fn findBestMove(board: Board, depth: u8, search: ?*SearchState) ?Board {
     const moves = m.allvalidmoves(board);
     if (moves.len == 0) {
         return null; // No legal moves
@@ -265,9 +321,19 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
     var bestMoveIndex: usize = 0;
     const maximizingPlayer = board.position.sidetomove == 0; // White is maximizing
 
+    var evaluated_any = false;
     for (move_scores.items, 0..) |move_data, i| {
+        if (search) |state| {
+            if (state.shouldStop()) break;
+        }
+
         // For each move, evaluate the resulting position
-        const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer);
+        const score = minimax(move_data.move, depth - 1, -INFINITY_SCORE, INFINITY_SCORE, !maximizingPlayer, search);
+        evaluated_any = true;
+
+        if (search) |state| {
+            if (state.shouldStop()) break;
+        }
 
         // Update best move if we found a better one
         if (score > bestScore) {
@@ -276,10 +342,10 @@ pub fn findBestMove(board: Board, depth: u8) ?Board {
         }
     }
 
-    if (move_scores.items.len > 0) {
+    if (evaluated_any and move_scores.items.len > 0) {
         return move_scores.items[bestMoveIndex].move;
     } else if (moves.len > 0) {
-        // Fallback if move scoring failed
+        // Fallback if move scoring failed or time ran out before evaluation
         return moves[0];
     } else {
         return null;
@@ -565,15 +631,15 @@ test "minimax finds a move in checkmate position" {
     board.position.sidetomove = 0; // White to move
 
     // Find the best move
-    const best_move = findBestMove(board, 2);
+    const best_move = findBestMove(board, 2, null);
 
     // Verify that a move was found
     try std.testing.expect(best_move != null);
 
     // Print the move for debugging
     if (best_move) |move| {
-        std.debug.print("\nRook position in best move: {}\n", .{move.position.whitepieces.Rook[0].position});
-        std.debug.print("Queen position in best move: {}\n", .{move.position.whitepieces.Queen.position});
+        debug.print("\nRook position in best move: {}\n", .{move.position.whitepieces.Rook[0].position});
+        debug.print("Queen position in best move: {}\n", .{move.position.whitepieces.Queen.position});
     }
 }
 
